@@ -33,8 +33,9 @@ interface Store {
 
 // Fast Refresh can keep the mounted provider while re-evaluating this module.
 // Keep its context identity so refreshed consumers still read that provider.
-const Ctx: Context<Store | null> = import.meta.hot?.data.campusPulseContext ?? createContext<Store | null>(null);
-if (import.meta.hot) import.meta.hot.data.campusPulseContext = Ctx;
+const hotData = import.meta.hot?.data;
+const Ctx: Context<Store | null> = hotData?.campusPulseContext ?? createContext<Store | null>(null);
+if (hotData) hotData.campusPulseContext = Ctx;
 
 const now = () => {
   const d = new Date();
