@@ -62,7 +62,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -97,7 +97,7 @@ function RootComponent() {
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar />
-              <main className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-5">
+              <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-4">
                 <Outlet />
               </main>
             </div>
