@@ -63,10 +63,10 @@ export function UploadDialog() {
             <label
               onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
               onDragLeave={() => setDrag(false)}
-              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f && f.name.toLowerCase().endswith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed py-7 text-center transition-colors ${drag ? "border-primary bg-primary-soft" : "hover:border-primary/40"}`}
             >
-              <input aria-label="Upload PDF" type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endswith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }} />
+              <input aria-label="Upload PDF" type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }} />
               {file ? (<><FileText className="mb-2 h-6 w-6 text-primary" /><span className="text-[13px] font-medium">{file}</span><span className="text-[11.5px] text-muted-foreground">Ready to analyze</span></>) : (<><UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" /><span className="text-[13px] font-medium">Drop a PDF here or click to browse</span><span className="text-[11.5px] text-muted-foreground">Up to 20 MB</span></>)}
             </label>
             <div className="flex items-center justify-between pt-1">

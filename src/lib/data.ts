@@ -235,7 +235,8 @@ export const adminActivity: Activity[] = [
 ];
 
 // Explicit demonstration excerpts, not a claim of parsing an uploaded file.
-export const documentFragments = knowledgeDocs.flatMap((doc) => doc.id === "d1"
+export interface DocumentFragment { id: string; documentId: string; page: number; text: string; concept: string; assignmentId?: string; requirementId?: string; }
+export const documentFragments = knowledgeDocs.flatMap<DocumentFragment>((doc) => doc.id === "d1"
   ? requirements.map((req) => ({ id: `d1-${req.id}`, documentId: doc.id, page: req.page, text: req.detail, concept: req.text, assignmentId: "se-a3", requirementId: req.id }))
   : doc.concepts.map((concept, i) => ({ id: `${doc.id}-${i}`, documentId: doc.id, page: Math.min(doc.pages, i + 1), text: `${concept} — demonstration excerpt from ${doc.title}.`, concept, assignmentId: doc.id === "d2" ? "se-a2" : doc.id === "d6" ? "os-l5" : undefined, requirementId: undefined })));
 
@@ -256,3 +257,12 @@ export const generatedStudySlots = [
   { day: 2, start: 15, end: 17 }, { day: 2, start: 17, end: 18.5 },
   { day: 4, start: 13, end: 14 }, { day: 4, start: 14, end: 16 },
 ];
+
+export const facultyCourseCatalog = adminCourses.map((course) => ({ ...course, code: courseCatalog.find((item) => item.id === course.id)?.code, instructor: courseCatalog.find((item) => item.id === course.id)?.instructor }));
+export const facultySummary = {
+  enrolments: adminCourses.reduce((sum, course) => sum + course.students, 0),
+  courses: adminCourses.length,
+  highestRisk: Math.max(...adminCourses.map((course) => course.risk)),
+  peak: adminCohort.reduce((highest, week) => week.estimated > highest.estimated ? week : highest),
+  averageLoad: Math.round(adminCohort.reduce((sum, week) => sum + week.estimated, 0) / adminCohort.length * 10) / 10,
+};
