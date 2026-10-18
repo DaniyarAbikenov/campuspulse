@@ -96,7 +96,7 @@ export function StoreProvider({ children, onRoleChange }: { children: ReactNode;
     return { ...assignment, estimate: proposalTasks.reduce((sum, task) => sum + task.estimate, 0), progress: board.length ? Math.round(done / board.length * 100) : 0,
       status: (board.length && done === board.length ? "Completed" : board.some((task) => task.column !== "todo") ? "In Progress" : "To Do") as Assignment["status"] };
   });
-  const liveCourses = summarizeCourses(liveAssignments);
+  const liveCourses = summarizeCourses(liveAssignments).map((course) => course.id === "se" && liveAssignments.find((assignment) => assignment.id === "se-a3")?.status !== "Completed" ? { ...course, remaining: course.remaining - tasks.filter((task) => task.ai && task.column === "done").reduce((sum, task) => sum + task.estimate, 0) } : course);
   const proposalDelta = proposalTasks.reduce((sum, task) => sum + task.estimate, 0) - 8.5;
   const completedHours = tasks.filter((task) => task.column === "done" && task.ai).reduce((sum, task) => sum + task.estimate, 0);
   const distribution = weeklyWorkload.map((day, index) => ({ ...day, required: Math.max(0, day.required + (index === 2 ? proposalDelta : 0) - completedHours * day.required / 21.5 + (workloadPlanApplied ? index === 0 ? 2 : index === 2 ? -2 : 0 : 0)) }));
@@ -108,7 +108,7 @@ export function StoreProvider({ children, onRoleChange }: { children: ReactNode;
     mobileNavOpen, setMobileNavOpen, workloadPlanApplied,
     proposalApproved, proposalTasks, analysisSource, generatedScheduled,
     assignments: liveAssignments, courses: liveCourses, distribution,
-    workload: { required, available: weeklyWorkload.reduce((sum, day) => sum + day.available, 0), allRemaining: liveCourses.reduce((sum, course) => sum + course.remaining, 0) - (liveAssignments.find((assignment) => assignment.id === "se-a3")?.status === "Completed" ? 0 : completedHours), scheduled: scheduledHours, unscheduled: Math.max(0, required - scheduledHours) },
+    workload: { required, available: weeklyWorkload.reduce((sum, day) => sum + day.available, 0), allRemaining: liveCourses.reduce((sum, course) => sum + course.remaining, 0), scheduled: scheduledHours, unscheduled: Math.max(0, required - scheduledHours) },
     recordAnalysis: (source) => { setAnalysisSource(source); log({ title: "PDF analysis ready for approval", detail: `${source} · simulated fixture · ${proposalTasks.length} proposed tasks`, kind: "analysis", status: "success" }); },
     setProposalEstimate: (index, estimate) => { if (imported.current || !Number.isFinite(estimate) || estimate <= 0) return; setProposalTasks((items) => items.map((task, i) => i === index ? { ...task, estimate } : task)); approved.current = false; setProposalApproved(false); setInsights((items) => items.map((insight) => insight.id === "i2" ? { ...insight, status: "New" } : insight)); },
     approveProposal: () => { if (imported.current) return; approved.current = true; setProposalApproved(true); setInsights((items) => items.map((insight) => insight.id === "i2" ? { ...insight, status: "Accepted" } : insight)); },

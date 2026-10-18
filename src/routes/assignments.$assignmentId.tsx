@@ -14,6 +14,10 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/assignments/$assignmentId")({
   beforeLoad: guardWorkspace,
+  validateSearch: (search: Record<string, unknown>): { page?: number } => {
+    const page = Number(search.page);
+    return Number.isInteger(page) && page >= 1 && page <= 4 ? { page } : {};
+  },
   loader: ({ params }) => {
     const a = assignments.find((x) => x.id === params.assignmentId);
     if (!a) throw notFound();
@@ -56,7 +60,8 @@ function RichAssignment() {
   const { addGeneratedTasks, tasksGenerated, log, openChat, proposalTasks, proposalApproved, approveProposal, setProposalEstimate, assignments: liveAssignments, tasks, recordAnalysis, analysisSource } = useStore();
   const navigate = useNavigate();
   const [openReq, setOpenReq] = useState<string | null>("R2");
-  const [page, setPage] = useState(2);
+  const search = Route.useSearch();
+  const [page, setPage] = useState(search.page ?? 2);
   const [zoom, setZoom] = useState(100);
   const [running, setRunning] = useState(false);
   const [analyzedAt, setAnalyzedAt] = useState("Today, 09:42");
