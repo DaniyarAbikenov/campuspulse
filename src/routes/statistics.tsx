@@ -54,9 +54,8 @@ function Stats() {
           <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">{localize("Assignment")}</th><th scope="col" className="font-medium">{localize("Course")}</th><th scope="col" className="font-medium">{localize("Estimate")}</th><th scope="col" className="font-medium">{localize("Actual")}</th><th scope="col" className="px-4 font-medium">{localize("Δ")}</th></tr></thead>
           <tbody>{localize(done.map((a) => {
   useI18n(); const d = (a.actual ?? 0) - a.estimate; return (
-            <tr key={a.id} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{a.title}</td><td>{courseOf(a.courseId).name}</td><td className="tabular-nums">{a.estimate}h</td><td className="tabular-nums">{a.actual}h</td><td className={`px-4 tabular-nums ${d > 0 ? "text-destructive" : "text-success"}`}>{d > 0 ? "+" : ""}{d}h</td></tr>
-          ); })): "text-success"}`}>{localize(d > 0 ? "+" : "")}{localize(d)}{localize("h")}</td></tr>
-          ); })}</tbody>
+            <tr key={a.id} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{localize(a.title)}</td><td>{localize(courseOf(a.courseId).name)}</td><td className="tabular-nums">{localize(a.estimate)}{localize("h")}</td><td className="tabular-nums">{localize(a.actual)}{localize("h")}</td><td className={`px-4 tabular-nums ${d > 0 ? "text-destructive" : "text-success"}`}>{localize(d > 0 ? "+" : "")}{localize(d)}{localize("h")}</td></tr>
+          ); }))}</tbody>
         </table>
       </Panel>
     </>

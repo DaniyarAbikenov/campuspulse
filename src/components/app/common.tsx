@@ -27,10 +27,10 @@ export function Panel({ title, subtitle, action, children, className, bodyClass,
       {localize(title && (
         <header className="panel-header grid min-h-[42px] grid-cols-[minmax(0,1fr)_auto] items-center sm:flex sm:justify-between gap-2 border-b px-3.5 py-2">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight">{localize(title)}{localize(ai && <AIBadge label="AI" />)ze("AI")} />}</h2>
-            {localize(subtitle && <p className="mt-0.5 text-[11.5px] leading-tight text-muted-foreground">{subtitle}</p>)itle)}</p>}
+            <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight">{localize(title)}{localize(ai && <AIBadge label={localize("AI")} />)}</h2>
+            {localize(subtitle && <p className="mt-0.5 text-[11.5px] leading-tight text-muted-foreground">{localize(subtitle)}</p>)}
           </div>
-          {localize(action && <div className="panel-actions min-w-0 shrink-0">{action}</div>)on)}</div>}
+          {localize(action && <div className="panel-actions min-w-0 shrink-0">{localize(action)}</div>)}
         </header>
       ))}
       <div className={cn("min-w-0 overflow-x-auto p-3.5", bodyClass)}>{localize(children)}</div>

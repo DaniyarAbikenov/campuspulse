@@ -45,11 +45,10 @@ export function Topbar() {
           <span key={i} className="flex min-w-0 items-center gap-1">
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
             {localize(i === parts.length - 1 || parts.length === 0 ? (
-              <span className="truncate font-medium">{crumbName(p, i)}</span>
+              <span className="truncate font-medium">{localize(crumbName(p, i))}</span>
             ) : (
-              <Link to={`/${parts.slice(0, i + 1).join("/")}` as "/"} className="text-muted-foreground hover:text-foreground">{crumbName(p, i)}</Link>
-            ))/Link>
-            )}
+              <Link to={`/${parts.slice(0, i + 1).join("/")}` as "/"} className="text-muted-foreground hover:text-foreground">{localize(crumbName(p, i))}</Link>
+            ))}
           </span>
         )))}
       </nav>
@@ -93,7 +92,7 @@ export function Topbar() {
             {localize((role === "admin" ? facultyCourseCatalog : courses).map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{localize(c.name)} <span className="ml-auto text-[11px] text-muted-foreground">{localize(c.code)}</span></CommandItem>))}
           </CommandGroup>
           {localize(role === "student" && <CommandGroup heading={localize("Assignments")}>
-            {localize(assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{a.title} <span className="ml-auto text-[11px] text-muted-foreground">{courseOf(a.courseId).code}</span></CommandItem>))span></CommandItem>)}
+            {localize(assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{localize(a.title)} <span className="ml-auto text-[11px] text-muted-foreground">{localize(courseOf(a.courseId).code)}</span></CommandItem>))}
           </CommandGroup>)
           }
           <CommandGroup heading={localize("Actions")}>

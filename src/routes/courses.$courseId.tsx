@@ -69,14 +69,14 @@ function CourseDetails() {
                     <td className="px-4 py-2.5 font-medium"><Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="hover:text-primary">{localize(a.title)}</Link></td>
                     <td className="px-2 tabular-nums">{localize(a.deadline)}</td><td className="px-2"><StatusBadge status={a.status} /></td>
                     <td className="px-2 tabular-nums">{localize(a.estimate)}{localize("h")}</td><td className="px-2 tabular-nums text-muted-foreground">{localize(a.actual ? `${a.actual}h` : "—")}</td>
-                    <td className="px-4 text-[12px] text-muted-foreground">{localize(a.dependsOn ? <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{a.relation} {assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0]}</span> : "—")")[0])}</span> : "—"}</td>
+                    <td className="px-4 text-[12px] text-muted-foreground">{localize(a.dependsOn ? <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{localize(a.relation)} {localize(assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0])}</span> : "—")}</td>
                   </tr>
                 )))}</tbody>
               </table>
             </div>
           </TabsContent>
           <TabsContent value="kanban"><KanbanBoard courseId={course.id} /></TabsContent>
-          <TabsContent value="materials"><div className="grid gap-3 md:grid-cols-2">{localize(docs.map((d) => <div key={d.id} className="panel p-3"><div className="flex items-center gap-2 text-[13px] font-medium"><FileText className="h-4 w-4 text-primary" />{localize(d.title)}</div><div className="mt-1 text-[11.5px] text-muted-foreground">{localize(d.type)} {localize("·")} {localize(d.pages)} {localize("pages · indexed")} {localize(d.indexed)}</div><div className="mt-2 flex flex-wrap gap-1">{localize(d.concepts.map((c) => <span key={c} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{c}</span>)))}</span>)}</div></div>))}</div></TabsContent>
+          <TabsContent value="materials"><div className="grid gap-3 md:grid-cols-2">{localize(docs.map((d) => <div key={d.id} className="panel p-3"><div className="flex items-center gap-2 text-[13px] font-medium"><FileText className="h-4 w-4 text-primary" />{localize(d.title)}</div><div className="mt-1 text-[11.5px] text-muted-foreground">{localize(d.type)} {localize("·")} {localize(d.pages)} {localize("pages · indexed")} {localize(d.indexed)}</div><div className="mt-2 flex flex-wrap gap-1">{localize(d.concepts.map((c) => <span key={c} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{localize(c)}</span>))}</div></div>))}</div></TabsContent>
           <TabsContent value="timeline">
             <Panel title={localize("Assignment progression")} subtitle={localize("How assignments build on each other")}>
               {localize(chain.length ? (
@@ -84,14 +84,13 @@ function CourseDetails() {
                   {localize(chain.map((a, i) => (
                     <div key={a.id} className="flex items-center gap-2">
                       <Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className={cn("w-44 rounded-lg border p-3 transition-colors hover:border-primary/40", a.status === "In Progress" && "border-primary ring-2 ring-primary/15")}>
-                        <div className="text-[11px] text-muted-foreground">{a.deadline}</div>
-                        <div className="text-[12.5px] font-medium leading-snug">{a.title}</div>
+                        <div className="text-[11px] text-muted-foreground">{localize(a.deadline)}</div>
+                        <div className="text-[12.5px] font-medium leading-snug">{localize(a.title)}</div>
                         <div className="mt-1.5"><StatusBadge status={a.status} /></div>
                       </Link>
-                      {i < chain.length - 1 && <div className="flex flex-col items-center text-[10px] text-muted-foreground"><span>{chain[i + 1]?.relation}</span><ArrowRight className="h-4 w-4" /></div>}
+                      {localize(i < chain.length - 1 && <div className="flex flex-col items-center text-[10px] text-muted-foreground"><span>{localize(chain[i + 1]?.relation)}</span><ArrowRight className="h-4 w-4" /></div>)}
                     </div>
-                  )))             </div>
-                  ))}
+                  )))}
                 </div>
               ) : <p className="text-[13px] text-muted-foreground">{localize("No dependencies detected for this course yet.")}</p>)}
             </Panel>

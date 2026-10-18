@@ -51,7 +51,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
           toast(s === "Snoozed" ? "We'll remind you tomorrow at 09:00" : "Insight dismissed", { action: { label: "Undo", onClick: () => setInsightStatus(insight.id, "New") } });
         }}>{localize(insight.secondary)}</Button>
         {localize(insight.status === "New" && <Button size="sm" variant="outline" className="h-7 px-2 text-[12px]" onClick={() => setInsightStatus(insight.id, "Accepted")}>{localize("Accept recommendation")}</Button>)}
-        {localize(["New", "Accepted"].includes(insight.status) && ["i1", "i2"].includes(insight.id) && <Button size="sm" variant="outline" onClick={() => { if (insight.id === "i1") applyWorkloadPlan(); else { approveProposal(); addGeneratedTasks(); } toast.success(localize("Recommendation applied")); }}>Apply{insight.id === "i2" && !tasksGenerated ? " to Kanban" : " plan"}</Button>)an" : " plan")}</Button>}
+        {localize(["New", "Accepted"].includes(insight.status) && ["i1", "i2"].includes(insight.id) && <Button size="sm" variant="outline" onClick={() => { if (insight.id === "i1") applyWorkloadPlan(); else { approveProposal(); addGeneratedTasks(); } toast.success(localize("Recommendation applied")); }}>{localize("Apply")}{localize(insight.id === "i2" && !tasksGenerated ? " to Kanban" : " plan")}</Button>)}
         {localize(!["Dismissed", "Applied"].includes(insight.status) && insight.secondary !== "Dismiss" && <Button size="sm" variant="ghost" onClick={() => setInsightStatus(insight.id, "Dismissed")}>{localize("Dismiss")}</Button>)}
         {localize(insight.status !== "New" && <span className="ml-auto"><StatusBadge status={insight.status} /></span>)}
       </div>
@@ -138,16 +138,13 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
           <li key={a.id} className="relative flex gap-3">
             <span className={cn("z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border bg-card", a.status === "warning" ? "text-warning" : "text-muted-foreground")}><Icon className="h-3 w-3" /></span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-[12.5px]"><span className="font-medium">{a.title}</span>{a.status === "success" && <CheckCircle2 className="h-3 w-3 text-success" />}</div>
-              <div className="truncate text-[11.5px] text-muted-foreground">{a.detail}</div>
+              <div className="flex items-center gap-2 text-[12.5px]"><span className="font-medium">{localize(a.title)}</span>{localize(a.status === "success" && <CheckCircle2 className="h-3 w-3 text-success" />)}</div>
+              <div className="truncate text-[11.5px] text-muted-foreground">{localize(a.detail)}</div>
             </div>
-            <span className="font-mono text-[11px] text-muted-foreground">{a.time}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{localize(a.time)}</span>
           </li>
         );
-      }))pan>
-          </li>
-        );
-      })}
+      }))}
     </ol>
   );
 }

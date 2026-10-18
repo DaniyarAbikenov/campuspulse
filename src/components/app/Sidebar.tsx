@@ -87,13 +87,13 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       <nav className="flex-1 overflow-y-auto px-2 py-1">
         {localize(nav.map((g) => (
           <div key={g.group} className="mb-3">
-            {!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{g.group}</div>}
-            {g.items.map((item) => {
+            {localize(!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{localize(g.group)}</div>)}
+            {localize(g.items.map((item) => {
   useI18n();
               const Icon = item.icon;
               const link = (
                 <Link
-                  aria-label={item.label}
+                  aria-label={localize(item.label)}
                   key={item.to + item.label}
                   to={item.to}
                   activeOptions={{ exact: item.to === "/" || item.to === "/admin" }}
@@ -101,20 +101,16 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                   activeProps={{ className: "bg-sidebar-accent !text-foreground font-medium" }}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  {!collapsed && "badge" in item && newCount > 0 && <span className="rounded bg-primary-soft px-1.5 text-[10.5px] font-semibold text-primary">{newCount}</span>}
+                  {localize(!collapsed && <span className="flex-1 truncate">{localize(item.label)}</span>)}
+                  {localize(!collapsed && "badge" in item && newCount > 0 && <span className="rounded bg-primary-soft px-1.5 text-[10.5px] font-semibold text-primary">{localize(newCount)}</span>)}
                 </Link>
               );
               return collapsed ? (
-                <Tooltip key={item.label}><TooltipTrigger asChild>{link}</TooltipTrigger><TooltipContent side="right">{item.label}</TooltipContent></Tooltip>
+                <Tooltip key={item.label}><TooltipTrigger asChild>{localize(link)}</TooltipTrigger><TooltipContent side="right">{localize(item.label)}</TooltipContent></Tooltip>
               ) : link;
-            })}
+            }))}
           </div>
-        ))))el)}</TooltipContent></Tooltip>
-              ) : link;
-            })}
-          </div>
-        ))}
+        )))}
       </nav>
 
       <div className="border-t p-2">

@@ -115,10 +115,10 @@ function RichAssignment() {
                 </Button>
                 {localize(openReq === r.id && (
                   <div className="space-y-2 px-3.5 pb-2.5 pl-[58px] animate-in fade-in slide-in-from-top-1">
-                    <p className="text-[12.5px] text-muted-foreground">{r.detail}</p>
+                    <p className="text-[12.5px] text-muted-foreground">{localize(r.detail)}</p>
                     <SourceReference file="Assignment_3.pdf" page={r.page} onClick={() => setPage(r.page)} />
                   </div>
-                ))         )}
+                ))}
               </div>
             )))}
           </Panel>
@@ -134,7 +134,7 @@ function RichAssignment() {
               {localize([["Reusable", "text-success", ["REST Controllers", "User Entity", "PostgreSQL Configuration"]], ["New", "text-primary", ["JWT Service", "Security Filters", "Authentication Endpoints"]], ["Modified", "text-warning", ["User Service", "Existing Tests"]]].map(([k, cls, items]) => (
                 <div key={k as string} className="rounded-md border bg-card p-2.5">
                   <div className={cn("mb-1 text-[11.5px] font-semibold uppercase tracking-wide", cls as string)}>{localize(k as string)} {localize("components")}</div>
-                  {localize((items as string[]).map((i) => <div key={i} className="font-mono text-[12px]">{i}</div>))i)}</div>)}
+                  {localize((items as string[]).map((i) => <div key={i} className="font-mono text-[12px]">{localize(i)}</div>))}
                 </div>
               )))}
             </div>
@@ -155,7 +155,7 @@ function RichAssignment() {
                   <td><PriorityIndicator priority={t.priority} /></td>
                   <td className="font-mono text-[11.5px]">{localize(t.req)}</td>
                   <td className="px-4 text-right tabular-nums">
-                    {localize(editing ? <input aria-label={`Estimate for ${t.title}`} type="number" step="0.5" min="0" value={estimates[i]} onChange={(e) => setProposalEstimate(i, Number(e.target.value))} className="h-7 w-16 rounded border px-1.5 text-right" /> : `${estimates[i]}h`)ates[i]}h`}
+                    {localize(editing ? <input aria-label={localize(`Estimate for ${t.title}`)} type="number" step="0.5" min="0" value={estimates[i]} onChange={(e) => setProposalEstimate(i, Number(e.target.value))} className="h-7 w-16 rounded border px-1.5 text-right" /> : `${estimates[i]}h`)}
                   </td>
                 </tr>
               )))}</tbody>
@@ -191,7 +191,7 @@ function RichAssignment() {
             {localize(running ? <AnalysisProgress running onDone={finish} /> : (
               <dl className="space-y-2 text-[12.5px]">
                 <div><dt className="sr-only">{localize("Analysis result")}</dt><dd className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> {localize("Document processed successfully")}</dd></div>
-                {localize([["Requirements extracted", "6"], ["Related assignments detected", "1"], ["Estimated difficulty", "Medium–High"], ["Last analyzed", analyzedAt]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>))lize(v)}</dd></div>)}
+                {localize([["Requirements extracted", "6"], ["Related assignments detected", "1"], ["Estimated difficulty", "Medium–High"], ["Last analyzed", analyzedAt]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{localize(k)}</dt><dd className="font-medium">{localize(v)}</dd></div>))}
               </dl>
             ))}
           </Panel>

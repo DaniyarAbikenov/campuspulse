@@ -84,13 +84,11 @@ export function ChatDrawer() {
             <div key={i} className={cn("max-w-[90%] text-[13px]", m.role === "user" ? "ml-auto rounded-lg bg-primary px-3 py-2 text-primary-foreground" : "")}>
               {localize(m.role === "ai" ? (
                 <div className="rounded-lg border bg-card p-3">
-                  <p className="leading-relaxed">{m.text}</p>
-                  {m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{m.list.map((l) => <li key={l}>{l}</li>)}</ol>}
-                  {m.sources && <div className="mt-2 flex flex-wrap gap-1">{m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{s}</span>)}</div>}
+                  <p className="leading-relaxed">{localize(m.text)}</p>
+                  {localize(m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{localize(m.list.map((l) => <li key={l}>{localize(l)}</li>))}</ol>)}
+                  {localize(m.sources && <div className="mt-2 flex flex-wrap gap-1">{localize(m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{localize(s)}</span>))}</div>)}
                 </div>
-              ) : m.text))>)))}</span>)}</div>}
-                </div>
-              ) : m.text}
+              ) : m.text)}
             </div>
           )))}
           {localize(typing && <div className="flex gap-1 px-1">{localize([0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />))}</div>)}

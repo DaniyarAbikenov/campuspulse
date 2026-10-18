@@ -58,20 +58,17 @@ function Schedule() {
               <div key={di} className="relative border-l" style={{ height: H * hours.length }}>
                 {localize(hours.map((h) => <div key={h} style={{ height: H }} className="border-b border-dashed border-border/70" />))}
                 {localize(freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
-                  <Button variant="ghost" aria-label={`Plan study session ${s.label}`} key={s.id} onClick={() => setSlot(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}
+                  <Button variant="ghost" aria-label={localize(`Plan study session ${s.label}`)} key={s.id} onClick={() => setSlot(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}
                     className="absolute inset-x-1 flex-col items-start whitespace-normal rounded-md border border-dashed border-success/50 bg-success-soft/70 p-1.5 text-left text-[11px] text-success hover:bg-success-soft">
-                    <div className="font-medium">Free slot</div><div>+ Plan session</div>
+                    <div className="font-medium">{localize("Free slot")}</div><div>{localize("+ Plan session")}</div>
                   </Button>
-                )))          </Button>
-                ))}
+                )))}
                 {localize(events.filter((e) => e.day === di).map((e) => (
                   <div key={e.id} style={{ top: (e.start - 8) * H + 1, height: (e.end - e.start) * H - 2 }} className={cn("absolute inset-x-1 overflow-hidden rounded-md border p-1.5 text-[11px] animate-in fade-in", kindCls[e.kind])}>
-                    <div className="font-medium leading-tight">{e.title}</div>
-                    <div className="font-mono text-[10px]">{formatHour(e.start)}–{formatHour(e.end)}</div>
+                    <div className="font-medium leading-tight">{localize(e.title)}</div>
+                    <div className="font-mono text-[10px]">{localize(formatHour(e.start))}{localize("–")}{localize(formatHour(e.end))}</div>
                   </div>
-                )))
-                  </div>
-                ))}
+                )))}
               </div>
             )))}
           </div>
@@ -81,7 +78,7 @@ function Schedule() {
             {localize(freeSlots.map((s) => (
               <div key={s.id} className="flex items-center justify-between border-b py-2 text-[12.5px] last:border-0">
                 <span>{localize(s.label)}</span>
-                {localize(taken(s) ? <span className="text-[11.5px] text-primary">Planned</span> : <Button size="sm" variant="ghost" className="h-6 text-[11.5px]" onClick={() => setSlot(s)}>Plan</Button>)>{localize("Plan")}</Button>}
+                {localize(taken(s) ? <span className="text-[11.5px] text-primary">{localize("Planned")}</span> : <Button size="sm" variant="ghost" className="h-6 text-[11.5px]" onClick={() => setSlot(s)}>{localize("Plan")}</Button>)}
               </div>
             )))}
           </Panel>

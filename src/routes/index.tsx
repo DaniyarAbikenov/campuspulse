@@ -57,7 +57,7 @@ function Overview() {
                 <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{localize(s.start)}{localize("–")}{localize(s.end)}</div>
                 <div className="min-w-0">
                   <div className={cn("text-[13px] font-medium", s.kind === "free" && "text-success")}>{localize(s.title)}</div>
-                  {localize(s.room && <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin className="h-3 w-3" />{s.room}</div>)om)}</div>}
+                  {localize(s.room && <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin className="h-3 w-3" />{localize(s.room)}</div>)}
                 </div>
               </li>
             )))}

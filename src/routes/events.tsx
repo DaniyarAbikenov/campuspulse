@@ -34,22 +34,19 @@ function Events() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {localize(list.map((e) => (
           <article key={e.id} className="panel flex flex-col p-4">
-            <div className="flex items-center justify-between"><span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{e.category}</span><span className="text-[11.5px] font-medium text-ai tabular-nums">{e.match}% match</span></div>
-            <h2 className="mt-2 text-[14px] font-semibold">{e.title}</h2>
+            <div className="flex items-center justify-between"><span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{localize(e.category)}</span><span className="text-[11.5px] font-medium text-ai tabular-nums">{localize(e.match)}{localize("% match")}</span></div>
+            <h2 className="mt-2 text-[14px] font-semibold">{localize(e.title)}</h2>
             <div className="mt-2 space-y-1 text-[12px] text-muted-foreground">
-              <div className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{e.date}</div>
-              <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{e.time}</div>
-              <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{e.place}</div>
+              <div className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{localize(e.date)}</div>
+              <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{localize(e.time)}</div>
+              <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{localize(e.place)}</div>
             </div>
-            <p className="mt-3 rounded-md bg-ai-soft/60 px-2.5 py-1.5 text-[12px]">{e.reason}</p>
+            <p className="mt-3 rounded-md bg-ai-soft/60 px-2.5 py-1.5 text-[12px]">{localize(e.reason)}</p>
             <Button size="sm" variant={saved.includes(e.id) ? "secondary" : "outline"} className="mt-3 h-7 text-[12px]" onClick={() => { setSaved((s) => s.includes(e.id) ? s.filter((x) => x !== e.id) : [...s, e.id]); if (!saved.includes(e.id)) { const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].findIndex((day) => e.date.startsWith(day)); const start = Number(e.time.split("–")[0]?.split(":")[0] ?? 0); const end = Number(e.time.split("–")[1]?.split(":")[0] ?? start + 1); if (["e1", "e2", "e3", "e5", "e6"].includes(e.id) && !events.some((event) => event.title === e.title)) addEvent({ day, start, end, title: e.title, kind: "event" }); toast.success(localize("Event saved"), { description: localize(`${e.date} · ${e.time}`) }); } }}>
-              {saved.includes(e.id) ? <><Check className="h-3.5 w-3.5" /> Added</> : "Save event"}
+              {localize(saved.includes(e.id) ? <><Check className="h-3.5 w-3.5" /> {localize("Added")}</> : "Save event")}
             </Button>
           </article>
-        )))-3.5 w-3.5" /> Added</> : "Save event"): "Save event"}
-            </Button>
-          </article>
-        ))}
+        )))}
       </div>
     </>
   );

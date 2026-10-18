@@ -55,32 +55,28 @@ export function UploadDialog() {
         {localize(phase === "form" && (
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="upload-course" className="text-[12px]">Course</Label>
+              <div className="space-y-1.5"><Label htmlFor="upload-course" className="text-[12px]">{localize("Course")}</Label>
                 <Select disabled value={course} onValueChange={setCourse}><SelectTrigger id="upload-course" className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>{courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+                  <SelectContent>{localize(courses.map((c) => <SelectItem key={c.id} value={c.id}>{localize(c.name)}</SelectItem>))}</SelectContent></Select>
               </div>
-              <div className="space-y-1.5"><Label htmlFor="upload-deadline" className="text-[12px]">Deadline</Label><Input id="upload-deadline" readOnly type="date" className="h-9" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="upload-deadline" className="text-[12px]">{localize("Deadline")}</Label><Input id="upload-deadline" readOnly type="date" className="h-9" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
             </div>
-            <div className="space-y-1.5"><Label htmlFor="upload-title" className="text-[12px]">Assignment title</Label><Input id="upload-title" className="h-9" readOnly value={title} placeholder="e.g. Assignment 3 — Authentication" /></div>
+            <div className="space-y-1.5"><Label htmlFor="upload-title" className="text-[12px]">{localize("Assignment title")}</Label><Input id="upload-title" className="h-9" readOnly value={title} placeholder={localize("e.g. Assignment 3 — Authentication")} /></div>
             <label
               onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
               onDragLeave={() => setDrag(false)}
               onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error(localize("Choose a PDF up to 20 MB")); }}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed py-7 text-center transition-colors ${drag ? "border-primary bg-primary-soft" : "hover:border-primary/40"}`}
             >
-              <input aria-label="Upload PDF" type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error(localize("Choose a PDF up to 20 MB")); }} />
-              {file ? (<><FileText className="mb-2 h-6 w-6 text-primary" /><span className="text-[13px] font-medium">{file}</span><span className="text-[11.5px] text-muted-foreground">Ready to analyze</span></>) : (<><UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" /><span className="text-[13px] font-medium">Drop a PDF here or click to browse</span><span className="text-[11.5px] text-muted-foreground">Up to 20 MB</span></>)}
+              <input aria-label={localize("Upload PDF")} type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error(localize("Choose a PDF up to 20 MB")); }} />
+              {localize(file ? (<><FileText className="mb-2 h-6 w-6 text-primary" /><span className="text-[13px] font-medium">{localize(file)}</span><span className="text-[11.5px] text-muted-foreground">{localize("Ready to analyze")}</span></>) : (<><UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" /><span className="text-[13px] font-medium">{localize("Drop a PDF here or click to browse")}</span><span className="text-[11.5px] text-muted-foreground">{localize("Up to 20 MB")}</span></>))}
             </label>
             <div className="flex items-center justify-between pt-1">
-              <Button variant="ghost" size="sm" onClick={useDemo}><Sparkles className="h-3.5 w-3.5 text-primary" /> Use Demo Assignment</Button>
-              <Button size="sm" disabled={!file} onClick={() => setPhase("running")}>Analyze Assignment</Button>
-            </div>
-          </div>
-        ))on>
+              <Button variant="ghost" size="sm" onClick={useDemo}><Sparkles className="h-3.5 w-3.5 text-primary" /> {localize("Use Demo Assignment")}</Button>
               <Button size="sm" disabled={!file} onClick={() => setPhase("running")}>{localize("Analyze Assignment")}</Button>
             </div>
           </div>
-        )}
+        ))}
 
         {localize(phase === "running" && <div className="py-2"><AnalysisProgress running onDone={done} steps={steps} /></div>)}
 
@@ -88,23 +84,22 @@ export function UploadDialog() {
           <div className="space-y-3 text-[13px]">
             <div className="grid grid-cols-3 gap-2">
               {localize([["Course", "Software Engineering"], ["Deadline", "Oct 23, 2026"], ["Estimate", `${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)} hours`]].map(([k, v]) => (
-                <div key={k} className="rounded-md border bg-secondary/50 px-3 py-2"><div className="text-[11px] text-muted-foreground">{k}</div><div className="font-medium">{v}</div></div>
-              )))iv>
-              ))}
+                <div key={k} className="rounded-md border bg-secondary/50 px-3 py-2"><div className="text-[11px] text-muted-foreground">{localize(k)}</div><div className="font-medium">{localize(v)}</div></div>
+              )))}
             </div>
             <div className="rounded-md border p-3">
               <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> {localize(requirements.length)} {localize("requirements extracted")}</div>
-              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[12px] text-muted-foreground">{localize(requirements.map((r) => <li key={r.id}><span className="font-mono text-[11px] text-foreground">{r.id}</span> {r.text}</li>))alize(r.text)}</li>)}</ul>
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[12px] text-muted-foreground">{localize(requirements.map((r) => <li key={r.id}><span className="font-mono text-[11px] text-foreground">{localize(r.id)}</span> {localize(r.text)}</li>))}</ul>
             </div>
             <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info-soft px-3 py-2 text-[12.5px]"><Link2 className="h-3.5 w-3.5 text-info" /> {localize("Extends")} <b>{localize("Assignment 2 — Database Integration")}</b></div>
             <div className="rounded-md border p-3">
               <div className="mb-1.5 text-[12px] font-medium">{localize(proposalTasks.length)} {localize("generated tasks")}</div>
-              {localize(proposalTasks.map((t) => <div key={t.title} className="flex justify-between py-0.5 text-[12px]"><span>{t.title}</span><span className="tabular-nums text-muted-foreground">{t.estimate}h</span></div>))ate)}{localize("h")}</span></div>)}
+              {localize(proposalTasks.map((t) => <div key={t.title} className="flex justify-between py-0.5 text-[12px]"><span>{localize(t.title)}</span><span className="tabular-nums text-muted-foreground">{localize(t.estimate)}{localize("h")}</span></div>))}
             </div>
             <div className="border-l-2 border-ai bg-ai-soft p-2 text-[12px]" role="status">{localize(tasksGenerated ? "Imported to Kanban. Scheduling is a separate step." : proposalApproved ? "Approved, not imported. No board tasks or calendar sessions have been created." : "Generated, not imported. Review and approve before importing; the board and calendar are unchanged.")}</div>
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => { close(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); }}>{localize("Open Assignment")}</Button>
-              {localize(!proposalApproved && !tasksGenerated && <Button size="sm" onClick={approveProposal}>Approve task plan</Button>)an")}</Button>}
+              {localize(!proposalApproved && !tasksGenerated && <Button size="sm" onClick={approveProposal}>{localize("Approve task plan")}</Button>)}
               <Button size="sm" disabled={!proposalApproved && !tasksGenerated} onClick={create}>{localize(tasksGenerated ? "View Kanban" : "Import approved tasks")}</Button>
             </div>
           </div>

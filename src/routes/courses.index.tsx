@@ -40,20 +40,17 @@ function Courses() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {localize(list.map((c) => (
             <Link key={c.id} to="/courses/$courseId" params={{ courseId: c.id }} className="panel group block p-4 transition-colors hover:border-primary/40">
-              <div className="flex items-center gap-2"><span className={cn("h-2.5 w-2.5 rounded-sm", c.color)} /><span className="font-mono text-[11px] text-muted-foreground">{c.code}</span></div>
-              <h2 className="mt-1.5 text-[15px] font-semibold group-hover:text-primary">{c.name}</h2>
-              <p className="text-[12px] text-muted-foreground">{c.instructor}</p>
-              <div className="mt-4 flex items-center gap-2"><ProgressBar value={c.progress} /><span className="text-[11.5px] tabular-nums text-muted-foreground">{c.progress}%</span></div>
+              <div className="flex items-center gap-2"><span className={cn("h-2.5 w-2.5 rounded-sm", c.color)} /><span className="font-mono text-[11px] text-muted-foreground">{localize(c.code)}</span></div>
+              <h2 className="mt-1.5 text-[15px] font-semibold group-hover:text-primary">{localize(c.name)}</h2>
+              <p className="text-[12px] text-muted-foreground">{localize(c.instructor)}</p>
+              <div className="mt-4 flex items-center gap-2"><ProgressBar value={c.progress} /><span className="text-[11.5px] tabular-nums text-muted-foreground">{localize(c.progress)}{localize("%")}</span></div>
               <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3 text-[12px]">
-                <div><div className="text-muted-foreground">Assignments</div><div className="font-medium tabular-nums">{c.completed}/{c.assignments}</div></div>
-                <div><div className="text-muted-foreground">Remaining</div><div className="font-medium tabular-nums">{c.remaining}h</div></div>
-                <div><div className="text-muted-foreground">Next due</div><div className="flex items-center gap-1 font-medium"><CalendarClock className="h-3 w-3" />{c.nextDeadline}</div></div>
+                <div><div className="text-muted-foreground">{localize("Assignments")}</div><div className="font-medium tabular-nums">{localize(c.completed)}{localize("/")}{localize(c.assignments)}</div></div>
+                <div><div className="text-muted-foreground">{localize("Remaining")}</div><div className="font-medium tabular-nums">{localize(c.remaining)}{localize("h")}</div></div>
+                <div><div className="text-muted-foreground">{localize("Next due")}</div><div className="flex items-center gap-1 font-medium"><CalendarClock className="h-3 w-3" />{localize(c.nextDeadline)}</div></div>
               </div>
             </Link>
-          )))ex items-center gap-1 font-medium"><CalendarClock className="h-3 w-3" />{localize(c.nextDeadline)}</div></div>
-              </div>
-            </Link>
-          ))}
+          )))}
         </div>
       ) : (
         <div className="panel overflow-x-auto">
@@ -61,13 +58,11 @@ function Courses() {
             <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">{localize("Course")}</th><th scope="col" className="px-2 font-medium">{localize("Code")}</th><th scope="col" className="px-2 font-medium">{localize("Instructor")}</th><th scope="col" className="px-2 font-medium">{localize("Assignments")}</th><th scope="col" className="w-40 px-2 font-medium">{localize("Progress")}</th><th scope="col" className="px-2 font-medium">{localize("Remaining")}</th><th scope="col" className="px-4 font-medium">{localize("Next deadline")}</th></tr></thead>
             <tbody>{localize(list.map((c) => (
               <tr key={c.id} className="border-b last:border-0 hover:bg-secondary/60">
-                <td className="px-4 py-2.5 font-medium"><Link to="/courses/$courseId" params={{ courseId: c.id }} className="hover:text-primary">{c.name}</Link></td>
-                <td className="px-2 font-mono text-[12px] text-muted-foreground">{c.code}</td><td className="px-2">{c.instructor}</td><td className="px-2 tabular-nums">{c.completed}/{c.assignments}</td>
-                <td className="px-2"><ProgressBar value={c.progress} /></td><td className="px-2 tabular-nums">{c.remaining}h</td><td className="px-4">{c.nextDeadline}</td>
+                <td className="px-4 py-2.5 font-medium"><Link to="/courses/$courseId" params={{ courseId: c.id }} className="hover:text-primary">{localize(c.name)}</Link></td>
+                <td className="px-2 font-mono text-[12px] text-muted-foreground">{localize(c.code)}</td><td className="px-2">{localize(c.instructor)}</td><td className="px-2 tabular-nums">{localize(c.completed)}{localize("/")}{localize(c.assignments)}</td>
+                <td className="px-2"><ProgressBar value={c.progress} /></td><td className="px-2 tabular-nums">{localize(c.remaining)}{localize("h")}</td><td className="px-4">{localize(c.nextDeadline)}</td>
               </tr>
-            )))("h")}</td><td className="px-4">{localize(c.nextDeadline)}</td>
-              </tr>
-            ))}</tbody>
+            )))}</tbody>
           </table>
         </div>
       ))}
