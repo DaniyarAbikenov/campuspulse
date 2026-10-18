@@ -40,7 +40,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
       <div className="mt-auto flex items-center gap-2 pt-3">
         <Button size="sm" className="h-7 text-[12px]" onClick={() => { setInsightStatus(insight.id, "Accepted"); navigate({ to: insight.primary.to }); }}>{insight.primary.label}</Button>
         <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => {
-          if (insight.secondary === "Open Assignment") return navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } });
+          if (insight.secondary === "Open Assignment") { void navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); return; }
           const s = insight.secondary === "Remind Me Later" ? "Snoozed" : "Dismissed";
           setInsightStatus(insight.id, s);
           toast(s === "Snoozed" ? "We'll remind you tomorrow at 09:00" : "Insight dismissed", { action: { label: "Undo", onClick: () => setInsightStatus(insight.id, "New") } });

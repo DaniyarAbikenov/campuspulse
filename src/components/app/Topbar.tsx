@@ -43,7 +43,7 @@ export function Topbar() {
             {i === parts.length - 1 || parts.length === 0 ? (
               <span className="truncate font-medium">{crumbName(p, i)}</span>
             ) : (
-              <Link to={`/${parts.slice(0, i + 1).join("/")}`} className="text-muted-foreground hover:text-foreground">{crumbName(p, i)}</Link>
+              <Link to={`/${parts.slice(0, i + 1).join("/")}` as "/"} className="text-muted-foreground hover:text-foreground">{crumbName(p, i)}</Link>
             )}
           </span>
         ))}

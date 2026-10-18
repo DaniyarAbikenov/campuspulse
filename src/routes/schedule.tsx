@@ -27,7 +27,7 @@ const kindCls = { lecture: "border-border bg-card", study: "border-primary/30 bg
 function Schedule() {
   const { events, addEvent, log } = useStore();
   const [slot, setSlot] = useState<(typeof freeSlots)[number] | null>(null);
-  const [task, setTask] = useState(generatedTasks[1].title);
+  const [task, setTask] = useState(generatedTasks[1]!.title);
   const taken = (s: (typeof freeSlots)[number]) => events.some((e) => e.kind === "study" && e.day === s.day && e.start === s.start);
 
   const plan = () => {
@@ -40,7 +40,7 @@ function Schedule() {
 
   return (
     <>
-      <PageHeader title="My Schedule" subtitle="Week 43 · October 19 – 25, 2026" actions={<Button size="sm" onClick={() => setSlot(freeSlots.find((s) => !taken(s)) ?? freeSlots[0])}><Plus className="h-3.5 w-3.5" /> Plan Study Session</Button>} />
+      <PageHeader title="My Schedule" subtitle="Week 43 · October 19 – 25, 2026" actions={<Button size="sm" onClick={() => setSlot(freeSlots.find((s) => !taken(s)) ?? freeSlots[0]!)}><Plus className="h-3.5 w-3.5" /> Plan Study Session</Button>} />
       <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
         <div className="panel overflow-x-auto">
           <div className="grid min-w-[760px] grid-cols-[52px_repeat(7,1fr)]">
