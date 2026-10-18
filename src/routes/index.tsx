@@ -50,7 +50,7 @@ function Overview() {
           <ol className="space-y-1.5">
             {todaySchedule.map((s) => (
               <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>
-                <div className="w-[74px] shrink-0 font-mono text-[11.5px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
+                <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
                 <div className="min-w-0">
                   <div className={cn("text-[13px] font-medium", s.kind === "free" && "text-success")}>{s.title}</div>
                   {s.room && <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin className="h-3 w-3" />{s.room}</div>}
