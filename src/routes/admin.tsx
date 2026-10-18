@@ -1,3 +1,5 @@
+import { guardWorkspace } from "@/lib/workspace-access";
+import { adminCohort as cohort, adminCourses as courseRows } from "@/lib/data";
 import { cc } from "@/lib/chartColors";
 import { createFileRoute } from "@tanstack/react-router";
 import { Users, AlertTriangle, BookOpen, Gauge } from "lucide-react";
@@ -5,24 +7,13 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { MetricCard, PageHeader, Panel, PredictionNote, ProgressBar } from "@/components/app/common";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Academic Overview — CampusPulse AI" }, { name: "description", content: "Administrator view of student workload, at-risk cohorts and deadline clustering." },
     { property: "og:title", content: "Academic Overview — CampusPulse AI" }, { property: "og:description", content: "Administrator view of student workload and deadline clustering." },
   ] }),
   component: Admin,
 });
-
-const cohort = [
-  { week: "W40", estimated: 14, reported: 15 }, { week: "W41", estimated: 16, reported: 17 }, { week: "W42", estimated: 18, reported: 20 },
-  { week: "W43", estimated: 23, reported: 0 }, { week: "W44", estimated: 26, reported: 0 }, { week: "W45", estimated: 19, reported: 0 },
-];
-const courseRows = [
-  { name: "Software Engineering", students: 124, median: 9.2, estimate: 8.5, risk: 18 },
-  { name: "Advanced Databases", students: 98, median: 6.1, estimate: 5.5, risk: 22 },
-  { name: "Operating Systems", students: 110, median: 4.4, estimate: 4, risk: 11 },
-  { name: "Research Methods", students: 142, median: 3.2, estimate: 3.5, risk: 6 },
-  { name: "Statistics", students: 156, median: 2.4, estimate: 2, risk: 9 },
-];
 
 function Admin() {
   return (

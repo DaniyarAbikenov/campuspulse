@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type Context, type ReactNode } from "react";
 import { initialTasks, initialInsights, initialActivity, generatedTasks, type Task, type Insight, type Activity, type CalEvent, weekEvents } from "./data";
 
 type Role = "student" | "admin";
@@ -23,18 +23,26 @@ interface Store {
   openChat: (ctx?: string) => void;
   uploadOpen: boolean;
   setUploadOpen: (o: boolean) => void;
+  mobileNavOpen: boolean;
+  setMobileNavOpen: (open: boolean) => void;
+  workloadPlanApplied: boolean;
+  applyWorkloadPlan: () => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (c: boolean) => void;
 }
 
-const Ctx = createContext<Store | null>(null);
+// Fast Refresh can keep the mounted provider while re-evaluating this module.
+// Keep its context identity so refreshed consumers still read that provider.
+const hotData = import.meta.hot?.data;
+const Ctx: Context<Store | null> = hotData?.campusPulseContext ?? createContext<Store | null>(null);
+if (hotData) hotData.campusPulseContext = Ctx;
 
 const now = () => {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({ children, onRoleChange }: { children: ReactNode; onRoleChange?: (role: Role) => void }) {
   const [role, setRole] = useState<Role>("student");
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [tasksGenerated, setTasksGenerated] = useState(false);
@@ -44,6 +52,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState("Overview");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [workloadPlanApplied, setWorkloadPlanApplied] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const log = useCallback((a: Omit<Activity, "id" | "time">) => {
@@ -66,7 +76,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [tasksGenerated, log]);
 
   const value: Store = {
-    role, setRole, tasks, tasksGenerated,
+    role, setRole: (next) => { onRoleChange?.(next); setRole(next); setChatOpen(false); setUploadOpen(false); }, tasks, tasksGenerated,
+    mobileNavOpen, setMobileNavOpen, workloadPlanApplied,
+    applyWorkloadPlan: () => {
+      if (workloadPlanApplied) return;
+      setWorkloadPlanApplied(true);
+      setInsights((items) => items.map((item) => item.id === "i1" ? { ...item, status: "Accepted" } : item));
+      setEvents((items) => [...items, { id: "rebalance-se", day: 0, start: 13, end: 15, title: "Study: Software Engineering", kind: "study", courseId: "se" }]);
+      log({ title: "Workload plan applied", detail: "2h moved from Wednesday to Monday; weekly capacity unchanged", kind: "schedule", status: "success" });
+    },
     moveTask: (id, column) => setTasks((p) => p.map((t) => (t.id === id ? { ...t, column } : t))),
     addTask: (t) => setTasks((p) => [{ ...t, id: crypto.randomUUID() }, ...p]),
     addGeneratedTasks,

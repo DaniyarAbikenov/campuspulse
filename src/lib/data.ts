@@ -50,7 +50,7 @@ export const assignments: Assignment[] = [
   { id: "adb-a3", title: "Assignment 3 — Indexing", courseId: "adb", deadline: "Oct 8", estimate: 5, actual: 4.5, progress: 100, status: "Completed" },
 ];
 
-export const courseOf = (id: string) => courses.find((c) => c.id === id)!;
+export const courseOf = (id: string) => (() => { const course = courses.find((c) => c.id === id); if (!course) throw new Error(`Unknown course: ${id}`); return course; })();
 export const assignmentOf = (id: string) => assignments.find((a) => a.id === id);
 
 export interface Task {
@@ -113,17 +113,17 @@ export const initialInsights: Insight[] = [
 
 export const weeklyWorkload = [
   { day: "Mon", required: 3, available: 4 },
-  { day: "Tue", required: 5, available: 4 },
+  { day: "Tue", required: 5, available: 2 },
   { day: "Wed", required: 7, available: 3.5 },
-  { day: "Thu", required: 6, available: 3 },
-  { day: "Fri", required: 1, available: 4 },
-  { day: "Sat", required: 0, available: 5 },
-  { day: "Sun", required: 0, available: 3 },
+  { day: "Thu", required: 6, available: 1.5 },
+  { day: "Fri", required: 0.5, available: 1 },
+  { day: "Sat", required: 0, available: 0 },
+  { day: "Sun", required: 0, available: 0 },
 ];
 
 export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event"; room?: string; courseId?: string; }
 
-export const todaySchedule: Slot[] = [
+export const tomorrowSchedule: Slot[] = [
   { start: "09:00", end: "10:50", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
   { start: "11:00", end: "12:50", title: "Software Engineering", kind: "lecture", room: "B2.110", courseId: "se" },
   { start: "13:00", end: "15:00", title: "Free time", kind: "free" },
@@ -201,4 +201,35 @@ export const semesterTrend = [
   { week: "W36", planned: 12, actual: 11 }, { week: "W37", planned: 14, actual: 15 }, { week: "W38", planned: 16, actual: 14.5 },
   { week: "W39", planned: 15, actual: 17 }, { week: "W40", planned: 18, actual: 19.5 }, { week: "W41", planned: 17, actual: 16 },
   { week: "W42", planned: 19, actual: 20 }, { week: "W43", planned: 21.5, actual: 6 },
+];
+
+
+export const demoDate = "2026-10-18";
+export const scheduleDate = "2026-10-19";
+export const documentTotals = {
+  count: knowledgeDocs.length,
+  pages: knowledgeDocs.reduce((sum, doc) => sum + doc.pages, 0),
+};
+export const workloadTotals = {
+  required: weeklyWorkload.reduce((sum, day) => sum + day.required, 0),
+  available: weeklyWorkload.reduce((sum, day) => sum + day.available, 0),
+  allRemaining: courses.reduce((sum, course) => sum + course.remaining, 0),
+};
+export const adminCohort = [
+  { week: "W40", estimated: 14, reported: 15 }, { week: "W41", estimated: 16, reported: 17 },
+  { week: "W42", estimated: 18, reported: 20 }, { week: "W43", estimated: 23, reported: 0 },
+  { week: "W44", estimated: 26, reported: 0 }, { week: "W45", estimated: 19, reported: 0 },
+];
+export const adminCourses = [
+  { id: "se", name: "Software Engineering", students: 124, median: 9.2, estimate: 8.5, risk: 18 },
+  { id: "adb", name: "Advanced Databases", students: 98, median: 6.1, estimate: 5.5, risk: 22 },
+  { id: "os", name: "Operating Systems", students: 110, median: 4.4, estimate: 4, risk: 11 },
+  { id: "rm", name: "Research Methods", students: 142, median: 3.2, estimate: 3.5, risk: 6 },
+  { id: "stat", name: "Statistics", students: 156, median: 2.4, estimate: 2, risk: 9 },
+];
+
+export const adminActivity: Activity[] = [
+  { id: "faculty-1", time: "09:45", title: "Faculty workload forecast updated", detail: "SE cohort · Week 44 peak: 26h", kind: "forecast", status: "warning" },
+  { id: "faculty-2", time: "09:30", title: "Course aggregates refreshed", detail: "5 courses · anonymised enrolments and overload risk", kind: "index", status: "success" },
+  { id: "faculty-3", time: "07:30", title: "Faculty timetable synchronized", detail: "Fall 2026 · faculty scheduling", kind: "schedule", status: "success" },
 ];

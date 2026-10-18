@@ -1,11 +1,14 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Cpu, Database, ShieldCheck } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { ActivityFeed } from "@/components/app/widgets";
+import { documentTotals, adminActivity } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/activity")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Agent Activity — CampusPulse AI" }, { name: "description", content: "A transparent log of everything the CampusPulse agent did in your workspace." },
     { property: "og:title", content: "Agent Activity — CampusPulse AI" }, { property: "og:description", content: "A transparent log of the CampusPulse agent's actions." },
   ] }),
@@ -13,13 +16,14 @@ export const Route = createFileRoute("/activity")({
 });
 
 function ActivityPage() {
-  const { activity } = useStore();
+  const { activity: studentActivity, role } = useStore();
+  const activity = role === "admin" ? adminActivity : studentActivity;
   return (
     <>
       <PageHeader title="Agent Activity" subtitle="Every action the CampusPulse agent took in your workspace (simulated)." />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label="Actions today" value={String(activity.length)} sub="Since 07:30" icon={Bot} />
-        <MetricCard label="Documents indexed" value="8" sub="243 pages" icon={Database} />
+        <MetricCard label="Documents indexed" value={String(documentTotals.count)} sub={`${documentTotals.pages} pages`} icon={Database} />
         <MetricCard label="Background jobs" value="3" sub="Timetable, LMS, forecast" icon={Cpu} />
         <MetricCard label="Permissions" value="Read-only" sub="No submissions on your behalf" icon={ShieldCheck} />
       </div>

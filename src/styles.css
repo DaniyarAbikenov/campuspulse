@@ -161,3 +161,14 @@
   stroke-dasharray: 4 4;
   animation: pulse-line 1.2s linear infinite;
 }
+
+
+/* Keep wide academic tools locally scrollable, never page-wide. */
+main { min-width: 0; }
+main .grid > *, main .space-y-3 > *, main .space-y-4 > * { min-width: 0; }
+@media (max-width: 767px) {
+  .panel-header { grid-template-columns: minmax(0, 1fr); }
+  .panel-actions > .flex { flex-wrap: wrap; }
+  main [role="tablist"] { max-width: 100%; overflow-x: auto; justify-content: flex-start; }
+  main table { min-width: 600px; }
+}

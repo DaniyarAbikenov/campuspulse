@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { cc } from "@/lib/chartColors";
 import { createFileRoute } from "@tanstack/react-router";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -7,7 +8,8 @@ import { SimpleBars } from "@/components/app/widgets";
 import { assignments, courseOf, semesterTrend } from "@/lib/data";
 
 export const Route = createFileRoute("/statistics")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Study Statistics — CampusPulse AI" }, { name: "description", content: "Planned vs. actual study hours and estimate accuracy over the semester." },
     { property: "og:title", content: "Study Statistics — CampusPulse AI" }, { property: "og:description", content: "Planned vs. actual study hours over the semester." },
   ] }),
@@ -44,7 +46,7 @@ function Stats() {
       <Panel title="Estimate vs. actual" subtitle="Completed assignments" className="mt-4" bodyClass="p-0">
         <table className="w-full text-[13px]">
           <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th className="px-4 py-2 font-medium">Assignment</th><th className="font-medium">Course</th><th className="font-medium">Estimate</th><th className="font-medium">Actual</th><th className="px-4 font-medium">Δ</th></tr></thead>
-          <tbody>{done.map((a) => { const d = a.actual! - a.estimate; return (
+          <tbody>{done.map((a) => { const d = (a.actual ?? 0) - a.estimate; return (
             <tr key={a.id} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{a.title}</td><td>{courseOf(a.courseId).name}</td><td className="tabular-nums">{a.estimate}h</td><td className="tabular-nums">{a.actual}h</td><td className={`px-4 tabular-nums ${d > 0 ? "text-destructive" : "text-success"}`}>{d > 0 ? "+" : ""}{d}h</td></tr>
           ); })}</tbody>
         </table>

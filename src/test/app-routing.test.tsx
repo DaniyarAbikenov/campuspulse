@@ -14,4 +14,9 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+  it("matches dedicated administrator courses and statistics pages", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient(), workspaceRole: "admin" } });
+    expect(router.matchRoutes("/admin/courses").at(-1)?.routeId).toBe("/admin_/courses");
+    expect(router.matchRoutes("/admin/statistics").at(-1)?.routeId).toBe("/admin_/statistics");
+  });
 });

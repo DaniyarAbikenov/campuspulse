@@ -3,7 +3,7 @@ import { Sparkles, Send, X, FileText } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useStore } from "@/lib/store";
-import { generatedTasks } from "@/lib/data";
+import { generatedTasks, workloadTotals, adminCourses } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[] }
@@ -29,7 +29,7 @@ function answer(q: string, tasksGenerated: boolean): Msg {
     };
   }
   if (l.includes("overload") || l.includes("week") || l.includes("workload")) {
-    return { role: "ai", text: "This week needs 21.5h of work but you have 12h of free study time before the deadlines. Wednesday (7h) and Thursday (6h) exceed your capacity. Moving 2h of Software Engineering work into Monday's 13:00–15:00 slot removes most of the overload.", sources: ["Timetable Week 43", "Assignment estimates"] };
+    return { role: "ai", text: `Week 43 needs ${workloadTotals.required}h of work with ${workloadTotals.available}h of study capacity. Wednesday and Thursday exceed daily capacity. Moving 2h to Monday redistributes work, but the weekly capacity gap remains ${workloadTotals.required - workloadTotals.available}h.`, sources: ["Timetable Week 43", "Assignment estimates"] };
   }
   if (l.includes("first") || l.includes("next") || l.includes("start")) {
     return { role: "ai", text: "Start with Advanced Databases Assignment 4 — it's due first (Oct 22) and has no progress yet. Then continue JWT token generation for SE Assignment 3 during Monday's free slot.", sources: ["Deadlines", "Kanban board"] };
@@ -43,7 +43,7 @@ function answer(q: string, tasksGenerated: boolean): Msg {
 const prompts = ["Why did you create these tasks?", "Why is this week overloaded?", "What should I work on first?", "Summarise the Databases midterm"];
 
 export function ChatDrawer() {
-  const { chatOpen, setChatOpen, tasksGenerated } = useStore();
+  const { chatOpen, setChatOpen, tasksGenerated, role } = useStore();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -57,7 +57,7 @@ export function ChatDrawer() {
     setMsgs((m) => [...m, { role: "user", text: q }]);
     setInput("");
     setTyping(true);
-    setTimeout(() => { setMsgs((m) => [...m, answer(q, tasksGenerated)]); setTyping(false); }, 900);
+    setTimeout(() => { setMsgs((m) => [...m, role === "admin" ? { role: "ai", text: `Faculty demo: ${adminCourses.length} courses tracked in this view. Advanced Databases has the highest course overload risk at 22%. These are anonymised cohort aggregates, not individual student records.`, sources: ["Faculty course aggregates"] } : answer(q, tasksGenerated)]); setTyping(false); }, 900);
   };
 
   return (
@@ -67,7 +67,7 @@ export function ChatDrawer() {
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ai-soft"><Sparkles className="h-4 w-4 text-ai" /></div>
           <div className="flex-1">
             <SheetTitle className="text-[14px]">CampusPulse Assistant</SheetTitle>
-            <p className="text-[11.5px] text-muted-foreground">Context: {contextFor(path)}</p>
+            <p className="text-[11.5px] text-muted-foreground">Context: {role === "admin" ? "Faculty of Computing" : contextFor(path)}</p>
           </div>
           <button onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></button>
         </div>
@@ -96,7 +96,7 @@ export function ChatDrawer() {
             {prompts.map((p) => <button key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{p}</button>)}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-md border px-2 focus-within:border-primary/50">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your workspace…" className="h-9 flex-1 bg-transparent text-[13px] outline-none" />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your workspace…" className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
             <button type="submit" className="rounded p-1 text-primary hover:bg-primary-soft"><Send className="h-4 w-4" /></button>
           </form>
         </div>

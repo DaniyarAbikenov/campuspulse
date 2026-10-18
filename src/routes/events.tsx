@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarDays, MapPin, Clock, Check } from "lucide-react";
@@ -8,7 +9,8 @@ import { campusEvents } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/events")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Campus Events — CampusPulse AI" }, { name: "description", content: "Campus activities matched to your free time and interests." },
     { property: "og:title", content: "Campus Events — CampusPulse AI" }, { property: "og:description", content: "Campus activities matched to your free time and interests." },
   ] }),
@@ -24,7 +26,7 @@ function Events() {
   return (
     <>
       <PageHeader title="Campus Events" subtitle="Ranked by fit with your schedule and courses." />
-      <div className="mb-3 flex gap-1">{cats.map((c) => <button key={c} onClick={() => setCat(c)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", cat === c ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground")}>{c}</button>)}</div>
+      <div className="mb-3 flex flex-wrap gap-1">{cats.map((c) => <button key={c} onClick={() => setCat(c)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", cat === c ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground")}>{c}</button>)}</div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {list.map((e) => (
           <article key={e.id} className="panel flex flex-col p-4">

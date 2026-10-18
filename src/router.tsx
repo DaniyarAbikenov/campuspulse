@@ -7,7 +7,7 @@ export const getRouter = () => {
 
   const router = createRouter({
     routeTree,
-    context: { queryClient },
+    context: { queryClient, workspaceRole: "student" },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
   });

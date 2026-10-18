@@ -1,15 +1,17 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CalendarClock, Clock, BookOpen, Hourglass, Plus, Sparkles, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MetricCard, PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { ActivityFeed, AssignmentTable, InsightCard, WorkloadChart } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
-import { todaySchedule } from "@/lib/data";
+import { tomorrowSchedule, workloadTotals, demoDate, scheduleDate } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: guardWorkspace,
   head: () => ({
-    meta: [
+    meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
       { title: "Overview — CampusPulse AI" },
       { name: "description", content: "Your academic command center: deadlines, workload, schedule and AI recommendations." },
       { property: "og:title", content: "Overview — CampusPulse AI" },
@@ -20,7 +22,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Overview() {
-  const { insights, activity, setUploadOpen, openChat } = useStore();
+  const { insights, activity, setUploadOpen, openChat, workloadPlanApplied } = useStore();
   const navigate = useNavigate();
   const shown = insights.filter((i) => ["i-new", "i1", "i2", "i3"].includes(i.id)).slice(0, 3);
   return (
@@ -29,26 +31,26 @@ function Overview() {
         title="Good afternoon."
         subtitle="Here's what's happening across your academic workspace."
         actions={<>
-          <span className="mr-1 text-[12.5px] text-muted-foreground">Sunday, October 18, 2026</span>
+          <span className="mr-1 text-[12.5px] text-muted-foreground">{new Date(`${demoDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}</span>
           <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}><Plus className="h-3.5 w-3.5" /> Add Assignment</Button>
           <Button size="sm" onClick={() => openChat("Overview")}><Sparkles className="h-3.5 w-3.5" /> Ask CampusPulse</Button>
         </>}
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label="Upcoming Deadlines" value="4" sub="Next 7 days" icon={CalendarClock} trend={{ dir: "up", text: "+2 vs last week" }} />
-        <MetricCard label="Estimated Workload" value="21.5h" sub="Remaining this week · exceeds capacity" icon={Hourglass} tone="warning" trend={{ dir: "up", text: "+9.5h over" }} />
+        <MetricCard label="Estimated Workload" value={`${workloadTotals.required}h`} sub="Week 43 · exceeds capacity" icon={Hourglass} tone="warning" trend={{ dir: "up", text: `+${workloadTotals.required - workloadTotals.available}h over` }} />
         <MetricCard label="Active Courses" value="5" sub="Fall Semester 2026" icon={BookOpen} />
-        <MetricCard label="Available Study Time" value="12h" sub="Before upcoming deadlines" icon={Clock} trend={{ dir: "down", text: "−3h", good: false }} />
+        <MetricCard label="Available Study Time" value={`${workloadTotals.available}h`} sub="Week 43 · available study time" icon={Clock} trend={{ dir: "down", text: "−3h", good: false }} />
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Weekly Workload" subtitle="Estimated required vs. available hours · Week 43" action={<Link to="/workload" className="text-[12px] text-primary hover:underline">Details</Link>}>
           <WorkloadChart height={262} />
-          <PredictionNote><b>Wednesday and Thursday</b> have the highest workload (7h and 6h vs. ~3h available). Consider moving one study session to Monday.</PredictionNote>
+          <PredictionNote>{workloadPlanApplied ? <>Plan applied: Wednesday now requires <b>5h</b>, Thursday <b>6h</b>. The weekly capacity gap remains <b>9.5h</b>.</> : <><b>Wednesday and Thursday</b> have the highest workload (7h and 6h required). Consider moving one study session to Monday.</>}</PredictionNote>
         </Panel>
-        <Panel title="Today's Schedule" subtitle="Monday, Oct 19 · first day of Week 43" action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
+        <Panel title="Tomorrow's Schedule" subtitle={`${new Date(`${scheduleDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · first day of Week 43`} action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
           <ol className="space-y-1.5">
-            {todaySchedule.map((s) => (
+            {tomorrowSchedule.map((s) => (
               <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>
                 <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
                 <div className="min-w-0">
@@ -66,7 +68,7 @@ function Overview() {
         </Panel>
       </div>
 
-      <div className="mt-5 mb-2 flex items-end justify-between">
+      <div className="mt-5 mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
         <div>
           <h2 className="flex items-center gap-1.5 text-[14px] font-semibold"><Sparkles className="h-3.5 w-3.5 text-ai" /> AI Insights <span className="rounded border border-ai/20 bg-ai-soft px-1.5 text-[10px] font-semibold uppercase tracking-wide text-ai">{shown.length} new</span></h2>
           <p className="text-[12.5px] text-muted-foreground">Proactive recommendations prepared by CampusPulse.</p>

@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Upload } from "lucide-react";
@@ -9,7 +10,8 @@ import { assignments } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/assignments/")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Assignments — CampusPulse AI" }, { name: "description", content: "All assignments across your courses with estimates and progress." },
     { property: "og:title", content: "Assignments — CampusPulse AI" }, { property: "og:description", content: "All assignments across your courses with estimates and progress." },
   ] }),
@@ -25,7 +27,7 @@ function Assignments() {
   return (
     <>
       <PageHeader title="Assignments" subtitle="Upload a brief and CampusPulse will extract requirements and plan the work." actions={<Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="h-3.5 w-3.5" /> Upload Assignment</Button>} />
-      <div className="mb-3 flex gap-1">
+      <div className="mb-3 flex flex-wrap gap-1">
         {filters.map((x) => <button key={x} onClick={() => setF(x)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", f === x ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground hover:text-foreground")}>{x} <span className="text-muted-foreground">{x === "All" ? assignments.length : assignments.filter((a) => a.status === x).length}</span></button>)}
       </div>
       <Panel bodyClass="p-0"><AssignmentTable ids={ids} /></Panel>

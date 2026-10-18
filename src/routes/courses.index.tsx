@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LayoutGrid, List, Plus, Search, CalendarClock } from "lucide-react";
@@ -10,7 +11,8 @@ import { courses } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/courses/")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "My Courses — CampusPulse AI" }, { name: "description", content: "Manage your courses, progress and academic materials." },
     { property: "og:title", content: "My Courses — CampusPulse AI" }, { property: "og:description", content: "Manage your courses, progress and academic materials." },
   ] }),

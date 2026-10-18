@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { ChevronDown, CheckCircle2, Circle, FileSearch, Link2, Minus, Plus, RefreshCw, Pencil, Sparkles, ArrowRight, Info } from "lucide-react";
@@ -12,6 +13,7 @@ import { assignments, courseOf, generatedTasks, historicalHours, requirements } 
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/assignments/$assignmentId")({
+  beforeLoad: guardWorkspace,
   loader: ({ params }) => {
     const a = assignments.find((x) => x.id === params.assignmentId);
     if (!a) throw notFound();
@@ -19,7 +21,7 @@ export const Route = createFileRoute("/assignments/$assignmentId")({
   },
   head: ({ loaderData }) => {
     const t = loaderData ? `${loaderData.a.title} — CampusPulse AI` : "Assignment — CampusPulse AI";
-    return { meta: [{ title: t }, { name: "description", content: "AI-extracted requirements, dependencies, task breakdown and workload estimate." }, { property: "og:title", content: t }, { property: "og:description", content: "AI-extracted requirements, dependencies and task breakdown." }] };
+    return { meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, { title: t }, { name: "description", content: "AI-extracted requirements, dependencies, task breakdown and workload estimate." }, { property: "og:title", content: t }, { property: "og:description", content: "AI-extracted requirements, dependencies and task breakdown." }] };
   },
   component: AssignmentPage,
 });

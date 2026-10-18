@@ -13,3 +13,8 @@
 - All demo data lives in `src/lib/data.ts` and shared state in `src/lib/store.tsx` (React context) — prototype is frontend-only, no backend.
 - App shell (sidebar, topbar, chat drawer, upload dialog) is mounted in `src/routes/__root.tsx` — every page shares it.
 - Recharts colors come from `src/lib/chartColors.ts` — SVG attributes can't resolve CSS variables.
+- Workspace access uses per-route guards plus an outlet gate, with role carried in router context; this separates demo workspaces without implying production authorization.
+- Administrator views read cohort entities from the shared demo-data module, never personal student progress.
+- Mobile navigation uses the shared Sidebar inside a Sheet; wide tables and boards scroll inside constrained content containers.
+- Document and workload totals are derived in the shared data module; applying a workload plan redistributes daily hours without changing weekly capacity.
+- Preserve the store context identity in Vite hot data during development; mounted providers and refreshed consumers must never use different context objects.
