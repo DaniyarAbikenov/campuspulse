@@ -14,11 +14,11 @@ import { AnalysisProgress } from "./AnalysisProgress";
 const steps = ["Reading PDF", "Extracting requirements", "Finding previous assignments", "Detecting dependencies", "Estimating workload", "Generating tasks"];
 
 export function UploadDialog() {
-  const { uploadOpen, setUploadOpen, addGeneratedTasks, log, tasksGenerated } = useStore();
+  const { uploadOpen, setUploadOpen, addGeneratedTasks, log, tasksGenerated, proposalApproved, approveProposal, recordAnalysis, proposalTasks, analysisSource } = useStore();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<"form" | "running" | "result">("form");
   const [course, setCourse] = useState("se");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState("Assignment 3 — JWT Authentication");
   const [file, setFile] = useState<string | null>(null);
   const [deadline, setDeadline] = useState("2026-10-23");
   const [drag, setDrag] = useState(false);
@@ -28,8 +28,8 @@ export function UploadDialog() {
   const useDemo = () => { setCourse("se"); setTitle("Assignment 3 — JWT Authentication"); setFile("Assignment_3.pdf"); };
   const done = useCallback(() => {
     setPhase("result");
-    log({ title: "Assignment 3 analyzed", detail: "6 requirements · dependency on Assignment 2 · 8.5h", kind: "analysis", status: "success" });
-  }, [log]);
+    recordAnalysis(file ?? "Assignment_3.pdf");
+  }, [recordAnalysis, file]);
 
   const create = () => {
     const n = addGeneratedTasks();
@@ -44,29 +44,29 @@ export function UploadDialog() {
         <DialogHeader>
           <DialogTitle className="text-[16px]">{phase === "result" ? "Analysis complete" : "Upload assignment"}</DialogTitle>
           <DialogDescription className="text-[12.5px]">
-            {phase === "form" && "CampusPulse will extract requirements, find related work and plan the tasks."}
+            {phase === "form" && "Demo analysis uses the Assignment 3 fixture, not the contents of your PDF. Course and deadline are fixed for this scenario."}
             {phase === "running" && "Simulated analysis — no real AI model is called in this prototype."}
-            {phase === "result" && "Review the structured results before adding tasks to your board."}
+            {phase === "result" && `${analysisSource} · simulated fixture · review, approve, then import.`}
           </DialogDescription>
         </DialogHeader>
 
         {phase === "form" && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-[12px]">Course</Label>
-                <Select value={course} onValueChange={setCourse}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label htmlFor="upload-course" className="text-[12px]">Course</Label>
+                <Select disabled value={course} onValueChange={setCourse}><SelectTrigger id="upload-course" className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>{courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
               </div>
-              <div className="space-y-1.5"><Label className="text-[12px]">Deadline (optional)</Label><Input type="date" className="h-9" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label htmlFor="upload-deadline" className="text-[12px]">Deadline</Label><Input id="upload-deadline" readOnly type="date" className="h-9" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
             </div>
-            <div className="space-y-1.5"><Label className="text-[12px]">Assignment title</Label><Input className="h-9" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Assignment 3 — Authentication" /></div>
+            <div className="space-y-1.5"><Label htmlFor="upload-title" className="text-[12px]">Assignment title</Label><Input id="upload-title" className="h-9" readOnly value={title} placeholder="e.g. Assignment 3 — Authentication" /></div>
             <label
               onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
               onDragLeave={() => setDrag(false)}
-              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setFile(f.name); }}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f && f.name.toLowerCase().endswith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed py-7 text-center transition-colors ${drag ? "border-primary bg-primary-soft" : "hover:border-primary/40"}`}
             >
-              <input type="file" accept=".pdf" className="hidden" onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0].name)} />
+              <input aria-label="Upload PDF" type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endswith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }} />
               {file ? (<><FileText className="mb-2 h-6 w-6 text-primary" /><span className="text-[13px] font-medium">{file}</span><span className="text-[11.5px] text-muted-foreground">Ready to analyze</span></>) : (<><UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" /><span className="text-[13px] font-medium">Drop a PDF here or click to browse</span><span className="text-[11.5px] text-muted-foreground">Up to 20 MB</span></>)}
             </label>
             <div className="flex items-center justify-between pt-1">
@@ -81,7 +81,7 @@ export function UploadDialog() {
         {phase === "result" && (
           <div className="space-y-3 text-[13px]">
             <div className="grid grid-cols-3 gap-2">
-              {[["Course", "Software Engineering"], ["Deadline", "Oct 23, 2026"], ["Estimate", "8.5 hours"]].map(([k, v]) => (
+              {[["Course", "Software Engineering"], ["Deadline", "Oct 23, 2026"], ["Estimate", `${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)} hours`]].map(([k, v]) => (
                 <div key={k} className="rounded-md border bg-secondary/50 px-3 py-2"><div className="text-[11px] text-muted-foreground">{k}</div><div className="font-medium">{v}</div></div>
               ))}
             </div>
@@ -91,12 +91,14 @@ export function UploadDialog() {
             </div>
             <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info-soft px-3 py-2 text-[12.5px]"><Link2 className="h-3.5 w-3.5 text-info" /> Extends <b>Assignment 2 — Database Integration</b></div>
             <div className="rounded-md border p-3">
-              <div className="mb-1.5 text-[12px] font-medium">{generatedTasks.length} generated tasks</div>
-              {generatedTasks.map((t) => <div key={t.title} className="flex justify-between py-0.5 text-[12px]"><span>{t.title}</span><span className="tabular-nums text-muted-foreground">{t.estimate}h</span></div>)}
+              <div className="mb-1.5 text-[12px] font-medium">{proposalTasks.length} generated tasks</div>
+              {proposalTasks.map((t) => <div key={t.title} className="flex justify-between py-0.5 text-[12px]"><span>{t.title}</span><span className="tabular-nums text-muted-foreground">{t.estimate}h</span></div>)}
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="border-l-2 border-ai bg-ai-soft p-2 text-[12px]" role="status">{tasksGenerated ? "Imported to Kanban. Scheduling is a separate step." : proposalApproved ? "Approved, not imported. No board tasks or calendar sessions have been created." : "Generated, not imported. Review and approve before importing; the board and calendar are unchanged."}</div>
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => { close(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); }}>Open Assignment</Button>
-              <Button size="sm" onClick={create}>{tasksGenerated ? "View Kanban" : "Create Kanban Tasks"}</Button>
+              {!proposalApproved && !tasksGenerated && <Button size="sm" onClick={approveProposal}>Approve task plan</Button>}
+              <Button size="sm" disabled={!proposalApproved && !tasksGenerated} onClick={create}>{tasksGenerated ? "View Kanban" : "Import approved tasks"}</Button>
             </div>
           </div>
         )}
