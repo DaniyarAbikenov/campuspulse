@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Clock, Sparkles, Plus } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -16,6 +17,7 @@ export const columns: { id: Task["column"]; label: string }[] = [
 const dot: Record<Task["column"], string> = { backlog: "bg-muted-foreground/40", todo: "bg-muted-foreground", progress: "bg-info", review: "bg-warning", done: "bg-success" };
 
 export function KanbanBoard({ courseId, filter }: { courseId?: string | undefined; filter?: ((t: Task) => boolean) | undefined }) {
+  useI18n();
   const { tasks, moveTask } = useStore();
   const [over, setOver] = useState<string | null>(null);
   const [open, setOpen] = useState<Task | null>(null);
@@ -25,13 +27,14 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
     <>
       <div className="max-w-full overflow-x-auto"><div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
         {columns.map((col) => {
+  useI18n();
           const items = list.filter((t) => t.column === col.id);
           const hours = items.reduce((s, t) => s + t.estimate, 0);
           return (
             <div key={col.id}
               onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
               onDragLeave={() => setOver(null)}
-              onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(`Moved to ${col.label}`); }}
+              onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(localize(`Moved to ${col.label}`)); }}
               className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", over === col.id && "bg-primary-soft ring-primary/40")}
             >
               <div className="mb-1.5 flex h-7 items-center gap-1.5 px-1.5 text-[12px] font-semibold">
@@ -85,7 +88,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
                     </Select>
                   </dd>
                 </dl>
-                <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success("Task completed"); }}>Mark as Completed</Button>
+                <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success(localize("Task completed")); }}>Mark as Completed</Button>
               </div>
             </>
           )}
@@ -97,6 +100,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
 const tasksColumn = (t: Task) => t.column;
 
 export function NewTaskButton() {
+  useI18n();
   const { addTask } = useStore();
-  return <Button size="sm" variant="outline" onClick={() => { addTask({ title: "New task", description: "Describe the work.", courseId: "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast("Task added to Backlog"); }}><Plus className="h-3.5 w-3.5" /> New Task</Button>;
+  return <Button size="sm" variant="outline" onClick={() => { addTask({ title: "New task", description: "Describe the work.", courseId: "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog")); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task")}</Button>;
 }

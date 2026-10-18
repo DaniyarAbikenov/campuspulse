@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -20,21 +21,22 @@ export const Route = createFileRoute("/courses/")({
 });
 
 function Courses() {
+  useI18n();
   const { courses } = useStore();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const list = courses.filter((c) => (c.name + c.code + c.instructor).toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <PageHeader title="My Courses" subtitle="Manage your courses and academic materials." actions={<>
-        <Select defaultValue="fall"><SelectTrigger aria-label="Semester" className="h-8 w-40 text-[12.5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fall">Fall Semester 2026</SelectItem><SelectItem value="spring">Spring Semester 2026</SelectItem></SelectContent></Select>
-        <div className="relative"><Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" /><Input aria-label="Search courses" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search courses" className="h-8 w-52 pl-8 text-[12.5px]" /></div>
+      <PageHeader title={localize("My Courses")} subtitle={localize("Manage your courses and academic materials.")} actions={<>
+        <Select defaultValue="fall"><SelectTrigger aria-label={localize("Semester")} className="h-8 w-40 text-[12.5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fall">{localize("Fall Semester 2026")}</SelectItem><SelectItem value="spring">{localize("Spring Semester 2026")}</SelectItem></SelectContent></Select>
+        <div className="relative"><Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" /><Input aria-label={localize("Search courses")} value={q} onChange={(e) => setQ(e.target.value)} placeholder={localize("Search courses")} className="h-8 w-52 pl-8 text-[12.5px]" /></div>
         <div className="flex rounded-md border p-0.5">
-          {(["grid", "table"] as const).map((v) => <Button variant="ghost" size="icon" aria-label={`${v} view`} aria-pressed={view === v} key={v} onClick={() => setView(v)} className={cn("rounded px-1.5 py-1", view === v ? "bg-secondary text-foreground" : "text-muted-foreground")}>{v === "grid" ? <LayoutGrid className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}</Button>)}
+          {localize((["grid", "table"] as const).map((v) => <Button variant="ghost" size="icon" aria-label={`${v} view`} aria-pressed={view === v} key={v} onClick={() => setView(v)} className={cn("rounded px-1.5 py-1", view === v ? "bg-secondary text-foreground" : "text-muted-foreground")}>{v === "grid" ? <LayoutGrid className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}</Button>))}
         </div>
-        <Button size="sm" onClick={() => toast("Course import is connected to your university timetable", { description: "Demo: all 5 courses are already synced." })}><Plus className="h-3.5 w-3.5" /> Add Course</Button>
+        <Button size="sm" onClick={() => toast(localize("Course import is connected to your university timetable"), { description: localize("Demo: all 5 courses are already synced.") })}><Plus className="h-3.5 w-3.5" /> {localize("Add Course")}</Button>
       </>} />
-      {view === "grid" ? (
+      {localize(view === "grid" ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((c) => (
             <Link key={c.id} to="/courses/$courseId" params={{ courseId: c.id }} className="panel group block p-4 transition-colors hover:border-primary/40">
@@ -63,7 +65,7 @@ function Courses() {
             ))}</tbody>
           </table>
         </div>
-      )}
+      ))}
     </>
   );
 }

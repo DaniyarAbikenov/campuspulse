@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -21,14 +22,15 @@ export const Route = createFileRoute("/events")({
 const cats = ["All", "Tech", "Academic", "Career", "Sports"];
 
 function Events() {
+  useI18n();
   const { events, addEvent } = useStore();
   const [cat, setCat] = useState("All");
   const [saved, setSaved] = useState<string[]>([]);
   const list = campusEvents.filter((e) => cat === "All" || e.category === cat).sort((a, b) => b.match - a.match);
   return (
     <>
-      <PageHeader title="Campus Events" subtitle="Ranked by fit with your schedule and courses." />
-      <div className="mb-3 flex flex-wrap gap-1">{cats.map((c) => <Button variant="ghost" size="sm" aria-pressed={cat === c} key={c} onClick={() => setCat(c)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", cat === c ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground")}>{c}</Button>)}</div>
+      <PageHeader title={localize("Campus Events")} subtitle={localize("Ranked by fit with your schedule and courses.")} />
+      <div className="mb-3 flex flex-wrap gap-1">{localize(cats.map((c) => <Button variant="ghost" size="sm" aria-pressed={cat === c} key={c} onClick={() => setCat(c)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", cat === c ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground")}>{c}</Button>))}</div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {list.map((e) => (
           <article key={e.id} className="panel flex flex-col p-4">
@@ -40,7 +42,7 @@ function Events() {
               <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{e.place}</div>
             </div>
             <p className="mt-3 rounded-md bg-ai-soft/60 px-2.5 py-1.5 text-[12px]">{e.reason}</p>
-            <Button size="sm" variant={saved.includes(e.id) ? "secondary" : "outline"} className="mt-3 h-7 text-[12px]" onClick={() => { setSaved((s) => s.includes(e.id) ? s.filter((x) => x !== e.id) : [...s, e.id]); if (!saved.includes(e.id)) { const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].findIndex((day) => e.date.startsWith(day)); const start = Number(e.time.split("–")[0]?.split(":")[0] ?? 0); const end = Number(e.time.split("–")[1]?.split(":")[0] ?? start + 1); if (["e1", "e2", "e3", "e5", "e6"].includes(e.id) && !events.some((event) => event.title === e.title)) addEvent({ day, start, end, title: e.title, kind: "event" }); toast.success("Event saved", { description: `${e.date} · ${e.time}` }); } }}>
+            <Button size="sm" variant={saved.includes(e.id) ? "secondary" : "outline"} className="mt-3 h-7 text-[12px]" onClick={() => { setSaved((s) => s.includes(e.id) ? s.filter((x) => x !== e.id) : [...s, e.id]); if (!saved.includes(e.id)) { const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].findIndex((day) => e.date.startsWith(day)); const start = Number(e.time.split("–")[0]?.split(":")[0] ?? 0); const end = Number(e.time.split("–")[1]?.split(":")[0] ?? start + 1); if (["e1", "e2", "e3", "e5", "e6"].includes(e.id) && !events.some((event) => event.title === e.title)) addEvent({ day, start, end, title: e.title, kind: "event" }); toast.success(localize("Event saved"), { description: localize(`${e.date} · ${e.time}`) }); } }}>
               {saved.includes(e.id) ? <><Check className="h-3.5 w-3.5" /> Added</> : "Save event"}
             </Button>
           </article>

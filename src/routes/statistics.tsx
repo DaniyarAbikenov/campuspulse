@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { cc } from "@/lib/chartColors";
 import { createFileRoute } from "@tanstack/react-router";
@@ -18,21 +19,22 @@ export const Route = createFileRoute("/statistics")({
 });
 
 function Stats() {
+  useI18n();
   const { assignments, workload } = useStore();
   const done = assignments.filter((a) => a.actual !== undefined);
   const actual = done.reduce((sum, a) => sum + (a.actual ?? 0), 0);
   const estimate = done.reduce((sum, a) => sum + a.estimate, 0);
   return (
     <>
-      <PageHeader title="Study Statistics" subtitle="Fall Semester 2026 · Weeks 36–43" />
+      <PageHeader title={localize("Study Statistics")} subtitle={localize("Fall Semester 2026 · Weeks 36–43")} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Reported study time" value={`${actual}h`} sub="Completed assignments" icon={Timer} />
-        <MetricCard label="Estimate accuracy" value={`${Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100)}%`} sub="Actual vs. AI estimate" icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
-        <MetricCard label="Completed" value={String(assignments.filter((a) => a.status === "Completed").length)} sub="Assignments & labs" icon={CheckCircle2} />
-        <MetricCard label="Study streak" value="6 days" sub="Longest: 11 days" icon={Flame} />
+        <MetricCard label={localize("Reported study time")} value={`${actual}h`} sub="Completed assignments" icon={Timer} />
+        <MetricCard label={localize("Estimate accuracy")} value={`${Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100)}%`} sub="Actual vs. AI estimate" icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
+        <MetricCard label={localize("Completed")} value={String(assignments.filter((a) => a.status === "Completed").length)} sub="Assignments & labs" icon={CheckCircle2} />
+        <MetricCard label={localize("Study streak")} value="6 days" sub="Longest: 11 days" icon={Flame} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Panel title="Planned vs. actual hours" subtitle="Per week">
+        <Panel title={localize("Planned vs. actual hours")} subtitle={localize("Per week")}>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={semesterTrend.map((week) => week.week === "W43" ? { ...week, planned: workload.required } : week)} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={cc.border} />
@@ -45,12 +47,13 @@ function Stats() {
             </LineChart>
           </ResponsiveContainer>
         </Panel>
-        <Panel title="Reported assignment hours by course"><SimpleBars data={courses.map((course) => ({ c: course.code.split(" ")[0], h: done.filter((a) => a.courseId === course.id).reduce((sum, a) => sum + (a.actual ?? 0), 0) }))} x="c" y="h" height={240} /></Panel>
+        <Panel title={localize("Reported assignment hours by course")}><SimpleBars data={courses.map((course) => ({ c: course.code.split(" ")[0], h: done.filter((a) => a.courseId === course.id).reduce((sum, a) => sum + (a.actual ?? 0), 0) }))} x="c" y="h" height={240} /></Panel>
       </div>
-      <Panel title="Estimate vs. actual" subtitle="Completed assignments" className="mt-4" bodyClass="p-0">
+      <Panel title={localize("Estimate vs. actual")} subtitle={localize("Completed assignments")} className="mt-4" bodyClass="p-0">
         <table className="w-full text-[13px]">
-          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">Assignment</th><th scope="col" className="font-medium">Course</th><th scope="col" className="font-medium">Estimate</th><th scope="col" className="font-medium">Actual</th><th scope="col" className="px-4 font-medium">Δ</th></tr></thead>
-          <tbody>{done.map((a) => { const d = (a.actual ?? 0) - a.estimate; return (
+          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">{localize("Assignment")}</th><th scope="col" className="font-medium">{localize("Course")}</th><th scope="col" className="font-medium">{localize("Estimate")}</th><th scope="col" className="font-medium">{localize("Actual")}</th><th scope="col" className="px-4 font-medium">{localize("Δ")}</th></tr></thead>
+          <tbody>{done.map((a) => {
+  useI18n(); const d = (a.actual ?? 0) - a.estimate; return (
             <tr key={a.id} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{a.title}</td><td>{courseOf(a.courseId).name}</td><td className="tabular-nums">{a.estimate}h</td><td className="tabular-nums">{a.actual}h</td><td className={`px-4 tabular-nums ${d > 0 ? "text-destructive" : "text-success"}`}>{d > 0 ? "+" : ""}{d}h</td></tr>
           ); })}</tbody>
         </table>

@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { useCallback, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { UploadCloud, FileText, Sparkles, CheckCircle2, Link2 } from "lucide-react";
@@ -14,6 +15,7 @@ import { AnalysisProgress } from "./AnalysisProgress";
 const steps = ["Reading PDF", "Extracting requirements", "Finding previous assignments", "Detecting dependencies", "Estimating workload", "Generating tasks"];
 
 export function UploadDialog() {
+  useI18n();
   const { uploadOpen, setUploadOpen, addGeneratedTasks, log, tasksGenerated, proposalApproved, approveProposal, recordAnalysis, proposalTasks, analysisSource } = useStore();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<"form" | "running" | "result">("form");
@@ -33,7 +35,7 @@ export function UploadDialog() {
 
   const create = () => {
     const n = addGeneratedTasks();
-    toast.success(n ? `${n} tasks added to Kanban` : "Tasks already on your board", { description: "Software Engineering · Assignment 3" });
+    toast.success(n ? `${n} tasks added to Kanban` : "Tasks already on your board", { description: localize("Software Engineering · Assignment 3") });
     close(false);
     navigate({ to: "/kanban" });
   };
@@ -42,11 +44,11 @@ export function UploadDialog() {
     <Dialog open={uploadOpen} onOpenChange={close}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-[16px]">{phase === "result" ? "Analysis complete" : "Upload assignment"}</DialogTitle>
+          <DialogTitle className="text-[16px]">{localize(phase === "result" ? "Analysis complete" : "Upload assignment")}</DialogTitle>
           <DialogDescription className="text-[12.5px]">
-            {phase === "form" && "Demo analysis uses the Assignment 3 fixture, not the contents of your PDF. Course and deadline are fixed for this scenario."}
-            {phase === "running" && "Simulated analysis — no real AI model is called in this prototype."}
-            {phase === "result" && `${analysisSource} · simulated fixture · review, approve, then import.`}
+            {localize(phase === "form" && "Demo analysis uses the Assignment 3 fixture, not the contents of your PDF. Course and deadline are fixed for this scenario.")}
+            {localize(phase === "running" && "Simulated analysis — no real AI model is called in this prototype.")}
+            {localize(phase === "result" && `${analysisSource} · simulated fixture · review, approve, then import.`)}
           </DialogDescription>
         </DialogHeader>
 
@@ -63,10 +65,10 @@ export function UploadDialog() {
             <label
               onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
               onDragLeave={() => setDrag(false)}
-              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error(localize("Choose a PDF up to 20 MB")); }}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed py-7 text-center transition-colors ${drag ? "border-primary bg-primary-soft" : "hover:border-primary/40"}`}
             >
-              <input aria-label="Upload PDF" type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error("Choose a PDF up to 20 MB"); }} />
+              <input aria-label="Upload PDF" type="file" accept=".pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.name.toLowerCase().endsWith(".pdf") && f.size <= 20 * 1024 * 1024) setFile(f.name); else toast.error(localize("Choose a PDF up to 20 MB")); }} />
               {file ? (<><FileText className="mb-2 h-6 w-6 text-primary" /><span className="text-[13px] font-medium">{file}</span><span className="text-[11.5px] text-muted-foreground">Ready to analyze</span></>) : (<><UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" /><span className="text-[13px] font-medium">Drop a PDF here or click to browse</span><span className="text-[11.5px] text-muted-foreground">Up to 20 MB</span></>)}
             </label>
             <div className="flex items-center justify-between pt-1">
@@ -76,9 +78,9 @@ export function UploadDialog() {
           </div>
         )}
 
-        {phase === "running" && <div className="py-2"><AnalysisProgress running onDone={done} steps={steps} /></div>}
+        {localize(phase === "running" && <div className="py-2"><AnalysisProgress running onDone={done} steps={steps} /></div>)}
 
-        {phase === "result" && (
+        {localize(phase === "result" && (
           <div className="space-y-3 text-[13px]">
             <div className="grid grid-cols-3 gap-2">
               {[["Course", "Software Engineering"], ["Deadline", "Oct 23, 2026"], ["Estimate", `${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)} hours`]].map(([k, v]) => (
@@ -101,7 +103,7 @@ export function UploadDialog() {
               <Button size="sm" disabled={!proposalApproved && !tasksGenerated} onClick={create}>{tasksGenerated ? "View Kanban" : "Import approved tasks"}</Button>
             </div>
           </div>
-        )}
+        ))}
       </DialogContent>
     </Dialog>
   );

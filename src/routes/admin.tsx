@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { adminCohort as cohort, adminCourses as courseRows, facultySummary } from "@/lib/data";
 import { cc } from "@/lib/chartColors";
@@ -16,17 +17,18 @@ export const Route = createFileRoute("/admin")({
 });
 
 function Admin() {
+  useI18n();
   return (
     <>
-      <PageHeader title="Academic Overview" subtitle="Faculty of Computing · Fall 2026 · Anonymised, aggregated demo data" />
+      <PageHeader title={localize("Academic Overview")} subtitle={localize("Faculty of Computing · Fall 2026 · Anonymised, aggregated demo data")} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Course enrolments" value={String(facultySummary.enrolments)} sub="Not unique students" icon={Users} />
-        <MetricCard label="Highest course risk" value={`${facultySummary.highestRisk}%`} sub="Faculty sample" icon={AlertTriangle} tone="warning" trend={{ dir: "up", text: "+5%" }} />
-        <MetricCard label="Courses tracked" value={String(facultySummary.courses)} sub="Faculty sample" icon={BookOpen} />
-        <MetricCard label="Avg weekly load" value={`${facultySummary.averageLoad}h`} sub="Mean cohort weekly forecast" icon={Gauge} />
+        <MetricCard label={localize("Course enrolments")} value={String(facultySummary.enrolments)} sub="Not unique students" icon={Users} />
+        <MetricCard label={localize("Highest course risk")} value={`${facultySummary.highestRisk}%`} sub="Faculty sample" icon={AlertTriangle} tone="warning" trend={{ dir: "up", text: "+5%" }} />
+        <MetricCard label={localize("Courses tracked")} value={String(facultySummary.courses)} sub="Faculty sample" icon={BookOpen} />
+        <MetricCard label={localize("Avg weekly load")} value={`${facultySummary.averageLoad}h`} sub="Mean cohort weekly forecast" icon={Gauge} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Panel title="Cohort workload" subtitle="SE program · estimated vs. reported hours">
+        <Panel title={localize("Cohort workload")} subtitle={localize("SE program · estimated vs. reported hours")}>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={cohort} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={cc.border} />
@@ -39,17 +41,17 @@ function Admin() {
             </BarChart>
           </ResponsiveContainer>
         </Panel>
-        <Panel title="Deadline clustering">
-          <PredictionNote><b>{facultySummary.peak.week}</b> has the highest cohort forecast at {facultySummary.peak.estimated}h. Review faculty deadlines before changing the schedule.</PredictionNote>
+        <Panel title={localize("Deadline clustering")}>
+          <PredictionNote><b>{localize(facultySummary.peak.week)}</b> {localize("has the highest cohort forecast at")} {localize(facultySummary.peak.estimated)}{localize("h. Review faculty deadlines before changing the schedule.")}</PredictionNote>
         </Panel>
       </div>
-      <Panel title="Courses" className="mt-4" bodyClass="p-0">
+      <Panel title={localize("Courses")} className="mt-4" bodyClass="p-0">
         <table className="w-full text-[13px]">
-          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">Course</th><th scope="col" className="font-medium">Students</th><th scope="col" className="font-medium">Current assignment median</th><th scope="col" className="font-medium">Instructor estimate</th><th scope="col" className="w-48 px-4 font-medium">Overload risk</th></tr></thead>
-          <tbody>{courseRows.map((c) => (
+          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">{localize("Course")}</th><th scope="col" className="font-medium">{localize("Students")}</th><th scope="col" className="font-medium">{localize("Current assignment median")}</th><th scope="col" className="font-medium">{localize("Instructor estimate")}</th><th scope="col" className="w-48 px-4 font-medium">{localize("Overload risk")}</th></tr></thead>
+          <tbody>{localize(courseRows.map((c) => (
             <tr key={c.name} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{c.name}</td><td className="tabular-nums">{c.students}</td><td className="tabular-nums">{c.median}h</td><td className="tabular-nums">{c.estimate}h</td>
               <td className="px-4"><div className="flex items-center gap-2"><ProgressBar value={c.risk * 3} /><span className="w-8 text-[11.5px] tabular-nums">{c.risk}%</span></div></td></tr>
-          ))}</tbody>
+          )))}</tbody>
         </table>
       </Panel>
     </>
