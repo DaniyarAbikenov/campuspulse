@@ -1,0 +1,10 @@
+.env
+.env.infrastructure
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+

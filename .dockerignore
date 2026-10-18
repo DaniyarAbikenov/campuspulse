@@ -1,0 +1,12 @@
+.env
+.env.infrastructure
+.git
+.gitignore
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.db
+*.py[cod]
+tests
