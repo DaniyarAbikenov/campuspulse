@@ -23,7 +23,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Overview() {
-  useI18n();
+  const { formatDate } = useI18n();
   const { insights, activity, setUploadOpen, openChat, workloadPlanApplied, workload: workloadTotals, events, courses, assignments, distribution } = useStore();
   const navigate = useNavigate();
   const shown = insights.filter((i) => ["i-new", "i1", "i2", "i3"].includes(i.id) && i.status === "New").slice(0, 3);
@@ -33,7 +33,7 @@ function Overview() {
         title={localize("Good afternoon.")}
         subtitle={localize("Here's what's happening across your academic workspace.")}
         actions={<>
-          <span className="mr-1 text-[12.5px] text-muted-foreground">{localize(new Date(`${demoDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }))}</span>
+          <span className="mr-1 text-[12.5px] text-muted-foreground">{formatDate(demoDate, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span>
           <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}><Plus className="h-3.5 w-3.5" /> {localize("Add Assignment")}</Button>
           <Button size="sm" onClick={() => openChat("Overview")}><Sparkles className="h-3.5 w-3.5" /> {localize("Ask CampusPulse")}</Button>
         </>}
@@ -50,7 +50,7 @@ function Overview() {
           <WorkloadChart height={262} />
           <PredictionNote>{localize(workloadPlanApplied ? "Rebalancing applied. " : "Current forecast: ")}{localize(distribution.filter((day) => day.required > day.available).map((day) => `${day.day} ${Math.round(day.required * 100) / 100}h`).join(" · "))}{localize(". Weekly capacity gap:")} <b>{localize(workloadTotals.required - workloadTotals.available)}{localize("h")}</b>{localize(".")}</PredictionNote>
         </Panel>
-        <Panel title={localize("Tomorrow's Schedule")} subtitle={localize(`${new Date(`${scheduleDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · first day of Week 43`)} action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">{localize("Week")}</Link>}>
+        <Panel title={localize("Tomorrow's Schedule")} subtitle={`${formatDate(scheduleDate, { weekday: "long", month: "short", day: "numeric" })} · ${localize("first day of Week 43")}`} action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">{localize("Week")}</Link>}>
           <ol className="space-y-1.5">
             {localize((events.filter((e) => e.day === 0).sort((a, b) => a.start - b.start).map((e) => ({ ...e, start: formatHour(e.start), end: formatHour(e.end), room: undefined }))).map((s) => (
               <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>

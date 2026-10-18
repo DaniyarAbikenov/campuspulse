@@ -7,6 +7,7 @@ const messages: Record<string, string[]> = catalog;
 const listeners = new Set<() => void>();
 let locale: Locale = "en";
 const storageKey = "campuspulse.locale";
+const phrasePatterns = Object.keys(messages).filter((key) => key.length >= 3).sort((a, b) => b.length - a.length).map((key) => ({ key, pattern: new RegExp(`(?<![\\p{L}\\p{N}_])${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`, "gu") }));
 export const intlLocale = (language: Locale) => ({ en: "en-US", ru: "ru-RU", kk: "kk-KZ" })[language];
 export function setLocale(next: Locale) {
   locale = next;
@@ -43,9 +44,8 @@ export function translate(text: string, language: Locale = locale): string {
     return new Intl.DateTimeFormat(intlLocale(language), { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
   });
   // Compose dynamic labels from catalog phrases, longest first, never alter IDs or data.
-  for (const key of Object.keys(messages).filter((key) => key.length >= 3).sort((a, b) => b.length - a.length)) {
-    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    result = result.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, "gu"), messages[key]?.[index] ?? key);
+  for (const { key, pattern } of phrasePatterns) {
+    result = result.replace(pattern, messages[key]?.[index] ?? key);
   }
   return result.replace(/\b(\d+(?:\.\d+)?)h\b/g, `$1 ${language === "ru" ? "ч" : "сағ"}`);
 }

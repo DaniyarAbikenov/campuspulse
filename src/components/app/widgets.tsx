@@ -66,8 +66,8 @@ export function WorkloadChart({ height = 220 }: { height?: number }) {
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={distribution} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
         <CartesianGrid vertical={false} stroke={cc.border} />
-        <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} stroke={cc.muted} />
-        <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} unit="h" />
+        <XAxis dataKey="day" tickFormatter={(value) => localize(String(value))} tickLine={false} axisLine={false} fontSize={12} stroke={cc.muted} />
+        <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} unit={localize("h")} />
         <Tooltip cursor={{ fill: cc.secondary }} contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
         <Bar dataKey="required" name={localize("Required")} radius={[3, 3, 0, 0]} barSize={22}>
@@ -85,7 +85,7 @@ export function SimpleBars({ data, x, y, height = 180, color = cc.primary }: { d
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
         <CartesianGrid vertical={false} stroke={cc.border} />
-        <XAxis dataKey={x} tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
+        <XAxis dataKey={x} tickFormatter={(value) => localize(String(value))} tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
         <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
         <Tooltip cursor={{ fill: cc.secondary }} contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
         <Bar dataKey={y} fill={color} radius={[4, 4, 0, 0]} />
