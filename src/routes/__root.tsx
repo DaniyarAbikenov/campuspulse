@@ -6,13 +6,15 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { StoreProvider } from "@/lib/store";
+import { StoreProvider, useStore } from "@/lib/store";
+import { workspaceDestination, type WorkspaceRole } from "@/lib/workspace-access";
 import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
 import { ChatDrawer } from "@/components/app/ChatDrawer";
@@ -49,7 +51,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient; workspaceRole?: WorkspaceRole }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -89,16 +91,17 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
+      <StoreProvider onRoleChange={(workspaceRole) => router.update({ context: { ...router.options.context, queryClient, workspaceRole } })}>
         <TooltipProvider delayDuration={200}>
           <div className="flex min-h-screen">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar />
-              <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-4">
-                <Outlet />
+              <main className="mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-3 py-4 sm:px-5">
+                <WorkspaceContent />
               </main>
             </div>
           </div>
@@ -109,4 +112,13 @@ function RootComponent() {
       </StoreProvider>
     </QueryClientProvider>
   );
+}
+
+function WorkspaceContent() {
+  const { role } = useStore();
+  const router = useRouter();
+  const path = useRouterState({ select: (state) => state.location.pathname });
+  const destination = workspaceDestination(role, path);
+  useEffect(() => { if (destination) void router.navigate({ to: destination, replace: true }); }, [destination, router]);
+  return destination ? null : <Outlet />;
 }

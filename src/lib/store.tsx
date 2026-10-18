@@ -38,7 +38,7 @@ const now = () => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({ children, onRoleChange }: { children: ReactNode; onRoleChange?: (role: Role) => void }) {
   const [role, setRole] = useState<Role>("student");
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [tasksGenerated, setTasksGenerated] = useState(false);
@@ -72,7 +72,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [tasksGenerated, log]);
 
   const value: Store = {
-    role, setRole: (next) => { setRole(next); setChatOpen(false); setUploadOpen(false); }, tasks, tasksGenerated,
+    role, setRole: (next) => { onRoleChange?.(next); setRole(next); setChatOpen(false); setUploadOpen(false); }, tasks, tasksGenerated,
     mobileNavOpen, setMobileNavOpen, workloadPlanApplied,
     applyWorkloadPlan: () => {
       if (workloadPlanApplied) return;
