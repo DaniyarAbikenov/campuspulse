@@ -89,7 +89,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
           <div key={g.group} className="mb-3">
             {localize(!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{localize(g.group, locale)}</div>, locale)}
             {localize(g.items.map((item) => {
-  const { locale } = useI18n();
+  
               const Icon = item.icon;
               const link = (
                 <Link

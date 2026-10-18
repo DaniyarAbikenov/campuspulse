@@ -132,7 +132,7 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
   return (
     <ol className="relative space-y-2.5 before:absolute before:left-[11px] before:top-1 before:h-[calc(100%-8px)] before:w-px before:bg-border">
       {localize(items.map((a) => {
-  const { locale } = useI18n();
+  
         const Icon = actIcon[a.kind];
         return (
           <li key={a.id} className="relative flex gap-3">

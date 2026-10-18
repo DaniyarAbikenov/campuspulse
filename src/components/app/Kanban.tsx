@@ -27,7 +27,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
     <>
       <div className="max-w-full overflow-x-auto"><div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
         {localize(columns.map((col) => {
-  const { locale } = useI18n();
+  
           const items = list.filter((t) => t.column === col.id);
           const hours = items.reduce((s, t) => s + t.estimate, 0);
           return (
