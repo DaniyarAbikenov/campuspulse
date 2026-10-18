@@ -171,6 +171,32 @@ def refresh_session(
     return IssuedTokenPair(access_token, new_refresh_token, expires_in)
 
 
+def authenticate_demo(
+    session: Session,
+    email: str,
+    *,
+    secret: str,
+    issuer: str,
+    audience: str,
+    access_ttl_minutes: int,
+    refresh_ttl_days: int,
+) -> IssuedTokenPair:
+    user = session.scalar(select(models.User).where(models.User.email == email))
+    if user is None or not user.is_active:
+        raise AuthenticationError("Demo user is unavailable")
+    token_pair = _issue_session(
+        session,
+        user.id,
+        secret=secret,
+        issuer=issuer,
+        audience=audience,
+        access_ttl_minutes=access_ttl_minutes,
+        refresh_ttl_days=refresh_ttl_days,
+    )
+    session.commit()
+    return token_pair
+
+
 def revoke_session(session: Session, raw_refresh_token: str) -> None:
     auth_session = session.scalar(
         select(models.AuthSession).where(

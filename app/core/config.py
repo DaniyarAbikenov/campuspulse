@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = 30
     upload_directory: str = "storage/uploads"
     max_upload_bytes: int = 20 * 1024 * 1024
+    enable_demo_auth: bool = False
+    demo_user_email: str = "demo.student@campuspulse.example"
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

@@ -14,6 +14,7 @@ services:
       CAMPUSPULSE_DATABASE_URL: >-
         postgresql+psycopg://${POSTGRES_USER:-campuspulse}:${POSTGRES_PASSWORD:-campuspulse}@postgres:5432/${POSTGRES_DB:-campuspulse}
       CAMPUSPULSE_API_V1_PREFIX: /api/v1
+      CAMPUSPULSE_ENABLE_DEMO_AUTH: "true"
     volumes:
       - ./app:/app/app
       - ./migrations:/app/migrations

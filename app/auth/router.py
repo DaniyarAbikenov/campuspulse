@@ -13,6 +13,7 @@ from app.auth.service import (
     OnboardingAlreadyCompletedError,
     OnboardingConflictError,
     OnboardingError,
+    authenticate_demo,
     authenticate_google,
     complete_onboarding,
     get_authenticated_user,
@@ -92,6 +93,25 @@ def google_login(
         raise _unauthorized(str(error)) from error
     except AccountLinkRequiredError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except AuthenticationError as error:
+        raise _unauthorized(str(error)) from error
+    return schemas.TokenPairRead(**token_pair.__dict__)
+
+
+@router.post("/demo", response_model=schemas.TokenPairRead, include_in_schema=False)
+def demo_login(session: SessionDep) -> schemas.TokenPairRead:
+    if not settings.enable_demo_auth:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    try:
+        token_pair = authenticate_demo(
+            session,
+            settings.demo_user_email,
+            secret=get_jwt_secret(),
+            issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
+            access_ttl_minutes=settings.access_token_ttl_minutes,
+            refresh_ttl_days=settings.refresh_token_ttl_days,
+        )
     except AuthenticationError as error:
         raise _unauthorized(str(error)) from error
     return schemas.TokenPairRead(**token_pair.__dict__)

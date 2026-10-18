@@ -68,7 +68,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "users": 1,
         "courses": 5,
         "assignments": 9,
-        "tasks": 4,
+        "tasks": 8,
         "user_settings": 1,
         "insights": 4,
     }

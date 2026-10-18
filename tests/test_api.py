@@ -118,6 +118,36 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_demo_login_can_open_authenticated_workspace(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_google_identity(
+        client,
+        GoogleClaims(
+            subject="demo-google-user",
+            email="student@example.com",
+            email_verified=True,
+            full_name="Demo Student",
+        ),
+    )
+    assert client.post(
+        "/api/v1/auth/google", json={"credential": "fake-google-credential-token"}
+    ).status_code == 200
+    monkeypatch.setattr(settings, "enable_demo_auth", True)
+    monkeypatch.setattr(settings, "demo_user_email", "student@example.com")
+
+    login = client.post("/api/v1/auth/demo")
+    assert login.status_code == 200
+    tokens = login.json()
+
+    me = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert me.json()["email"] == "student@example.com"
+
+
 def test_complete_academic_crud_flow(platform_client: TestClient) -> None:
     client = platform_client
     graph = create_core_graph(client)

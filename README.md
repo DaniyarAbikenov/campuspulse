@@ -58,6 +58,10 @@ Every academic CRUD endpoint requires `Authorization: Bearer <access_token>`. A 
 Google user completes onboarding once to select an institution, profile details and initial
 courses.
 
+The local Compose profile enables the hidden `POST /api/v1/auth/demo` endpoint so the prototype can
+run before a Google Web Client ID is configured. It signs in the seeded demo student and is disabled
+by default outside Compose through `CAMPUSPULSE_ENABLE_DEMO_AUTH=false`.
+
 Frontend-oriented endpoints are documented in
 [docs/frontend-api.md](docs/frontend-api.md). They provide the aggregated course and assignment
 cards, weekly schedule and free-time slots, Kanban columns, workload and study statistics,
