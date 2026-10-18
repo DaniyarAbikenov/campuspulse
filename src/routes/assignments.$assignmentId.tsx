@@ -14,6 +14,10 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/assignments/$assignmentId")({
   beforeLoad: guardWorkspace,
+  validateSearch: (search: Record<string, unknown>): { page?: number } => {
+    const page = Number(search["page"]);
+    return Number.isInteger(page) && page >= 1 && page <= 4 ? { page } : {};
+  },
   loader: ({ params }) => {
     const a = assignments.find((x) => x.id === params.assignmentId);
     if (!a) throw notFound();
@@ -53,30 +57,32 @@ function SimpleAssignment() {
 }
 
 function RichAssignment() {
-  const { addGeneratedTasks, tasksGenerated, log, openChat } = useStore();
+  const { addGeneratedTasks, tasksGenerated, log, openChat, proposalTasks, proposalApproved, approveProposal, setProposalEstimate, assignments: liveAssignments, tasks, recordAnalysis, analysisSource } = useStore();
   const navigate = useNavigate();
   const [openReq, setOpenReq] = useState<string | null>("R2");
-  const [page, setPage] = useState(2);
+  const search = Route.useSearch();
+  const [page, setPage] = useState(search.page ?? 2);
   const [zoom, setZoom] = useState(100);
   const [running, setRunning] = useState(false);
   const [analyzedAt, setAnalyzedAt] = useState("Today, 09:42");
-  const [estimates, setEstimates] = useState(generatedTasks.map((t) => t.estimate));
+  const estimates = proposalTasks.map((task) => task.estimate);
+  const assignment = liveAssignments.find((a) => a.id === "se-a3");
   const [editing, setEditing] = useState(false);
   const total = estimates.reduce((s, v) => s + v, 0);
 
-  const selectReq = (id: string) => { setOpenReq(openReq === id ? null : id); setPage(requirements.find((r) => r.id === id)!.page); };
+  const selectReq = (id: string) => { setOpenReq(openReq === id ? null : id); setPage(requirements.find((r) => r.id === id)?.page ?? 1); };
   const finish = useCallback(() => {
     setRunning(false);
-    const d = new Date();
-    setAnalyzedAt(`Today, ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
-    log({ title: "Assignment 3 re-analyzed", detail: "6 requirements · 1 dependency · 8.5h", kind: "analysis", status: "success" });
+    setAnalyzedAt("Oct 18, 09:46");
+    recordAnalysis(analysisSource);
+    log({ title: "Assignment 3 re-analyzed", detail: `${requirements.length} requirements · 1 dependency · ${total}h`, kind: "analysis", status: "success" });
     toast.success("Analysis complete", { description: "6 requirements · 1 dependency · 6 tasks" });
-  }, [log]);
+  }, [log, recordAnalysis, analysisSource]);
 
   return (
     <>
       <PageHeader title="Assignment 3 — JWT Authentication" subtitle="Software Engineering · SE 3204 · Due October 23, 2026" actions={<>
-        <StatusBadge status="In Progress" />
+        <StatusBadge status={assignment?.status ?? "To Do"} />
         <Button size="sm" variant="outline" onClick={() => openChat("Assignment 3")}><Sparkles className="h-3.5 w-3.5 text-ai" /> Ask about this</Button>
         <Button size="sm" onClick={() => setRunning(true)}><FileSearch className="h-3.5 w-3.5" /> Analyze Assignment</Button>
       </>} />
@@ -89,7 +95,7 @@ function RichAssignment() {
               <div><dt className="text-muted-foreground">Deadline</dt><dd className="font-medium">Oct 23, 23:59</dd></div>
               <div><dt className="text-muted-foreground">Difficulty</dt><dd className="font-medium">Medium–High</dd></div>
               <div><dt className="text-muted-foreground">Estimate</dt><dd className="font-medium">{total}h</dd></div>
-              <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge status="In Progress" /></dd></div>
+              <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge status={assignment?.status ?? "To Do"} /></dd></div>
               <div><dt className="text-muted-foreground">Related</dt><dd className="font-medium"><Link to="/assignments/$assignmentId" params={{ assignmentId: "se-a2" }} className="hover:text-primary">Assignment 2</Link></dd></div>
             </dl>
           </Panel>
@@ -97,12 +103,12 @@ function RichAssignment() {
           <Panel title={<span className="flex items-center gap-1.5">AI-Extracted Requirements <span className="text-[11px] font-normal tabular-nums text-muted-foreground">6</span></span>} ai subtitle="Click a requirement to highlight its source in the document" bodyClass="p-0">
             {requirements.map((r) => (
               <div key={r.id} className={cn("border-b last:border-0", openReq === r.id && "bg-secondary/50")}>
-                <button onClick={() => selectReq(r.id)} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-secondary/40">
-                  {r.done ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                <Button variant="ghost" aria-expanded={openReq === r.id} onClick={() => selectReq(r.id)} className="h-auto whitespace-normal flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-secondary/40">
+                  {tasks.some((task) => task.req === r.id && task.column === "done") ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
                   <span className="font-mono text-[11.5px] text-muted-foreground">{r.id}</span>
                   <span className="flex-1 text-[12.5px]">{r.text}</span>
                   <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openReq === r.id && "rotate-180")} />
-                </button>
+                </Button>
                 {openReq === r.id && (
                   <div className="space-y-2 px-3.5 pb-2.5 pl-[58px] animate-in fade-in slide-in-from-top-1">
                     <p className="text-[12.5px] text-muted-foreground">{r.detail}</p>
@@ -130,21 +136,22 @@ function RichAssignment() {
             </div>
           </Panel>
 
-          <Panel ai title="Task Breakdown" subtitle={`${generatedTasks.length} tasks · ${total}h total`} bodyClass="p-0" action={<div className="flex gap-1.5">
-            <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => setEditing(!editing)}><Pencil className="h-3 w-3" /> {editing ? "Done" : "Edit Estimates"}</Button>
+          <Panel ai title="Task Breakdown" subtitle={`${proposalTasks.length} tasks · ${total}h total`} bodyClass="p-0" action={<div className="flex gap-1.5">
+            <Button size="sm" variant="ghost" className="h-7 text-[12px]" disabled={tasksGenerated} onClick={() => setEditing(!editing)}><Pencil className="h-3 w-3" /> {editing ? "Done" : "Edit Estimates"}</Button>
             <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => toast("Breakdown regenerated", { description: "Same 6 tasks — the brief hasn't changed." })}><RefreshCw className="h-3 w-3" /> Regenerate</Button>
-            <Button size="sm" className="h-7 text-[12px]" onClick={() => { if (tasksGenerated) { void navigate({ to: "/kanban" }); return; } addGeneratedTasks(); toast.success("6 tasks added to Kanban", { action: { label: "Open", onClick: () => navigate({ to: "/kanban" }) } }); }}>{tasksGenerated ? "View on Kanban" : "Add All to Kanban"}</Button>
+            <Button size="sm" className="h-7 text-[12px]" onClick={() => { if (!proposalApproved) { approveProposal(); toast.success("Task plan approved — ready to import"); return; } if (tasksGenerated) { void navigate({ to: "/kanban" }); return; } addGeneratedTasks(); toast.success("6 tasks added to Kanban", { action: { label: "Open", onClick: () => navigate({ to: "/kanban" }) } }); }}>{tasksGenerated ? "View on Kanban" : proposalApproved ? "Import approved tasks" : "Approve task plan"}</Button>
           </div>}>
+            <p className="px-3.5 py-2 text-[12px] text-muted-foreground" role="status">{tasksGenerated ? "Imported to Kanban; schedule sessions from the board." : proposalApproved ? "Approved, not imported. Click Import approved tasks to create board tasks." : "Generated, not imported. These proposals do not appear on the board until approved and imported."}</p>
             <table className="w-full text-[12.5px]">
-              <thead><tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground [&>th]:font-semibold"><th className="px-3.5 py-1.5 font-medium">#</th><th className="font-medium">Task</th><th className="font-medium">Priority</th><th className="font-medium">Req.</th><th className="px-4 text-right font-medium">Estimate</th></tr></thead>
-              <tbody>{generatedTasks.map((t, i) => (
+              <thead><tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground [&>th]:font-semibold"><th scope="col" className="px-3.5 py-1.5 font-medium">#</th><th scope="col" className="font-medium">Task</th><th scope="col" className="font-medium">Priority</th><th scope="col" className="font-medium">Req.</th><th scope="col" className="px-4 text-right font-medium">Estimate</th></tr></thead>
+              <tbody>{proposalTasks.map((t, i) => (
                 <tr key={t.title} className="border-b last:border-0">
                   <td className="px-3.5 py-2 align-top font-mono text-[11px] text-muted-foreground tabular-nums">{i + 1}</td>
                   <td className="py-2 pr-3"><div className="font-medium">{t.title}</div><div className="text-[11.5px] text-muted-foreground">{t.description}</div></td>
                   <td><PriorityIndicator priority={t.priority} /></td>
                   <td className="font-mono text-[11.5px]">{t.req}</td>
                   <td className="px-4 text-right tabular-nums">
-                    {editing ? <input type="number" step="0.5" min="0" value={estimates[i]} onChange={(e) => setEstimates(estimates.map((v, j) => (j === i ? Number(e.target.value) : v)))} className="h-7 w-16 rounded border px-1.5 text-right" /> : `${estimates[i]}h`}
+                    {editing ? <input aria-label={`Estimate for ${t.title}`} type="number" step="0.5" min="0" value={estimates[i]} onChange={(e) => setProposalEstimate(i, Number(e.target.value))} className="h-7 w-16 rounded border px-1.5 text-right" /> : `${estimates[i]}h`}
                   </td>
                 </tr>
               ))}</tbody>
@@ -164,12 +171,12 @@ function RichAssignment() {
 
         <div className="space-y-3 lg:sticky lg:top-16 lg:self-start">
           <Panel title="Assignment_3.pdf" bodyClass="p-0" action={<div className="flex items-center gap-1 text-[11.5px]">
-            <button className="rounded p-1 hover:bg-secondary" onClick={() => setZoom(Math.max(70, zoom - 10))}><Minus className="h-3 w-3" /></button>
+            <Button variant="ghost" size="icon" aria-label="Zoom out" className="h-7 w-7" onClick={() => setZoom(Math.max(70, zoom - 10))}><Minus className="h-3 w-3" /></Button>
             <span className="w-9 text-center tabular-nums">{zoom}%</span>
-            <button className="rounded p-1 hover:bg-secondary" onClick={() => setZoom(Math.min(140, zoom + 10))}><Plus className="h-3 w-3" /></button>
+            <Button variant="ghost" size="icon" aria-label="Zoom in" className="h-7 w-7" onClick={() => setZoom(Math.min(140, zoom + 10))}><Plus className="h-3 w-3" /></Button>
           </div>}>
             <div className="flex gap-2 border-b px-3 py-2">
-              {[1, 2, 3, 4].map((p) => <button key={p} onClick={() => setPage(p)} className={cn("h-10 w-8 rounded border text-[10px]", page === p ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground hover:border-primary/40")}>{p}</button>)}
+              {[1, 2, 3, 4].map((p) => <Button variant="outline" size="sm" aria-label={`Page ${p}`} aria-pressed={page === p} key={p} onClick={() => setPage(p)} className={cn("h-10 w-8 rounded border text-[10px]", page === p ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground hover:border-primary/40")}>{p}</Button>)}
               <span className="ml-auto self-center text-[11px] text-muted-foreground">Page {page} / 4</span>
             </div>
             <div className="h-[420px] overflow-auto bg-secondary p-4">
@@ -179,7 +186,7 @@ function RichAssignment() {
           <Panel ai title="Analysis Status">
             {running ? <AnalysisProgress running onDone={finish} /> : (
               <dl className="space-y-2 text-[12.5px]">
-                <div className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</div>
+                <div><dt className="sr-only">Analysis result</dt><dd className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</dd></div>
                 {[["Requirements extracted", "6"], ["Related assignments detected", "1"], ["Estimated difficulty", "Medium–High"], ["Last analyzed", analyzedAt]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>)}
               </dl>
             )}

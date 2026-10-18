@@ -14,10 +14,10 @@ export function AnalysisProgress({ running, onDone, steps = analysisSteps }: { r
   }, [running, step, steps.length, onDone]);
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" role="status" aria-live="polite">
       <div className="mb-3 h-1 overflow-hidden rounded-full bg-secondary"><div className="h-full bg-primary transition-all duration-500" style={{ width: `${(step / steps.length) * 100}%` }} /></div>
       {steps.map((s, i) => (
-        <div key={s} className={cn("flex items-center gap-2.5 text-[13px] transition-opacity", i > step && "opacity-40")}>
+        <div key={s} className={cn("flex items-center gap-2.5 text-[13px] transition-opacity", i > step && "text-muted-foreground")}>
           <span className={cn("flex h-5 w-5 items-center justify-center rounded-full border", i < step && "border-success bg-success-soft text-success", i === step && "border-primary text-primary")}>
             {i < step ? <Check className="h-3 w-3" /> : i === step ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className="text-[10px]">{i + 1}</span>}
           </span>

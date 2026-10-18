@@ -1,5 +1,5 @@
 import { cc } from "@/lib/chartColors";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 import { AlertTriangle, FileSearch, GraduationCap, Clock, CalendarX, CheckCircle2, Bot, ListChecks, Link2, TrendingUp, Database, CalendarClock } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, ComposedChart, Legend } from "recharts";
 import { toast } from "sonner";
@@ -18,22 +18,22 @@ const typeMeta: Record<Insight["type"], { icon: typeof AlertTriangle; cls: strin
 };
 
 export function InsightCard({ insight, compact }: { insight: Insight; compact?: boolean }) {
-  const { setInsightStatus } = useStore();
+  const { setInsightStatus, applyWorkloadPlan, approveProposal, addGeneratedTasks, tasksGenerated } = useStore();
   const navigate = useNavigate();
   const m = typeMeta[insight.type];
   const Icon = m.icon;
   const muted = insight.status === "Dismissed";
   return (
-    <article className={cn("ai-surface group flex flex-col p-3 transition-shadow hover:shadow-md", muted && "opacity-60")}>
-      <div className="flex items-center gap-1.5">
+    <article className={cn("ai-surface group flex flex-col p-3 transition-shadow hover:shadow-md", muted && "bg-secondary")}>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5">
         <span className={cn("flex h-5 w-5 items-center justify-center rounded", m.cls)}><Icon className="h-3 w-3" /></span>
         <span className="text-[11px] font-medium text-muted-foreground">{insight.type}</span>
-        <span className="ml-auto flex items-center gap-2">
+        <span className="col-span-2 flex flex-wrap items-center gap-2">
           <span className="font-mono text-[10.5px] tabular-nums text-ai" title="Model confidence">{Math.round(insight.confidence * 100)}%</span>
           <PriorityIndicator priority={insight.priority} />
         </span>
       </div>
-      <h3 className="mt-2 text-[13px] font-semibold leading-snug tracking-[-0.005em]">{insight.title}</h3>
+      <h2 className="mt-2 text-[13px] font-semibold leading-snug tracking-[-0.005em]">{insight.title}</h2>
       <p className={cn("mt-1 text-[12px] leading-relaxed text-muted-foreground", compact && "line-clamp-2")}>{insight.description}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
         {insight.courses.map((c) => <CourseTag key={c} id={c} />)}
@@ -41,14 +41,16 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
       </div>
       <div className="mt-2.5 border-l-2 border-ai bg-ai-soft px-2 py-1.5 text-[11.5px] leading-snug"><span className="font-semibold text-ai">Suggested </span>{insight.action}</div>
       <div className="mt-auto flex items-center gap-1.5 pt-2.5 flex-wrap">
-        <Button size="sm" className="h-7 px-2.5 text-[12px]" onClick={() => { navigate({ to: insight.primary.to }); }}>{insight.primary.label}</Button>
-        <Button size="sm" variant="ghost" className="h-7 px-2 text-[12px] text-muted-foreground" onClick={() => {
+        <Button size="sm" className="h-7 px-2.5 text-[12px]" onClick={() => { if (insight.id === "i2") navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); else navigate({ to: insight.primary.to }); }}>{insight.primary.label}</Button>
+        <Button disabled={insight.status === "Applied" && insight.secondary !== "Open Assignment"} size="sm" variant="ghost" className="h-7 px-2 text-[12px] text-muted-foreground" onClick={() => {
           if (insight.secondary === "Open Assignment") { void navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); return; }
           const s = insight.secondary === "Remind Me Later" ? "Snoozed" : "Dismissed";
           setInsightStatus(insight.id, s);
           toast(s === "Snoozed" ? "We'll remind you tomorrow at 09:00" : "Insight dismissed", { action: { label: "Undo", onClick: () => setInsightStatus(insight.id, "New") } });
         }}>{insight.secondary}</Button>
-        {insight.status === "New" && insight.id !== "i1" && <Button size="sm" variant="outline" className="h-7 px-2 text-[12px]" onClick={() => setInsightStatus(insight.id, "Accepted")}>Accept recommendation</Button>}
+        {insight.status === "New" && <Button size="sm" variant="outline" className="h-7 px-2 text-[12px]" onClick={() => setInsightStatus(insight.id, "Accepted")}>Accept recommendation</Button>}
+        {["New", "Accepted"].includes(insight.status) && ["i1", "i2"].includes(insight.id) && <Button size="sm" variant="outline" onClick={() => { if (insight.id === "i1") applyWorkloadPlan(); else { approveProposal(); addGeneratedTasks(); } toast.success("Recommendation applied"); }}>Apply{insight.id === "i2" && !tasksGenerated ? " to Kanban" : " plan"}</Button>}
+        {!["Dismissed", "Applied"].includes(insight.status) && insight.secondary !== "Dismiss" && <Button size="sm" variant="ghost" onClick={() => setInsightStatus(insight.id, "Dismissed")}>Dismiss</Button>}
         {insight.status !== "New" && <span className="ml-auto"><StatusBadge status={insight.status} /></span>}
       </div>
     </article>
@@ -56,8 +58,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
 }
 
 export function WorkloadChart({ height = 220 }: { height?: number }) {
-  const { workloadPlanApplied } = useStore();
-  const distribution = weeklyWorkload.map((day) => ({ ...day, required: day.required + (workloadPlanApplied ? day.day === "Mon" ? 2 : day.day === "Wed" ? -2 : 0 : 0) }));
+  const { distribution } = useStore();
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={distribution} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
@@ -91,20 +92,21 @@ export function SimpleBars({ data, x, y, height = 180, color = cc.primary }: { d
 
 export function AssignmentTable({ ids }: { ids?: string[] }) {
   const navigate = useNavigate();
-  const rows = ids ? assignments.filter((a) => ids.includes(a.id)) : assignments;
+  const { assignments: liveAssignments } = useStore();
+  const rows = ids ? liveAssignments.filter((a) => ids.includes(a.id)) : liveAssignments;
   return (
     <div className="overflow-x-auto">
       <table className="min-w-[640px] w-full text-[12.5px]">
         <thead>
           <tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
-            <th className="px-3.5 py-1.5 font-semibold">Assignment</th><th className="px-2 py-1.5 font-semibold">Course</th><th className="px-2 py-1.5 font-semibold">Deadline</th>
-            <th className="px-2 py-1.5 font-semibold">Estimate</th><th className="w-36 px-2 py-1.5 font-semibold">Progress</th><th className="px-3.5 py-1.5 font-semibold">Status</th>
+            <th scope="col" className="px-3.5 py-1.5 font-semibold">Assignment</th><th scope="col" className="px-2 py-1.5 font-semibold">Course</th><th scope="col" className="px-2 py-1.5 font-semibold">Deadline</th>
+            <th scope="col" className="px-2 py-1.5 font-semibold">Estimate</th><th scope="col" className="w-36 px-2 py-1.5 font-semibold">Progress</th><th scope="col" className="px-3.5 py-1.5 font-semibold">Status</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((a) => (
-            <tr key={a.id} onClick={() => navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } })} className="cursor-pointer border-b last:border-0 hover:bg-secondary/60">
-              <td className="px-3.5 py-2 font-medium">{a.title}</td>
+            <tr key={a.id} className="cursor-pointer border-b last:border-0 hover:bg-secondary/60">
+              <td className="px-3.5 py-2 font-medium"><Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="hover:text-primary">{a.title}</Link></td>
               <td className="px-2 py-2"><CourseTag id={a.courseId} /></td>
               <td className="px-2 py-2 tabular-nums">{a.deadline}</td>
               <td className="px-2 py-2 tabular-nums text-muted-foreground">{a.estimate}h</td>

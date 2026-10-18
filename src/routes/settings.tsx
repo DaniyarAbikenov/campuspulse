@@ -17,9 +17,9 @@ export const Route = createFileRoute("/settings")({
 });
 
 const Row = ({ title, text, on = true }: { title: string; text: string; on?: boolean }) => (
-  <div className="flex items-center justify-between gap-4 border-b py-3 last:border-0">
+  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b py-3 last:border-0">
     <div><div className="text-[13px] font-medium">{title}</div><div className="text-[12px] text-muted-foreground">{text}</div></div>
-    <Switch defaultChecked={on} onCheckedChange={(v) => toast(`${title} ${v ? "enabled" : "disabled"}`)} />
+    <Switch aria-label={title} defaultChecked={on} onCheckedChange={(v) => toast(`${title} ${v ? "enabled" : "disabled"}`)} />
   </div>
 );
 
@@ -31,17 +31,17 @@ function Settings() {
       <div className="grid max-w-4xl gap-4">
         <Panel title="Profile">
           <div className="grid gap-3 md:grid-cols-3">
-            <div><label className="text-[12px] text-muted-foreground">Name</label><Input key={role} defaultValue={role === "admin" ? "Academic Admin" : "Demo Student"} className="mt-1 h-9" /></div>
-            <div><label className="text-[12px] text-muted-foreground">{role === "admin" ? "Faculty" : "Program"}</label><Input key={role} defaultValue={role === "admin" ? "Faculty of Computing" : "Software Engineering"} className="mt-1 h-9" /></div>
-            <div><label className="text-[12px] text-muted-foreground">{role === "admin" ? "Workspace" : "Group"}</label><Input key={role} defaultValue={role === "admin" ? "Administration" : "SE-2429"} className="mt-1 h-9" /></div>
+            <div><label htmlFor="profile-name" className="text-[12px] text-muted-foreground">Name</label><Input id="profile-name" key={role} defaultValue={role === "admin" ? "Academic Admin" : "Demo Student"} className="mt-1 h-9" /></div>
+            <div><label htmlFor="profile-program" className="text-[12px] text-muted-foreground">{role === "admin" ? "Faculty" : "Program"}</label><Input id="profile-program" key={role} defaultValue={role === "admin" ? "Faculty of Computing" : "Software Engineering"} className="mt-1 h-9" /></div>
+            <div><label htmlFor="profile-group" className="text-[12px] text-muted-foreground">{role === "admin" ? "Workspace" : "Group"}</label><Input id="profile-group" key={role} defaultValue={role === "admin" ? "Administration" : "SE-2429"} className="mt-1 h-9" /></div>
           </div>
           <Button size="sm" className="mt-3" onClick={() => toast.success("Profile saved")}>Save</Button>
         </Panel>
         {role === "student" && <Panel title="Availability">
           <div className="grid gap-3 md:grid-cols-3">
-            <div><label className="text-[12px] text-muted-foreground">Max study hours / day</label><Input type="number" defaultValue={4} className="mt-1 h-9" /></div>
-            <div><label className="text-[12px] text-muted-foreground">Earliest start</label><Input type="time" defaultValue="08:00" className="mt-1 h-9" /></div>
-            <div><label className="text-[12px] text-muted-foreground">Latest end</label><Input type="time" defaultValue="21:00" className="mt-1 h-9" /></div>
+            <div><label htmlFor="availability-max" className="text-[12px] text-muted-foreground">Max study hours / day</label><Input id="availability-max" type="number" defaultValue={4} className="mt-1 h-9" /></div>
+            <div><label htmlFor="availability-start" className="text-[12px] text-muted-foreground">Earliest start</label><Input id="availability-start" type="time" defaultValue="08:00" className="mt-1 h-9" /></div>
+            <div><label htmlFor="availability-end" className="text-[12px] text-muted-foreground">Latest end</label><Input id="availability-end" type="time" defaultValue="21:00" className="mt-1 h-9" /></div>
           </div>
         </Panel>
         }

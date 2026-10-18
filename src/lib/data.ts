@@ -17,7 +17,7 @@ export interface Course {
   summary: string;
 }
 
-export const courses: Course[] = [
+const courseCatalog: Course[] = [
   { id: "se", name: "Software Engineering", code: "SE 3204", instructor: "Dr. A. Morgan", assignments: 4, completed: 2, progress: 58, remaining: 8.5, nextDeadline: "Oct 23", color: "bg-primary", docs: 3, technologies: ["Spring Boot", "PostgreSQL", "JWT", "JUnit"], summary: "Design and implementation of a layered REST service, built incrementally across four connected assignments." },
   { id: "adb", name: "Advanced Databases", code: "CS 3112", instructor: "Prof. L. Kessler", assignments: 5, completed: 3, progress: 64, remaining: 7.5, nextDeadline: "Oct 22", color: "bg-info", docs: 7, technologies: ["PostgreSQL", "MongoDB", "Query plans"], summary: "Query optimisation, indexing strategies, aggregation pipelines and transaction isolation." },
   { id: "os", name: "Operating Systems", code: "CS 2207", instructor: "Dr. R. Iskakov", assignments: 6, completed: 4, progress: 71, remaining: 4, nextDeadline: "Oct 24", color: "bg-warning", docs: 9, technologies: ["C", "POSIX threads", "xv6"], summary: "Processes, scheduling, memory management and concurrency through weekly labs." },
@@ -98,7 +98,7 @@ export interface Insight {
   action: string;
   primary: { label: string; to: string };
   secondary: string;
-  status: "New" | "Accepted" | "Dismissed" | "Snoozed";
+  status: "New" | "Accepted" | "Applied" | "Dismissed" | "Snoozed";
   confidence: number;
   sources: string[];
 }
@@ -124,14 +124,14 @@ export const weeklyWorkload = [
 export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event"; room?: string; courseId?: string; }
 
 export const tomorrowSchedule: Slot[] = [
-  { start: "09:00", end: "10:50", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
-  { start: "11:00", end: "12:50", title: "Software Engineering", kind: "lecture", room: "B2.110", courseId: "se" },
+  { start: "09:00", end: "11:00", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
+  { start: "11:00", end: "13:00", title: "Software Engineering", kind: "lecture", room: "B2.110", courseId: "se" },
   { start: "13:00", end: "15:00", title: "Free time", kind: "free" },
-  { start: "15:00", end: "16:50", title: "Operating Systems", kind: "lecture", room: "Lab 3", courseId: "os" },
+  { start: "15:00", end: "17:00", title: "Operating Systems", kind: "lecture", room: "Lab 3", courseId: "os" },
 ];
 
 // Weekly calendar: day index 0=Mon
-export interface CalEvent { id: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; }
+export interface CalEvent { id: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; }
 export const weekEvents: CalEvent[] = [
   { id: "c1", day: 0, start: 9, end: 11, title: "Advanced Databases", kind: "lecture", courseId: "adb" },
   { id: "c2", day: 0, start: 11, end: 13, title: "Software Engineering", kind: "lecture", courseId: "se" },
@@ -164,11 +164,11 @@ export const initialActivity: Activity[] = [
 ];
 
 export const requirements = [
-  { id: "R1", text: "Implement JWT-based authentication.", detail: "Issue signed access tokens on successful login. Use HS256 with a secret from configuration.", page: 2, done: true },
+  { id: "R1", text: "Implement JWT-based authentication.", detail: "Issue signed access tokens on successful login. Use HS256 with a secret from configuration.", page: 2, done: false },
   { id: "R2", text: "Secure selected REST endpoints.", detail: "All /api/orders and /api/users endpoints must require a valid token. /api/products remains public.", page: 2, done: false },
   { id: "R3", text: "Add role-based authorization.", detail: "Support at least STUDENT and ADMIN roles. Only ADMIN may delete users.", page: 2, done: false },
   { id: "R4", text: "Implement token expiration handling.", detail: "Access tokens expire after 15 minutes; provide a refresh endpoint.", page: 3, done: false },
-  { id: "R5", text: "Update existing user services.", detail: "Store BCrypt-hashed passwords in the existing User entity from Assignment 2.", page: 3, done: true },
+  { id: "R5", text: "Update existing user services.", detail: "Store BCrypt-hashed passwords in the existing User entity from Assignment 2.", page: 3, done: false },
   { id: "R6", text: "Document authentication workflow.", detail: "Add a README section with a sequence diagram of login and refresh.", page: 4, done: false },
 ];
 
@@ -213,7 +213,7 @@ export const documentTotals = {
 export const workloadTotals = {
   required: weeklyWorkload.reduce((sum, day) => sum + day.required, 0),
   available: weeklyWorkload.reduce((sum, day) => sum + day.available, 0),
-  allRemaining: courses.reduce((sum, course) => sum + course.remaining, 0),
+  allRemaining: assignments.filter((assignment) => assignment.status !== "Completed").reduce((sum, assignment) => sum + assignment.estimate, 0),
 };
 export const adminCohort = [
   { week: "W40", estimated: 14, reported: 15 }, { week: "W41", estimated: 16, reported: 17 },
@@ -233,3 +233,42 @@ export const adminActivity: Activity[] = [
   { id: "faculty-2", time: "09:30", title: "Course aggregates refreshed", detail: "5 courses · anonymised enrolments and overload risk", kind: "index", status: "success" },
   { id: "faculty-3", time: "07:30", title: "Faculty timetable synchronized", detail: "Fall 2026 · faculty scheduling", kind: "schedule", status: "success" },
 ];
+
+// Explicit demonstration excerpts, not a claim of parsing an uploaded file.
+export interface DocumentFragment { id: string; documentId: string; page: number; text: string; concept: string; assignmentId?: string | undefined; requirementId?: string | undefined; }
+export const documentFragments = knowledgeDocs.flatMap<DocumentFragment>((doc) => doc.id === "d1"
+  ? requirements.map((req) => ({ id: `d1-${req.id}`, documentId: doc.id, page: req.page, text: req.detail, concept: req.text, assignmentId: "se-a3", requirementId: req.id }))
+  : doc.concepts.map((concept, i) => ({ id: `${doc.id}-${i}`, documentId: doc.id, page: Math.min(doc.pages, i + 1), text: `${concept} — demonstration excerpt from ${doc.title}.`, concept, assignmentId: doc.id === "d2" ? "se-a2" : doc.id === "d6" ? "os-l5" : undefined, requirementId: undefined })));
+
+export const demoClock = "09:46";
+export const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.round((hour % 1) * 60)).padStart(2, "0")}`;
+
+export const summarizeCourses = (items: Assignment[]) => courseCatalog.map((course) => {
+  const rows = items.filter((assignment) => assignment.courseId === course.id);
+  const open = rows.filter((assignment) => assignment.status !== "Completed");
+  return { ...course, assignments: rows.length, completed: rows.filter((assignment) => assignment.status === "Completed").length,
+    progress: rows.length ? Math.round(rows.reduce((sum, assignment) => sum + assignment.progress, 0) / rows.length) : 0,
+    remaining: open.reduce((sum, assignment) => sum + assignment.estimate, 0), docs: knowledgeDocs.filter((doc) => doc.courseId === course.id).length };
+});
+export const courses = summarizeCourses(assignments);
+export const upcomingAssignments = assignments.filter((assignment) => ["se-a3", "adb-a4", "os-l5"].includes(assignment.id));
+export const generatedStudySlots = [
+  { day: 0, start: 13, end: 13.5 }, { day: 0, start: 13.5, end: 15 },
+  { day: 2, start: 15, end: 17 }, { day: 2, start: 17, end: 18.5 },
+  { day: 4, start: 13, end: 14 }, { day: 4, start: 14, end: 16 },
+];
+
+export const facultyCourseCatalog = adminCourses.map((course) => ({ ...course, code: courseCatalog.find((item) => item.id === course.id)?.code, instructor: courseCatalog.find((item) => item.id === course.id)?.instructor }));
+export const facultySummary = {
+  enrolments: adminCourses.reduce((sum, course) => sum + course.students, 0),
+  courses: adminCourses.length,
+  highestRisk: Math.max(...adminCourses.map((course) => course.risk)),
+  peak: adminCohort.reduce((highest, week) => week.estimated > highest.estimated ? week : highest),
+  averageLoad: Math.round(adminCohort.reduce((sum, week) => sum + week.estimated, 0) / adminCohort.length * 10) / 10,
+};
+
+export const dateOf = (label: string) => new Date(`${label}, 2026 12:00:00 GMT`).toISOString().slice(0, 10);
+export const isUpcomingDeadline = (assignment: Assignment) => assignment.status !== "Completed" && dateOf(assignment.deadline) > demoDate && dateOf(assignment.deadline) <= "2026-10-25";
+export const taskMatchesDate = (task: Task, range: string) => range === "all" || (range === "overdue"
+  ? task.column !== "done" && dateOf(task.due) < demoDate
+  : dateOf(task.due) >= scheduleDate && dateOf(task.due) <= "2026-10-25");

@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Sparkles, ArrowUpRight, ArrowDownRight, type LucideIcon, FileText } from "lucide-react";
@@ -61,6 +62,7 @@ const statusStyles: Record<string, string> = {
   Completed: "bg-success-soft text-success border-success/20",
   Upcoming: "bg-secondary text-muted-foreground border-border",
   New: "bg-primary-soft text-primary border-primary/20",
+  Applied: "bg-info-soft text-info border-info/20",
   Accepted: "bg-success-soft text-success border-success/20",
   Dismissed: "bg-secondary text-muted-foreground border-border",
   Snoozed: "bg-warning-soft text-warning border-warning/20",
@@ -89,9 +91,9 @@ export function AIBadge({ label = "AI" }: { label?: string }) {
 
 export function SourceReference({ file, page, onClick }: { file: string; page?: number; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary">
+    <Button variant="outline" size="sm" onClick={onClick} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary">
       <FileText className="h-3 w-3" />{file}{page ? `, p. ${page}` : ""}
-    </button>
+    </Button>
   );
 }
 
