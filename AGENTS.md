@@ -17,3 +17,4 @@
 - Administrator views read cohort entities from the shared demo-data module, never personal student progress.
 - Mobile navigation uses the shared Sidebar inside a Sheet; wide tables and boards scroll inside constrained content containers.
 - Document and workload totals are derived in the shared data module; applying a workload plan redistributes daily hours without changing weekly capacity.
+- Preserve the store context identity in Vite hot data during development; mounted providers and refreshed consumers must never use different context objects.
