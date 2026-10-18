@@ -49,7 +49,7 @@ export function Topbar() {
         ))}
       </nav>
       <div className="ml-auto flex items-center gap-2">
-        <button onClick={() => setOpen(true)} className="hidden h-8 w-64 items-center gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 md:flex">
+        <button onClick={() => setOpen(true)} className="hidden h-8 w-72 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 md:flex">
           <Search className="h-3.5 w-3.5" /> Search courses, assignments…
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">⌘K</kbd>
         </button>
