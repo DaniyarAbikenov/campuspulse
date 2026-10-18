@@ -16,13 +16,13 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function Panel({ title, subtitle, action, children, className, bodyClass }: { title?: ReactNode; subtitle?: string; action?: ReactNode; children: ReactNode; className?: string; bodyClass?: string }) {
+export function Panel({ title, subtitle, action, children, className, bodyClass, ai }: { title?: ReactNode; subtitle?: string; action?: ReactNode; children: ReactNode; className?: string; bodyClass?: string; ai?: boolean }) {
   return (
-    <section className={cn("panel", className)}>
+    <section className={cn(ai ? "ai-surface" : "panel", className)}>
       {title && (
         <header className="flex min-h-[42px] items-center justify-between gap-2 border-b px-3.5 py-2">
           <div>
-            <h2 className="text-[13px] font-semibold leading-tight">{title}</h2>
+            <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight">{title}{ai && <AIBadge label="AI" />}</h2>
             {subtitle && <p className="mt-0.5 text-[11.5px] leading-tight text-muted-foreground">{subtitle}</p>}
           </div>
           {action}
