@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { assignments, courses, courseOf, adminActivity, facultyCourseCatalog } from "@/lib/data";
+import { LanguageSelector } from "./LanguageSelector";
 
 const labels: Record<string, string> = {
   "": "Overview", schedule: "My Schedule", insights: "AI Insights", courses: "Courses", assignments: "Assignments",
@@ -50,6 +51,7 @@ export function Topbar() {
         ))}
       </nav>
       <div className="flex shrink-0 items-center gap-1 md:ml-auto md:gap-2">
+        <LanguageSelector compact />
         <Button variant="outline" onClick={() => setOpen(true)} className="hidden h-8 w-72 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 xl:flex">
           <Search className="h-3.5 w-3.5" /> Search courses, assignments…
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">⌘K</kbd>

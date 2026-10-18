@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Sparkles, ArrowUpRight, ArrowDownRight, type LucideIcon, FileText } from "lucide-react";
 import type { Priority, Status } from "@/lib/data";
 import { courseOf } from "@/lib/data";
+import { canonicalStatus, statusLabel } from "@/lib/i18n";
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
@@ -69,7 +70,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export function StatusBadge({ status }: { status: Status | string }) {
-  return <span className={cn("inline-flex items-center whitespace-nowrap rounded border px-1.5 py-px text-[10.5px] font-medium leading-4", statusStyles[status] ?? statusStyles["To Do"])}>{status}</span>;
+  return <span className={cn("inline-flex items-center whitespace-nowrap rounded border px-1.5 py-px text-[10.5px] font-medium leading-4", statusStyles[canonicalStatus(status)] ?? statusStyles["To Do"])}>{statusLabel(status)}</span>;
 }
 
 export function PriorityIndicator({ priority }: { priority: Priority }) {

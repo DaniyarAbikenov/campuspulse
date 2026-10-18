@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel } from "@/components/app/common";
+import { LanguageSelector } from "@/components/app/LanguageSelector";
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: guardWorkspace,
@@ -29,6 +30,7 @@ function Settings() {
     <>
       <PageHeader title="Settings" subtitle="Control how CampusPulse works for you." />
       <div className="grid max-w-4xl gap-4">
+        <Panel title="Language"><label className="mb-2 block text-[13px]" htmlFor="interface-language">Interface language</label><LanguageSelector /></Panel>
         <Panel title="Profile">
           <div className="grid gap-3 md:grid-cols-3">
             <div><label htmlFor="profile-name" className="text-[12px] text-muted-foreground">Name</label><Input id="profile-name" key={role} defaultValue={role === "admin" ? "Academic Admin" : "Demo Student"} className="mt-1 h-9" /></div>

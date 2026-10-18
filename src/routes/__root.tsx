@@ -21,6 +21,7 @@ import { ChatDrawer } from "@/components/app/ChatDrawer";
 import { UploadDialog } from "@/components/app/UploadDialog";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { LanguageInitialization } from "@/lib/i18n";
 
 function NotFoundComponent() {
   return (
@@ -94,6 +95,7 @@ function RootComponent() {
   const router = useRouter();
   return (
     <QueryClientProvider client={queryClient}>
+      <LanguageInitialization />
       <StoreProvider onRoleChange={(workspaceRole) => router.update({ context: { ...router.options.context, queryClient, workspaceRole } })}>
         <TooltipProvider delayDuration={200}>
           <div className="flex min-h-screen">
