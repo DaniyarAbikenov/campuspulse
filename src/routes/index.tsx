@@ -43,7 +43,7 @@ function Overview() {
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Weekly Workload" subtitle="Estimated required vs. available hours · Week 43" action={<Link to="/workload" className="text-[12px] text-primary hover:underline">Details</Link>}>
-          <WorkloadChart />
+          <WorkloadChart height={262} />
           <PredictionNote><b>Wednesday and Thursday</b> have the highest workload (7h and 6h vs. ~3h available). Consider moving one study session to Monday.</PredictionNote>
         </Panel>
         <Panel title="Today's Schedule" subtitle="Monday, Oct 19 · first day of Week 43" action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
