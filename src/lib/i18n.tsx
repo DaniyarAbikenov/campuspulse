@@ -42,6 +42,10 @@ export function translate(text: string, language: Locale = locale): string {
   const datePattern = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([0-9]{1,2})(?:, 2026)?\b/g;
   result = result.replace(datePattern, (_match, month: string, day: string) => {
     const date = new Date(`${month} ${day}, 2026 12:00:00 GMT`);
+    if (language === "kk") {
+      const months: Record<string, string> = { Jan: "қаң.", Feb: "ақп.", Mar: "нау.", Apr: "сәу.", May: "мам.", Jun: "мау.", Jul: "шіл.", Aug: "там.", Sep: "қыр.", Oct: "қаз.", Nov: "қар.", Dec: "жел." };
+      return `${day} ${months[month] ?? month}`;
+    }
     return new Intl.DateTimeFormat(intlLocale(language), { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
   });
   // Compose dynamic labels from catalog phrases, longest first, never alter IDs or data.
