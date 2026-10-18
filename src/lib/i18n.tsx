@@ -51,8 +51,8 @@ export function translate(text: string, language: Locale = locale): string {
 }
 
 /** Render-boundary helper: domain values, event handlers and objects remain untouched. */
-export function localize<T>(value: T): T {
-  if (typeof value === "string") return translate(value) as T;
-  if (Array.isArray(value)) return value.map((item: unknown) => typeof item === "string" ? translate(item) : item) as T;
+export function localize<T>(value: T, language: Locale = locale): T {
+  if (typeof value === "string") return translate(value, language) as T;
+  if (Array.isArray(value)) return value.map((item: unknown) => typeof item === "string" ? translate(item, language) : item) as T;
   return value;
 }
