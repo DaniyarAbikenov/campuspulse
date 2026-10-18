@@ -2,17 +2,24 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth.google import GoogleClaims
+from app.auth.router import get_google_verifier
+from app.core.config import settings
 from app.db.models import Base
 from app.db.session import get_session
 from app.main import app
 
 
 @pytest.fixture
-def client() -> Generator[TestClient, None, None]:
+def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, None, None]:
+    monkeypatch.setattr(
+        settings, "jwt_secret", SecretStr("test-secret-that-is-long-and-random-enough")
+    )
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -266,3 +273,105 @@ def test_assignment_cannot_relate_to_itself(client: TestClient) -> None:
         },
     )
     assert response.status_code == 422
+
+
+class FakeGoogleVerifier:
+    def __init__(self, claims: GoogleClaims) -> None:
+        self.claims = claims
+
+    def verify(self, _: str) -> GoogleClaims:
+        return self.claims
+
+
+def use_google_identity(client: TestClient, claims: GoogleClaims) -> None:
+    client.app.dependency_overrides[get_google_verifier] = lambda: FakeGoogleVerifier(claims)
+
+
+def test_google_login_refresh_me_and_logout(client: TestClient) -> None:
+    use_google_identity(
+        client,
+        GoogleClaims(
+            subject="google-user-123",
+            email="new.student@gmail.com",
+            email_verified=True,
+            full_name="New Student",
+        ),
+    )
+    login = client.post(
+        "/api/v1/auth/google",
+        json={"credential": "fake-google-credential-token"},
+    )
+    assert login.status_code == 200
+    tokens = login.json()
+    assert tokens["token_type"] == "bearer"
+    assert tokens["expires_in"] == 900
+
+    me = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert me.json()["email"] == "new.student@gmail.com"
+    assert me.json()["roles"] == ["student"]
+
+    second_login = client.post(
+        "/api/v1/auth/google",
+        json={"credential": "fake-google-credential-token"},
+    )
+    assert second_login.status_code == 200
+    assert len(client.get("/api/v1/users").json()) == 1
+
+    refresh = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": tokens["refresh_token"]},
+    )
+    assert refresh.status_code == 200
+    rotated_tokens = refresh.json()
+    assert rotated_tokens["refresh_token"] != tokens["refresh_token"]
+    assert (
+        client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": tokens["refresh_token"]},
+        ).status_code
+        == 401
+    )
+
+    logout = client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": rotated_tokens["refresh_token"]},
+    )
+    assert logout.status_code == 204
+    assert (
+        client.post(
+            "/api/v1/auth/refresh",
+            json={"refresh_token": rotated_tokens["refresh_token"]},
+        ).status_code
+        == 401
+    )
+
+
+def test_google_login_requires_configuration(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/google",
+        json={"credential": "fake-google-credential-token"},
+    )
+    assert response.status_code == 503
+
+
+def test_existing_external_email_requires_explicit_linking(client: TestClient) -> None:
+    graph = create_core_graph(client)
+    existing_user = client.get(f"/api/v1/users/{graph['user_id']}").json()
+    use_google_identity(
+        client,
+        GoogleClaims(
+            subject="external-google-user",
+            email=existing_user["email"],
+            email_verified=True,
+            full_name=existing_user["full_name"],
+        ),
+    )
+    response = client.post(
+        "/api/v1/auth/google",
+        json={"credential": "fake-google-credential-token"},
+    )
+    assert response.status_code == 409

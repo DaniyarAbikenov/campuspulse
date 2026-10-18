@@ -9,6 +9,7 @@ erDiagram
     INSTITUTION o|--o{ USER : groups
     INSTITUTION ||--o{ SEMESTER : defines
     USER ||--o{ IDENTITY_ACCOUNT : authenticates_with
+    USER ||--o{ AUTH_SESSION : opens
     USER ||--o{ USER_ROLE : receives
     ROLE ||--o{ USER_ROLE : grants
     USER o|--o{ AUDIT_EVENT : acts_in
@@ -43,6 +44,14 @@ erDiagram
         string provider "Part of unique provider-subject pair"
         string subject "Part of unique provider-subject pair"
         datetime lastLoginAt
+    }
+    AUTH_SESSION {
+        uuid id PK
+        uuid userId FK
+        string refreshTokenHash UK
+        datetime expiresAt
+        datetime revokedAt
+        datetime lastUsedAt
     }
     ROLE {
         uuid id PK

@@ -333,3 +333,26 @@ class AuditEventCreate(StrictSchema):
 class AuditEventRead(AuditEventCreate):
     id: UUID
     occurred_at: datetime
+
+
+class GoogleLoginRequest(StrictSchema):
+    credential: Annotated[str, Field(min_length=20, max_length=10_000)]
+
+
+class RefreshTokenRequest(StrictSchema):
+    refresh_token: Annotated[str, Field(min_length=32, max_length=500)]
+
+
+class TokenPairRead(StrictSchema):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: StrictInt
+
+
+class AuthUserRead(StrictSchema):
+    id: UUID
+    email: EmailStr
+    full_name: str
+    institution_id: UUID | None
+    roles: list[str]

@@ -1,8 +1,9 @@
 # CampusPulse Backend
 
-Typed FastAPI CRUD service for the initial CampusPulse academic domain. The database includes the
-identity, role and audit tables needed for the next AAA phase. Token verification, permission
-enforcement, MCP, AI workflows, document parsing and a policy engine are not implemented yet.
+Typed FastAPI service for the initial CampusPulse academic domain. It supports Google Identity
+Services sign-in, CampusPulse access and refresh tokens, identity mapping, roles and audit events.
+Permission enforcement, MCP, AI workflows, document parsing and a policy engine are not implemented
+yet.
 
 ## Domain resources
 
@@ -24,6 +25,30 @@ Request bodies use strict Pydantic v2 schemas: implicit type coercion and unknow
 
 The schema overview is in [docs/database-schema.md](docs/database-schema.md), and the Mermaid ERD is
 in [docs/erd.md](docs/erd.md).
+
+## Local Google authentication
+
+The backend receives the Google ID token produced by the Google Identity Services browser widget.
+It verifies the token with Google's signing keys and configured audience, then returns a short-lived
+CampusPulse access token plus a rotating refresh token.
+
+Copy `.env.example` to `.env`, generate a private JWT secret, and set your Google Web Client ID:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Create a Web application OAuth client in Google Cloud and add `http://localhost:5173` as an
+Authorized JavaScript origin. Popup mode with a JavaScript callback does not require a redirect URI
+or client secret. The complete browser/backend contract is in
+[docs/authentication.md](docs/authentication.md).
+
+Authentication endpoints:
+
+- `POST /api/v1/auth/google`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
 
 ## Run with Docker and hot reload
 

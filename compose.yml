@@ -7,6 +7,9 @@ services:
       dockerfile: Dockerfile.dev
     container_name: campuspulse-api
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       CAMPUSPULSE_DATABASE_URL: >-
         postgresql+psycopg://${POSTGRES_USER:-campuspulse}:${POSTGRES_PASSWORD:-campuspulse}@postgres:5432/${POSTGRES_DB:-campuspulse}

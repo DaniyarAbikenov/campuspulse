@@ -28,6 +28,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
     engine = create_engine(database_url)
     expected_tables = {
         "alembic_version",
+        "auth_sessions",
         "assignment_relations",
         "assignments",
         "audit_events",
