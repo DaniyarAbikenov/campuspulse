@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/assignments/$assignmentId")({
   beforeLoad: guardWorkspace,
   validateSearch: (search: Record<string, unknown>): { page?: number } => {
-    const page = Number(search.page);
+    const page = Number(search["page"]);
     return Number.isInteger(page) && page >= 1 && page <= 4 ? { page } : {};
   },
   loader: ({ params }) => {
