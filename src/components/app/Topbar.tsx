@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bell, Search, Sparkles, ChevronRight, CalendarRange } from "lucide-react";
+import { Bell, Search, Sparkles, ChevronRight, CalendarRange, Menu } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,7 +15,7 @@ const labels: Record<string, string> = {
 
 export function Topbar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { openChat, activity, setUploadOpen } = useStore();
+  const { openChat, activity, setUploadOpen, role, setMobileNavOpen } = useStore();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const parts = path.split("/").filter(Boolean);
@@ -30,15 +30,16 @@ export function Topbar() {
     if (i === 0) return labels[seg] ?? seg;
     if (parts[0] === "courses") return courses.find((c) => c.id === seg)?.name ?? seg;
     if (parts[0] === "assignments") return assignments.find((a) => a.id === seg)?.title.split(" — ")[0] ?? seg;
-    return seg;
+    return seg === "statistics" ? "Workload Statistics" : seg === "courses" ? "Courses" : seg;
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b bg-background/90 px-5 backdrop-blur">
+    <header className="sticky top-0 z-20 grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b bg-background/90 px-3 md:flex md:px-5 backdrop-blur">
       <nav className="flex min-w-0 items-center gap-1 text-[13px]">
-        <span className="text-muted-foreground">Workspace</span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 md:hidden" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)}><Menu /></Button>
+        <span className="hidden text-muted-foreground xl:inline">Workspace</span>
         {(parts.length ? parts : [""]).map((p, i) => (
-          <span key={i} className="flex items-center gap-1">
+          <span key={i} className="flex min-w-0 items-center gap-1">
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
             {i === parts.length - 1 || parts.length === 0 ? (
               <span className="truncate font-medium">{crumbName(p, i)}</span>
@@ -48,12 +49,13 @@ export function Topbar() {
           </span>
         ))}
       </nav>
-      <div className="ml-auto flex items-center gap-2">
-        <button onClick={() => setOpen(true)} className="hidden h-8 w-72 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 md:flex">
+      <div className="flex shrink-0 items-center gap-1 md:ml-auto md:gap-2">
+        <button onClick={() => setOpen(true)} className="hidden h-8 w-52 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 xl:flex">
           <Search className="h-3.5 w-3.5" /> Search courses, assignments…
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">⌘K</kbd>
         </button>
         <span className="hidden items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[12px] text-muted-foreground lg:flex"><CalendarRange className="h-3.5 w-3.5" /> Fall 2026 · Week 8</span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 xl:hidden" aria-label="Search workspace" onClick={() => setOpen(true)}><Search /></Button>
         <Popover>
           <PopoverTrigger asChild>
             <button className="relative rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Notifications">
@@ -72,10 +74,10 @@ export function Topbar() {
             <Link to="/activity" className="block px-3 py-2 text-center text-[12px] text-primary hover:bg-secondary">View all activity</Link>
           </PopoverContent>
         </Popover>
-        <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => openChat()}>
-          <Sparkles className="h-3.5 w-3.5 text-primary" /> Ask CampusPulse
+        <Button size="sm" variant="outline" className="h-8 w-8 gap-1.5 px-0 sm:w-auto sm:px-3" aria-label="Ask CampusPulse" onClick={() => openChat()}>
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> <span className="hidden sm:inline">Ask CampusPulse</span>
         </Button>
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-soft text-[11px] font-semibold text-primary">DS</div>
+        <div className="hidden h-7 w-7 shrink-0 sm:flex items-center justify-center rounded-full bg-primary-soft text-[11px] font-semibold text-primary">{role === "admin" ? "AA" : "DS"}</div>
       </div>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
@@ -83,13 +85,14 @@ export function Topbar() {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Courses">
-            {courses.map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{c.name} <span className="ml-auto text-[11px] text-muted-foreground">{c.code}</span></CommandItem>)}
+            {courses.map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{c.name} <span className="ml-auto text-[11px] text-muted-foreground">{c.code}</span></CommandItem>)}
           </CommandGroup>
-          <CommandGroup heading="Assignments">
+          {role === "student" && <CommandGroup heading="Assignments">
             {assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{a.title} <span className="ml-auto text-[11px] text-muted-foreground">{courseOf(a.courseId).code}</span></CommandItem>)}
           </CommandGroup>
+          }
           <CommandGroup heading="Actions">
-            <CommandItem onSelect={() => { setOpen(false); setUploadOpen(true); }}>Upload assignment</CommandItem>
+            {role === "student" && <CommandItem onSelect={() => { setOpen(false); setUploadOpen(true); }}>Upload assignment</CommandItem>}
             <CommandItem onSelect={() => { setOpen(false); openChat(); }}>Ask CampusPulse</CommandItem>
           </CommandGroup>
         </CommandList>

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Cpu, Database, ShieldCheck } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { ActivityFeed } from "@/components/app/widgets";
+import { documentTotals } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/activity")({
@@ -19,7 +20,7 @@ function ActivityPage() {
       <PageHeader title="Agent Activity" subtitle="Every action the CampusPulse agent took in your workspace (simulated)." />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label="Actions today" value={String(activity.length)} sub="Since 07:30" icon={Bot} />
-        <MetricCard label="Documents indexed" value="8" sub="243 pages" icon={Database} />
+        <MetricCard label="Documents indexed" value={String(documentTotals.count)} sub={`${documentTotals.pages} pages`} icon={Database} />
         <MetricCard label="Background jobs" value="3" sub="Timetable, LMS, forecast" icon={Cpu} />
         <MetricCard label="Permissions" value="Read-only" sub="No submissions on your behalf" icon={ShieldCheck} />
       </div>

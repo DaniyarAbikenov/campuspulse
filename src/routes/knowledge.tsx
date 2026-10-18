@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CourseTag, EmptyState, PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { useStore } from "@/lib/store";
-import { courses, knowledgeDocs } from "@/lib/data";
+import { courses, knowledgeDocs, documentTotals } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/knowledge")({
@@ -27,12 +27,12 @@ function Knowledge() {
   const list = knowledgeDocs.filter((d) => (course === "all" || d.courseId === course) && (d.title + d.concepts.join(" ")).toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <PageHeader title="Knowledge Base" subtitle={`${knowledgeDocs.length} documents indexed · ${knowledgeDocs.reduce((s, d) => s + d.pages, 0)} pages`} actions={<Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="h-3.5 w-3.5" /> Add Document</Button>} />
+      <PageHeader title="Knowledge Base" subtitle={`${documentTotals.count} documents indexed · ${documentTotals.pages} pages`} actions={<Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="h-3.5 w-3.5" /> Add Document</Button>} />
       <div className="mb-4 grid gap-4 lg:grid-cols-[1fr_320px]">
         <div>
           <div className="mb-3 flex flex-wrap gap-2">
-            <div className="relative flex-1"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search concepts, e.g. JWT, $group, indexes" className="h-9 pl-8" /></div>
-            <div className="flex gap-1">{["all", ...courses.map((c) => c.id)].map((c) => <button key={c} onClick={() => setCourse(c)} className={cn("rounded-md border px-2 text-[12px]", course === c ? "border-primary/40 bg-primary-soft text-primary" : "text-muted-foreground")}>{c === "all" ? "All" : courses.find((x) => x.id === c)!.code.split(" ")[0]}</button>)}</div>
+            <div className="relative min-w-0 basis-full sm:flex-1"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search concepts, e.g. JWT, $group, indexes" className="h-9 pl-8" /></div>
+            <div className="flex flex-wrap gap-1">{["all", ...courses.map((c) => c.id)].map((c) => <button key={c} onClick={() => setCourse(c)} className={cn("rounded-md border px-2 text-[12px]", course === c ? "border-primary/40 bg-primary-soft text-primary" : "text-muted-foreground")}>{c === "all" ? "All" : courses.find((x) => x.id === c)?.code.split(" ")[0]}</button>)}</div>
           </div>
           {list.length ? <div className="grid gap-3 md:grid-cols-2">{list.map((d) => (
             <button key={d.id} onClick={() => setDoc(d)} className="panel p-3 text-left transition-colors hover:border-primary/40">

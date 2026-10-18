@@ -23,6 +23,10 @@ interface Store {
   openChat: (ctx?: string) => void;
   uploadOpen: boolean;
   setUploadOpen: (o: boolean) => void;
+  mobileNavOpen: boolean;
+  setMobileNavOpen: (open: boolean) => void;
+  workloadPlanApplied: boolean;
+  applyWorkloadPlan: () => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (c: boolean) => void;
 }
@@ -44,6 +48,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState("Overview");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [workloadPlanApplied, setWorkloadPlanApplied] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const log = useCallback((a: Omit<Activity, "id" | "time">) => {
@@ -66,7 +72,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [tasksGenerated, log]);
 
   const value: Store = {
-    role, setRole, tasks, tasksGenerated,
+    role, setRole: (next) => { setRole(next); setChatOpen(false); setUploadOpen(false); }, tasks, tasksGenerated,
+    mobileNavOpen, setMobileNavOpen, workloadPlanApplied,
+    applyWorkloadPlan: () => {
+      if (workloadPlanApplied) return;
+      setWorkloadPlanApplied(true);
+      setInsights((items) => items.map((item) => item.id === "i1" ? { ...item, status: "Accepted" } : item));
+      setEvents((items) => [...items, { id: "rebalance-se", day: 0, start: 13, end: 15, title: "Study: Software Engineering", kind: "study", courseId: "se" }]);
+      log({ title: "Workload plan applied", detail: "2h moved from Wednesday to Monday; weekly capacity unchanged", kind: "schedule", status: "success" });
+    },
     moveTask: (id, column) => setTasks((p) => p.map((t) => (t.id === id ? { ...t, column } : t))),
     addTask: (t) => setTasks((p) => [{ ...t, id: crypto.randomUUID() }, ...p]),
     addGeneratedTasks,
