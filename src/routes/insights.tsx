@@ -23,14 +23,14 @@ function Insights() {
   return (
     <>
       <PageHeader title="AI Insights" subtitle="Proactive recommendations prepared by CampusPulse. Predictions are marked with confidence scores." />
-      <div className="mb-4 flex gap-1 border-b">
+      <div className="-mt-2 mb-3 flex gap-1 border-b">
         {tabs.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={cn("-mb-px border-b-2 px-3 py-2 text-[13px]", tab === t ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
             {t} <span className="text-[11.5px] text-muted-foreground">{t === "All" ? insights.length : insights.filter((i) => i.status === t).length}</span>
           </button>
         ))}
       </div>
-      {list.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{list.map((i) => <InsightCard key={i.id} insight={i} />)}</div>
+      {list.length ? <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">{list.map((i) => <InsightCard key={i.id} insight={i} />)}</div>
         : <div className="panel"><EmptyState icon={Sparkles} title="Nothing here" text="CampusPulse will surface new insights as your workspace changes." /></div>}
     </>
   );

@@ -41,16 +41,16 @@ function Overview() {
         <MetricCard label="Available Study Time" value="12h" sub="Before upcoming deadlines" icon={Clock} trend={{ dir: "down", text: "−3h", good: false }} />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.85fr_1fr]">
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Weekly Workload" subtitle="Estimated required vs. available hours · Week 43" action={<Link to="/workload" className="text-[12px] text-primary hover:underline">Details</Link>}>
-          <WorkloadChart />
+          <WorkloadChart height={262} />
           <PredictionNote><b>Wednesday and Thursday</b> have the highest workload (7h and 6h vs. ~3h available). Consider moving one study session to Monday.</PredictionNote>
         </Panel>
         <Panel title="Today's Schedule" subtitle="Monday, Oct 19 · first day of Week 43" action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
           <ol className="space-y-1.5">
             {todaySchedule.map((s) => (
-              <li key={s.start} className={cn("flex gap-3 rounded-md border px-3 py-2", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>
-                <div className="w-[74px] shrink-0 font-mono text-[11.5px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
+              <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>
+                <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
                 <div className="min-w-0">
                   <div className={cn("text-[13px] font-medium", s.kind === "free" && "text-success")}>{s.title}</div>
                   {s.room && <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin className="h-3 w-3" />{s.room}</div>}
@@ -66,16 +66,16 @@ function Overview() {
         </Panel>
       </div>
 
-      <div className="mt-6 mb-3 flex items-end justify-between">
+      <div className="mt-5 mb-2 flex items-end justify-between">
         <div>
-          <h2 className="flex items-center gap-1.5 text-[16px] font-semibold"><Sparkles className="h-4 w-4 text-ai" /> AI Insights</h2>
+          <h2 className="flex items-center gap-1.5 text-[14px] font-semibold"><Sparkles className="h-3.5 w-3.5 text-ai" /> AI Insights <span className="rounded border border-ai/20 bg-ai-soft px-1.5 text-[10px] font-semibold uppercase tracking-wide text-ai">{shown.length} new</span></h2>
           <p className="text-[12.5px] text-muted-foreground">Proactive recommendations prepared by CampusPulse.</p>
         </div>
         <Link to="/insights" className="text-[12px] text-primary hover:underline">View all insights</Link>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">{shown.map((i) => <InsightCard key={i.id} insight={i} compact />)}</div>
+      <div className="grid gap-2.5 md:grid-cols-3">{shown.map((i) => <InsightCard key={i.id} insight={i} compact />)}</div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.85fr_1fr]">
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Upcoming Assignments" subtitle="Click a row to open the assignment" bodyClass="p-0" action={<Link to="/assignments" className="text-[12px] text-primary hover:underline">All</Link>}>
           <AssignmentTable ids={["se-a3", "adb-a4", "os-l5", "rm-r1"]} />
         </Panel>

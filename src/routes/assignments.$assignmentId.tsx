@@ -75,12 +75,12 @@ function RichAssignment() {
     <>
       <PageHeader title="Assignment 3 — JWT Authentication" subtitle="Software Engineering · SE 3204 · Due October 23, 2026" actions={<>
         <StatusBadge status="In Progress" />
-        <Button size="sm" variant="outline" onClick={() => openChat("Assignment 3")}><Sparkles className="h-3.5 w-3.5 text-primary" /> Ask about this</Button>
+        <Button size="sm" variant="outline" onClick={() => openChat("Assignment 3")}><Sparkles className="h-3.5 w-3.5 text-ai" /> Ask about this</Button>
         <Button size="sm" onClick={() => setRunning(true)}><FileSearch className="h-3.5 w-3.5" /> Analyze Assignment</Button>
       </>} />
 
-      <div className="grid gap-4 lg:grid-cols-[1.85fr_1fr]">
-        <div className="space-y-4">
+      <div className="grid gap-3 lg:grid-cols-[1.85fr_1fr]">
+        <div className="space-y-3">
           <Panel title="Assignment Overview">
             <p className="text-[13px] leading-relaxed text-muted-foreground">Extend the order-management REST service from Assignment 2 with stateless JWT authentication, protected endpoints and role-based authorization. Submit the repository link and a short README.</p>
             <dl className="mt-3 grid grid-cols-2 gap-3 border-t text-[12.5px] md:grid-cols-5 [&>div]:pt-3">
@@ -92,17 +92,17 @@ function RichAssignment() {
             </dl>
           </Panel>
 
-          <Panel title={<span className="flex items-center gap-1.5">AI-Extracted Requirements <span className="rounded bg-ai-soft px-1.5 text-[10.5px] font-medium text-ai">6</span></span>} subtitle="Click a requirement to highlight its source in the document" bodyClass="p-0">
+          <Panel title={<span className="flex items-center gap-1.5">AI-Extracted Requirements <span className="text-[11px] font-normal tabular-nums text-muted-foreground">6</span></span>} ai subtitle="Click a requirement to highlight its source in the document" bodyClass="p-0">
             {requirements.map((r) => (
               <div key={r.id} className={cn("border-b last:border-0", openReq === r.id && "bg-secondary/50")}>
-                <button onClick={() => selectReq(r.id)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left">
+                <button onClick={() => selectReq(r.id)} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-secondary/40">
                   {r.done ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
                   <span className="font-mono text-[11.5px] text-muted-foreground">{r.id}</span>
-                  <span className="flex-1 text-[13px]">{r.text}</span>
+                  <span className="flex-1 text-[12.5px]">{r.text}</span>
                   <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openReq === r.id && "rotate-180")} />
                 </button>
                 {openReq === r.id && (
-                  <div className="space-y-2 px-4 pb-3 pl-[60px] animate-in fade-in slide-in-from-top-1">
+                  <div className="space-y-2 px-3.5 pb-2.5 pl-[58px] animate-in fade-in slide-in-from-top-1">
                     <p className="text-[12.5px] text-muted-foreground">{r.detail}</p>
                     <SourceReference file="Assignment_3.pdf" page={r.page} onClick={() => setPage(r.page)} />
                   </div>
@@ -111,7 +111,7 @@ function RichAssignment() {
             ))}
           </Panel>
 
-          <Panel title="Assignment Dependencies">
+          <Panel title="Assignment Dependencies" ai>
             <div className="flex flex-wrap items-center gap-3">
               <div className="rounded-md border border-primary/40 bg-primary-soft px-3 py-2 text-[13px] font-medium">Assignment 3</div>
               <div className="flex items-center gap-1 text-[11px] font-semibold tracking-wider text-info"><Link2 className="h-3.5 w-3.5" /> EXTENDS <ArrowRight className="h-3.5 w-3.5" /></div>
@@ -120,25 +120,25 @@ function RichAssignment() {
             <p className="mt-3 text-[12.5px] text-muted-foreground">This assignment builds on the existing REST API and PostgreSQL integration implemented previously.</p>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               {[["Reusable", "text-success", ["REST Controllers", "User Entity", "PostgreSQL Configuration"]], ["New", "text-primary", ["JWT Service", "Security Filters", "Authentication Endpoints"]], ["Modified", "text-warning", ["User Service", "Existing Tests"]]].map(([k, cls, items]) => (
-                <div key={k as string} className="rounded-md border p-3">
-                  <div className={cn("mb-1.5 text-[11.5px] font-semibold uppercase tracking-wide", cls as string)}>{k as string} components</div>
+                <div key={k as string} className="rounded-md border bg-card p-2.5">
+                  <div className={cn("mb-1 text-[11.5px] font-semibold uppercase tracking-wide", cls as string)}>{k as string} components</div>
                   {(items as string[]).map((i) => <div key={i} className="font-mono text-[12px]">{i}</div>)}
                 </div>
               ))}
             </div>
           </Panel>
 
-          <Panel title="AI Task Breakdown" subtitle={`${generatedTasks.length} tasks · ${total}h total`} bodyClass="p-0" action={<div className="flex gap-1.5">
+          <Panel ai title="Task Breakdown" subtitle={`${generatedTasks.length} tasks · ${total}h total`} bodyClass="p-0" action={<div className="flex gap-1.5">
             <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => setEditing(!editing)}><Pencil className="h-3 w-3" /> {editing ? "Done" : "Edit Estimates"}</Button>
             <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => toast("Breakdown regenerated", { description: "Same 6 tasks — the brief hasn't changed." })}><RefreshCw className="h-3 w-3" /> Regenerate</Button>
             <Button size="sm" className="h-7 text-[12px]" onClick={() => { if (tasksGenerated) { void navigate({ to: "/kanban" }); return; } addGeneratedTasks(); toast.success("6 tasks added to Kanban", { action: { label: "Open", onClick: () => navigate({ to: "/kanban" }) } }); }}>{tasksGenerated ? "View on Kanban" : "Add All to Kanban"}</Button>
           </div>}>
-            <table className="w-full text-[13px]">
-              <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th className="px-4 py-2 font-medium">#</th><th className="font-medium">Task</th><th className="font-medium">Priority</th><th className="font-medium">Req.</th><th className="px-4 text-right font-medium">Estimate</th></tr></thead>
+            <table className="w-full text-[12.5px]">
+              <thead><tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground [&>th]:font-semibold"><th className="px-3.5 py-1.5 font-medium">#</th><th className="font-medium">Task</th><th className="font-medium">Priority</th><th className="font-medium">Req.</th><th className="px-4 text-right font-medium">Estimate</th></tr></thead>
               <tbody>{generatedTasks.map((t, i) => (
                 <tr key={t.title} className="border-b last:border-0">
-                  <td className="px-4 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
-                  <td className="py-2.5 pr-3"><div className="font-medium">{t.title}</div><div className="text-[11.5px] text-muted-foreground">{t.description}</div></td>
+                  <td className="px-3.5 py-2 align-top font-mono text-[11px] text-muted-foreground tabular-nums">{i + 1}</td>
+                  <td className="py-2 pr-3"><div className="font-medium">{t.title}</div><div className="text-[11.5px] text-muted-foreground">{t.description}</div></td>
                   <td><PriorityIndicator priority={t.priority} /></td>
                   <td className="font-mono text-[11.5px]">{t.req}</td>
                   <td className="px-4 text-right tabular-nums">
@@ -149,7 +149,7 @@ function RichAssignment() {
             </table>
           </Panel>
 
-          <Panel title="Workload Estimation" subtitle="Simulated demonstration data">
+          <Panel ai title="Workload Estimation" subtitle="Simulated demonstration data">
             <div className="grid gap-4 md:grid-cols-[220px_1fr]">
               <dl className="space-y-2 text-[13px]">
                 {[["AI Estimate", `${total} hours`], ["Historical Student Median", "9.2 hours"], ["Sample Size", "14 students"], ["Estimated Range", "7–12 hours"]].map(([k, v]) => <div key={k} className="flex justify-between border-b pb-1.5"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium tabular-nums">{v}</dd></div>)}
@@ -160,7 +160,7 @@ function RichAssignment() {
           </Panel>
         </div>
 
-        <div className="space-y-4 lg:sticky lg:top-16 lg:self-start">
+        <div className="space-y-3 lg:sticky lg:top-16 lg:self-start">
           <Panel title="Assignment_3.pdf" bodyClass="p-0" action={<div className="flex items-center gap-1 text-[11.5px]">
             <button className="rounded p-1 hover:bg-secondary" onClick={() => setZoom(Math.max(70, zoom - 10))}><Minus className="h-3 w-3" /></button>
             <span className="w-9 text-center tabular-nums">{zoom}%</span>
@@ -174,7 +174,7 @@ function RichAssignment() {
               <DocPage page={page} zoom={zoom} highlight={openReq} />
             </div>
           </Panel>
-          <Panel title={<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> AI Analysis</span>}>
+          <Panel ai title="Analysis Status">
             {running ? <AnalysisProgress running onDone={finish} /> : (
               <dl className="space-y-2 text-[12.5px]">
                 <div className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</div>

@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -59,8 +59,8 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.984 0.003 247.86); /* #F8FAFC */
+  --radius: 0.4rem;
+  --background: oklch(0.982 0.002 264); /* #F8FAFC */
   --foreground: oklch(0.208 0.042 265.76); /* #0F172A */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.208 0.042 265.76);
@@ -85,8 +85,8 @@
   --warning-soft: oklch(0.987 0.022 95.28);
   --info: oklch(0.588 0.139 241.97); /* #0284C7 */
   --info-soft: oklch(0.977 0.013 236.62);
-  --ai: oklch(0.511 0.23 276.97);
-  --ai-soft: oklch(0.962 0.018 272.31);
+  --ai: oklch(0.53 0.22 300);
+  --ai-soft: oklch(0.97 0.02 305);
   --border: oklch(0.929 0.013 255.51); /* #E2E8F0 */
   --input: oklch(0.929 0.013 255.51);
   --ring: oklch(0.511 0.23 276.97);
@@ -116,7 +116,8 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-size: 13.5px;
+    font-size: 13px;
+    letter-spacing: -0.003em;
     -webkit-font-smoothing: antialiased;
   }
 }
@@ -124,7 +125,26 @@
 @utility panel {
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+/* AI-generated surfaces: violet tint + hairline gradient border, distinct from ordinary data */
+@utility ai-surface {
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    linear-gradient(135deg, color-mix(in oklab, var(--ai) 45%, transparent), color-mix(in oklab, var(--ai) 8%, var(--border))) border-box;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--ai) 8%, transparent);
+}
+
+@utility eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
 }
 
 @utility doc-highlight {
