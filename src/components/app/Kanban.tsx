@@ -13,6 +13,8 @@ export const columns: { id: Task["column"]; label: string }[] = [
   { id: "backlog", label: "Backlog" }, { id: "todo", label: "To Do" }, { id: "progress", label: "In Progress" }, { id: "review", label: "Review" }, { id: "done", label: "Completed" },
 ];
 
+const dot: Record<Task["column"], string> = { backlog: "bg-muted-foreground/40", todo: "bg-muted-foreground", progress: "bg-info", review: "bg-warning", done: "bg-success" };
+
 export function KanbanBoard({ courseId, filter }: { courseId?: string | undefined; filter?: ((t: Task) => boolean) | undefined }) {
   const { tasks, moveTask } = useStore();
   const [over, setOver] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
 
   return (
     <>
-      <div className="grid min-w-[1000px] grid-cols-5 gap-3">
+      <div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
         {columns.map((col) => {
           const items = list.filter((t) => t.column === col.id);
           const hours = items.reduce((s, t) => s + t.estimate, 0);
@@ -30,22 +32,22 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
               onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
               onDragLeave={() => setOver(null)}
               onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(`Moved to ${col.label}`); }}
-              className={cn("flex min-h-[420px] flex-col rounded-lg border bg-secondary/50 p-2 transition-colors", over === col.id && "border-primary/50 bg-primary-soft")}
+              className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", over === col.id && "bg-primary-soft ring-primary/40")}
             >
-              <div className="mb-2 flex items-center gap-2 px-1 text-[12.5px] font-medium">
-                {col.label}<span className="rounded bg-card px-1.5 text-[11px] text-muted-foreground">{items.length}</span>
+              <div className="mb-1.5 flex h-7 items-center gap-1.5 px-1.5 text-[12px] font-semibold">
+                <span className={cn("h-2 w-2 rounded-full", dot[col.id])} />{col.label}<span className="text-[11px] font-normal tabular-nums text-muted-foreground">{items.length}</span>
                 <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">{hours}h</span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {items.map((t) => (
                   <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)} onClick={() => setOpen(t)}
-                    className="cursor-grab rounded-md border bg-card p-2.5 shadow-[0_1px_0_var(--border)] transition-all hover:border-primary/40 active:cursor-grabbing animate-in fade-in">
+                    className={cn("cursor-grab rounded-md border bg-card px-2.5 py-2 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent)] transition-all hover:border-foreground/20 active:cursor-grabbing animate-in fade-in", t.ai && "border-l-2 border-l-ai", t.column === "done" && "opacity-70")}>
                     <div className="flex items-start gap-1.5">
-                      <p className="flex-1 text-[12.5px] font-medium leading-snug">{t.title}</p>
+                      <p className={cn("flex-1 text-[12.5px] font-medium leading-snug", t.column === "done" && "line-through decoration-muted-foreground/50")}>{t.title}</p>
                       {t.ai && <Sparkles className="h-3 w-3 shrink-0 text-ai" />}
                     </div>
-                    <div className="mt-1.5"><CourseTag id={t.courseId} /></div>
-                    <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <div className="mt-1 flex items-center gap-2"><CourseTag id={t.courseId} />{t.req && <span className="font-mono text-[10.5px] text-muted-foreground">{t.req}</span>}</div>
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
                       <PriorityIndicator priority={t.priority} />
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{t.estimate}h · {t.due}</span>
                     </div>
