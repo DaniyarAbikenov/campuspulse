@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { ChevronDown, CheckCircle2, Circle, FileSearch, Link2, Minus, Plus, RefreshCw, Pencil, Sparkles, ArrowRight, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
 import { PageHeader, Panel, PredictionNote, PriorityIndicator, SourceReference, StatusBadge, CourseTag } from "@/components/app/common";
 import { SimpleBars } from "@/components/app/widgets";
 import { AnalysisProgress } from "@/components/app/AnalysisProgress";
@@ -83,7 +83,7 @@ function RichAssignment() {
         <div className="space-y-4">
           <Panel title="Assignment Overview">
             <p className="text-[13px] leading-relaxed text-muted-foreground">Extend the order-management REST service from Assignment 2 with stateless JWT authentication, protected endpoints and role-based authorization. Submit the repository link and a short README.</p>
-            <dl className="mt-3 grid grid-cols-2 gap-3 border-t pt3 text-[12.5px] md:grid-cols-5 [&>div]:pt-3">
+            <dl className="mt-3 grid grid-cols-2 gap-3 border-t text-[12.5px] md:grid-cols-5 [&>div]:pt-3">
               <div><dt className="text-muted-foreground">Deadline</dt><dd className="font-medium">Oct 23, 23:59</dd></div>
               <div><dt className="text-muted-foreground">Difficulty</dt><dd className="font-medium">Medium–High</dd></div>
               <div><dt className="text-muted-foreground">Estimate</dt><dd className="font-medium">{total}h</dd></div>
@@ -184,7 +184,6 @@ function RichAssignment() {
           </Panel>
         </div>
       </div>
-      <Dialog open={false}><DialogContent><DialogHeader><DialogTitle /><DialogDescription /></DialogHeader></DialogContent></Dialog>
     </>
   );
 }
