@@ -96,6 +96,9 @@ def authenticate_google(
     if not user.is_active:
         raise AuthenticationError("User account is inactive")
 
+    if session.get(models.UserSettings, user.id) is None:
+        session.add(models.UserSettings(user_id=user.id))
+
     token_pair = _issue_session(
         session,
         user.id,

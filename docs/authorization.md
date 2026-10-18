@@ -16,6 +16,8 @@ academic CRUD route requires a valid CampusPulse bearer access token.
 | Assignment relations and tasks | Inherit assignment access | Inherit assignment access | Full access |
 | Documents | Manage metadata in enrolled courses, with owned assignment links | Manage own institution | Full access |
 | Schedule events | Manage own calendar | Manage own institution | Full access |
+| Settings | Read and manage own settings | Read and manage own settings | Read and manage own settings |
+| Insights | Read, change state and apply own recommendations | Create recommendations for own institution; apply only own | Create recommendations for any user; apply only own |
 
 List endpoints filter out inaccessible records. Direct reads and mutations return `404` when the
 resource exists outside the caller's scope, so the API does not reveal its existence. Creation of a

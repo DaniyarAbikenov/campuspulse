@@ -17,6 +17,7 @@ services:
     volumes:
       - ./app:/app/app
       - ./migrations:/app/migrations
+      - ./storage:/app/storage
     ports:
       - "${API_PORT:-8000}:8000"
     networks:

@@ -1,6 +1,6 @@
 # CampusPulse database ERD
 
-This diagram is the source-of-truth overview for the schema created by the first Alembic migration.
+This diagram is the source-of-truth overview for the schema created by the Alembic migrations.
 Column-level details and deletion behavior are documented in
 [database-schema.md](database-schema.md).
 
@@ -11,6 +11,7 @@ erDiagram
     USER ||--o{ IDENTITY_ACCOUNT : authenticates_with
     USER ||--o{ AUTH_SESSION : opens
     USER ||--o{ USER_ROLE : receives
+    USER ||--o| USER_SETTINGS : configures
     ROLE ||--o{ USER_ROLE : grants
     USER o|--o{ AUDIT_EVENT : acts_in
     SEMESTER ||--o{ COURSE : contains
@@ -25,6 +26,9 @@ erDiagram
     ASSIGNMENT o|--o{ DOCUMENT : references
     USER ||--o{ SCHEDULE_EVENT : schedules
     COURSE o|--o{ SCHEDULE_EVENT : contextualizes
+    USER ||--o{ INSIGHT : receives
+    COURSE o|--o{ INSIGHT : contextualizes
+    ASSIGNMENT o|--o{ INSIGHT : recommends_for
 
     INSTITUTION {
         uuid id PK
@@ -63,6 +67,16 @@ erDiagram
         uuid id PK
         uuid userId FK
         uuid roleId FK
+    }
+    USER_SETTINGS {
+        uuid userId PK
+        string interfaceLanguage
+        string groupName
+        float maxStudyHoursPerDay
+        time earliestStart
+        time latestEnd
+        bool proactiveInsights
+        bool automaticTaskGeneration
     }
     AUDIT_EVENT {
         uuid id PK
@@ -133,5 +147,18 @@ erDiagram
         string kind
         datetime startsAt
         datetime endsAt
+    }
+    INSIGHT {
+        uuid id PK
+        uuid userId FK
+        uuid courseId FK "Nullable"
+        uuid assignmentId FK "Nullable"
+        string category
+        int confidence
+        string severity
+        string status
+        json cta
+        string actionType
+        json actionPayload
     }
 ```

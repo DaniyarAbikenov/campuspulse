@@ -17,6 +17,8 @@ configurable policy engine are not implemented yet.
 - Tasks
 - Documents (metadata only)
 - Schedule events
+- Personal settings
+- Actionable AI insight records
 
 The academic resources expose list, create, read, partial update and delete operations under
 `/api/v1`. Identity accounts, roles, role assignments and audit events currently exist only as
@@ -55,6 +57,11 @@ Authentication endpoints:
 Every academic CRUD endpoint requires `Authorization: Bearer <access_token>`. A newly created
 Google user completes onboarding once to select an institution, profile details and initial
 courses.
+
+Frontend-oriented endpoints are documented in
+[docs/frontend-api.md](docs/frontend-api.md). They provide the aggregated course and assignment
+cards, weekly schedule and free-time slots, Kanban columns, workload and study statistics,
+actionable insights, assignment file upload, and user settings used by the current prototype.
 
 ## Run with Docker and hot reload
 

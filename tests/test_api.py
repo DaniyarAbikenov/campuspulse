@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -470,8 +471,13 @@ def test_academic_admin_is_limited_to_own_institution(platform_client: TestClien
     assert [item["id"] for item in semesters.json()] == [own_semester.json()["id"]]
 
 
-def test_onboarding_and_student_data_isolation(platform_client: TestClient) -> None:
+def test_onboarding_and_student_data_isolation(
+    platform_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     client = platform_client
+    monkeypatch.setattr(settings, "upload_directory", str(tmp_path))
     institution = client.post(
         "/api/v1/institutions",
         json={
@@ -530,6 +536,27 @@ def test_onboarding_and_student_data_isolation(platform_client: TestClient) -> N
         )
         assert onboarding.status_code == 200
 
+    settings_response = client.patch(
+        "/api/v1/settings",
+        headers=first_headers,
+        json={
+            "group_name": "SE-2429",
+            "max_study_hours_per_day": 4.0,
+            "earliest_start": "08:00:00",
+            "latest_end": "20:00:00",
+            "proactive_insights": True,
+        },
+    )
+    assert settings_response.status_code == 200
+    assert settings_response.json()["group_name"] == "SE-2429"
+
+    course_overview = client.get(
+        "/api/v1/courses/overview?q=software&has_open_assignments=false",
+        headers=first_headers,
+    )
+    assert course_overview.status_code == 200
+    assert course_overview.json()[0]["code"] == "SE 3204"
+
     assignment = client.post(
         "/api/v1/assignments",
         headers=first_headers,
@@ -542,6 +569,106 @@ def test_onboarding_and_student_data_isolation(platform_client: TestClient) -> N
     assert assignment.status_code == 201
     assignment_id = assignment.json()["id"]
     assert assignment.json()["owner_user_id"] == first_tokens["user_id"]
+
+    assignment_overview = client.get(
+        "/api/v1/assignments/overview?assignment_status=upcoming",
+        headers=first_headers,
+    )
+    assert assignment_overview.status_code == 200
+    assert assignment_overview.json()["total"] == 1
+    assert assignment_overview.json()["status_counts"]["upcoming"] == 1
+    assert assignment_overview.json()["items"][0]["course_code"] == "SE 3204"
+    assert assignment_overview.json()["items"][0]["remaining_hours"] == 0.0
+
+    task = client.post(
+        "/api/v1/tasks",
+        headers=first_headers,
+        json={
+            "assignment_id": assignment_id,
+            "title": "Implement endpoint",
+            "priority": "high",
+            "estimated_hours": 1.5,
+        },
+    )
+    assert task.status_code == 201
+    board = client.get("/api/v1/kanban", headers=first_headers)
+    assert board.status_code == 200
+    assert board.json()["total_tasks"] == 1
+    moved = client.patch(
+        f"/api/v1/kanban/tasks/{task.json()['id']}/move",
+        headers=first_headers,
+        json={"status": "in_progress"},
+    )
+    assert moved.status_code == 200
+    assert moved.json()["status"] == "in_progress"
+
+    uploaded = client.post(
+        "/api/v1/assignments/upload",
+        headers=first_headers,
+        data={
+            "course_id": course["id"],
+            "title": "Uploaded assignment",
+            "due_at": "2026-10-25T18:00:00+05:00",
+            "estimated_hours": "2.5",
+        },
+        files={"file": ("brief.pdf", b"%PDF-1.4 demo", "application/pdf")},
+    )
+    assert uploaded.status_code == 201
+    assert uploaded.json()["document"]["name"] == "brief.pdf"
+    uploaded_assignment_id = uploaded.json()["assignment"]["id"]
+
+    schedule = client.get("/api/v1/schedule?week_start=2026-10-19", headers=first_headers)
+    assert schedule.status_code == 200
+    assert schedule.json()["free_time"]
+    assert (
+        client.get(
+            "/api/v1/schedule/free-time?week_start=2026-10-19", headers=first_headers
+        ).status_code
+        == 200
+    )
+    assert (
+        client.get("/api/v1/workload?week_start=2026-10-19", headers=first_headers).status_code
+        == 200
+    )
+    assert client.get("/api/v1/statistics", headers=first_headers).status_code == 200
+
+    platform_actor = models.User(
+        id=uuid4(),
+        email="insight.admin@campuspulse.local",
+        full_name="Insight Admin",
+        is_active=True,
+    )
+    client.app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(
+        user=platform_actor, roles=["platform_admin"]
+    )
+    insight = client.post(
+        "/api/v1/insights",
+        json={
+            "user_id": first_tokens["user_id"],
+            "course_id": course["id"],
+            "assignment_id": assignment_id,
+            "category": "schedule_opportunity",
+            "title": "Free study slot",
+            "summary": "A free slot is available.",
+            "suggestion": "Plan a study session.",
+            "confidence": 90,
+            "severity": "low",
+            "cta": {"label": "Plan session", "action": "apply", "style": "primary"},
+            "action_type": "create_study_session",
+            "action_payload": {
+                "course_id": course["id"],
+                "title": "Focused study",
+                "starts_at": "2026-10-20T13:00:00+05:00",
+                "ends_at": "2026-10-20T14:00:00+05:00",
+            },
+        },
+    )
+    assert insight.status_code == 201
+    client.app.dependency_overrides.pop(get_current_user, None)
+    applied = client.post(f"/api/v1/insights/{insight.json()['id']}/apply", headers=first_headers)
+    assert applied.status_code == 200
+    assert applied.json()["insight"]["status"] == "applied"
+    assert applied.json()["created_resource_type"] == "schedule_event"
 
     second_assignment = client.post(
         "/api/v1/assignments",
@@ -565,7 +692,10 @@ def test_onboarding_and_student_data_isolation(platform_client: TestClient) -> N
     assert private_document.status_code == 201
 
     first_assignments = client.get("/api/v1/assignments", headers=first_headers).json()
-    assert [item["id"] for item in first_assignments] == [assignment_id]
+    assert {item["id"] for item in first_assignments} == {
+        assignment_id,
+        uploaded_assignment_id,
+    }
     assert (
         client.get(f"/api/v1/assignments/{assignment_id}", headers=second_headers).status_code
         == 404
@@ -586,7 +716,8 @@ def test_onboarding_and_student_data_isolation(platform_client: TestClient) -> N
         ).status_code
         == 200
     )
-    assert client.get("/api/v1/documents", headers=first_headers).json() == []
+    first_documents = client.get("/api/v1/documents", headers=first_headers).json()
+    assert [item["name"] for item in first_documents] == ["brief.pdf"]
     assert (
         client.post(
             "/api/v1/assignment-relations",

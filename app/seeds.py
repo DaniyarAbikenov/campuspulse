@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -110,6 +110,20 @@ def seed_database(session: Session) -> SeedSummary:
                 provider_email="demo.student@campuspulse.local",
             ),
             models.UserRole(id=seed_id(120), user_id=student_id, role_id=role_ids["student"]),
+            models.UserSettings(
+                user_id=student_id,
+                interface_language="en",
+                group_name="SE-2429",
+                max_study_hours_per_day=4.0,
+                earliest_start=time(8, 0),
+                latest_end=time(20, 0),
+                proactive_insights=True,
+                automatic_task_generation=True,
+                share_anonymized_completion_times=True,
+                deadline_reminders=True,
+                daily_briefing=True,
+                event_suggestions=True,
+            ),
         ],
     )
 
@@ -385,6 +399,98 @@ def seed_database(session: Session) -> SeedSummary:
                 kind=models.ScheduleEventKind.study_session,
                 starts_at=datetime.fromisoformat("2026-10-19T17:00:00+05:00"),
                 ends_at=datetime.fromisoformat("2026-10-19T18:30:00+05:00"),
+            ),
+        ],
+    )
+
+    merge_all(
+        session,
+        [
+            models.Insight(
+                id=seed_id(801),
+                user_id=student_id,
+                course_id=course_ids["SE 3204"],
+                assignment_id=assignment_ids[3],
+                category="workload_warning",
+                title="Heavy academic workload detected",
+                summary="Three major deadlines fall within the same week.",
+                suggestion="Move 1.5 hours of authentication work to Monday.",
+                confidence=87,
+                severity=models.InsightSeverity.high,
+                status=models.InsightStatus.new,
+                cta={"label": "Apply plan", "action": "apply", "style": "primary"},
+                action_type=models.InsightActionType.create_study_session,
+                action_payload={
+                    "course_id": str(course_ids["SE 3204"]),
+                    "title": "JWT token generation",
+                    "starts_at": "2026-10-19T13:00:00+05:00",
+                    "ends_at": "2026-10-19T14:30:00+05:00",
+                },
+            ),
+            models.Insight(
+                id=seed_id(802),
+                user_id=student_id,
+                course_id=course_ids["SE 3204"],
+                assignment_id=assignment_ids[3],
+                category="assignment_analysis",
+                title="Assignment 3 is ready for planning",
+                summary="The proposed task breakdown is ready to import.",
+                suggestion="Review and import the generated tasks.",
+                confidence=92,
+                severity=models.InsightSeverity.medium,
+                status=models.InsightStatus.new,
+                cta={"label": "Apply to Kanban", "action": "apply", "style": "primary"},
+                action_type=models.InsightActionType.import_tasks,
+                action_payload={
+                    "assignment_id": str(assignment_ids[3]),
+                    "tasks": [
+                        {
+                            "title": "Configure security middleware",
+                            "priority": "high",
+                            "estimated_hours": 2.0,
+                        },
+                        {
+                            "title": "Test and document authentication",
+                            "priority": "medium",
+                            "estimated_hours": 2.0,
+                        },
+                    ],
+                },
+            ),
+            models.Insight(
+                id=seed_id(803),
+                user_id=student_id,
+                course_id=course_ids["CS 3302"],
+                category="study_preparation",
+                title="Midterm preparation recommended",
+                summary="A focused revision plan would reduce the next-week workload.",
+                suggestion="Schedule three 90-minute revision sessions.",
+                confidence=81,
+                severity=models.InsightSeverity.medium,
+                status=models.InsightStatus.new,
+                cta={"label": "View study plan", "action": "open_plan", "style": "primary"},
+                action_type=models.InsightActionType.none,
+            ),
+            models.Insight(
+                id=seed_id(804),
+                user_id=student_id,
+                course_id=course_ids["SE 3204"],
+                assignment_id=assignment_ids[3],
+                category="schedule_opportunity",
+                title="Free study slot on Monday",
+                summary="An uninterrupted block is available before the deadline.",
+                suggestion="Use the slot for JWT token generation.",
+                confidence=90,
+                severity=models.InsightSeverity.low,
+                status=models.InsightStatus.new,
+                cta={"label": "Plan session", "action": "apply", "style": "primary"},
+                action_type=models.InsightActionType.create_study_session,
+                action_payload={
+                    "course_id": str(course_ids["SE 3204"]),
+                    "title": "JWT token generation",
+                    "starts_at": "2026-10-19T13:00:00+05:00",
+                    "ends_at": "2026-10-19T14:30:00+05:00",
+                },
             ),
         ],
     )

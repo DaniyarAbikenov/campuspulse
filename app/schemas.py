@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Annotated
 from uuid import UUID
 
@@ -19,6 +19,9 @@ from app.db.models import (
     AuditOutcome,
     Difficulty,
     DocumentKind,
+    InsightActionType,
+    InsightSeverity,
+    InsightStatus,
     Priority,
     ScheduleEventKind,
     TaskStatus,
@@ -364,3 +367,200 @@ class OnboardingRequest(StrictSchema):
     student_number: Annotated[str, Field(min_length=1, max_length=64)]
     program: Annotated[str, Field(min_length=1, max_length=200)]
     course_ids: Annotated[list[UUID], Field(max_length=20)] = Field(default_factory=list)
+
+
+class CourseSummaryRead(CourseRead):
+    assignment_count: StrictInt
+    completed_assignment_count: StrictInt
+    completion_percent: StrictInt
+    remaining_hours: StrictFloat
+    next_due_at: datetime | None
+
+
+class AssignmentSummaryRead(AssignmentRead):
+    course_code: str
+    course_name: str
+    task_count: StrictInt
+    completed_task_count: StrictInt
+    document_count: StrictInt
+    remaining_hours: StrictFloat
+
+
+class AssignmentOverviewPageRead(StrictSchema):
+    total: StrictInt
+    status_counts: dict[AssignmentStatus, StrictInt]
+    items: list[AssignmentSummaryRead]
+
+
+class FreeTimeSlotRead(StrictSchema):
+    starts_at: datetime
+    ends_at: datetime
+    duration_hours: StrictFloat
+
+
+class ScheduleWeekRead(StrictSchema):
+    week_start: date
+    week_end: date
+    events: list[ScheduleEventRead]
+    free_time: list[FreeTimeSlotRead]
+    scheduled_study_hours: StrictFloat
+    free_hours: StrictFloat
+    unscheduled_work_hours: StrictFloat
+
+
+class KanbanColumnRead(StrictSchema):
+    status: TaskStatus
+    task_count: StrictInt
+    estimated_hours: StrictFloat
+    tasks: list[TaskRead]
+
+
+class KanbanBoardRead(StrictSchema):
+    total_tasks: StrictInt
+    open_tasks: StrictInt
+    open_estimated_hours: StrictFloat
+    columns: list[KanbanColumnRead]
+
+
+class KanbanMoveRequest(StrictSchema):
+    status: TaskStatus
+
+
+class WorkloadCourseRead(StrictSchema):
+    course_id: UUID
+    course_code: str
+    course_name: str
+    remaining_hours: StrictFloat
+
+
+class WorkloadDayRead(StrictSchema):
+    day: date
+    required_hours: StrictFloat
+    available_hours: StrictFloat
+    overload_hours: StrictFloat
+
+
+class WorkloadRead(StrictSchema):
+    week_start: date
+    week_end: date
+    required_hours: StrictFloat
+    available_hours: StrictFloat
+    overload_hours: StrictFloat
+    scheduled_study_hours: StrictFloat
+    unscheduled_hours: StrictFloat
+    peak_day: date | None
+    by_course: list[WorkloadCourseRead]
+    by_day: list[WorkloadDayRead]
+
+
+class CompletedAssignmentStatRead(StrictSchema):
+    assignment_id: UUID
+    title: str
+    course_name: str
+    estimated_hours: StrictFloat
+    actual_hours: StrictFloat
+    delta_hours: StrictFloat
+
+
+class StudyStatisticsRead(StrictSchema):
+    reported_study_hours: StrictFloat
+    estimate_accuracy_percent: StrictInt
+    completed_assignments: StrictInt
+    completed: list[CompletedAssignmentStatRead]
+
+
+class SettingsRead(StrictSchema):
+    full_name: str
+    program: str | None
+    group_name: str | None
+    interface_language: str
+    max_study_hours_per_day: StrictFloat
+    earliest_start: time
+    latest_end: time
+    proactive_insights: StrictBool
+    automatic_task_generation: StrictBool
+    share_anonymized_completion_times: StrictBool
+    deadline_reminders: StrictBool
+    daily_briefing: StrictBool
+    event_suggestions: StrictBool
+
+
+class SettingsUpdate(StrictSchema):
+    full_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    program: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    group_name: Annotated[str, Field(min_length=1, max_length=100)] | None = None
+    interface_language: Annotated[str, Field(min_length=2, max_length=16)] | None = None
+    max_study_hours_per_day: Annotated[StrictFloat, Field(gt=0, le=24)] | None = None
+    earliest_start: time | None = None
+    latest_end: time | None = None
+    proactive_insights: StrictBool | None = None
+    automatic_task_generation: StrictBool | None = None
+    share_anonymized_completion_times: StrictBool | None = None
+    deadline_reminders: StrictBool | None = None
+    daily_briefing: StrictBool | None = None
+    event_suggestions: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def validate_availability(self) -> "SettingsUpdate":
+        if (
+            self.earliest_start is not None
+            and self.latest_end is not None
+            and self.latest_end <= self.earliest_start
+        ):
+            raise ValueError("latest_end must be after earliest_start")
+        return self
+
+
+class InsightCta(StrictSchema):
+    label: Annotated[str, Field(min_length=1, max_length=100)]
+    action: Annotated[str, Field(min_length=1, max_length=100)]
+    style: Annotated[str, Field(min_length=1, max_length=32)] = "primary"
+
+
+class InsightRead(EntityRead):
+    user_id: UUID
+    course_id: UUID | None
+    assignment_id: UUID | None
+    category: str
+    title: str
+    summary: str
+    suggestion: str
+    confidence: StrictInt
+    severity: InsightSeverity
+    status: InsightStatus
+    cta: InsightCta
+    action_type: InsightActionType
+    action_payload: dict[str, object] | None
+    snoozed_until: datetime | None
+    applied_at: datetime | None
+
+
+class InsightCreate(StrictSchema):
+    user_id: UUID
+    course_id: UUID | None = None
+    assignment_id: UUID | None = None
+    category: Annotated[str, Field(min_length=1, max_length=100)]
+    title: ShortText
+    summary: str
+    suggestion: str
+    confidence: Annotated[StrictInt, Field(ge=0, le=100)]
+    severity: InsightSeverity
+    cta: InsightCta
+    action_type: InsightActionType = InsightActionType.none
+    action_payload: dict[str, object] | None = None
+
+
+class InsightStatusUpdate(StrictSchema):
+    status: InsightStatus
+    snoozed_until: datetime | None = None
+
+
+class InsightApplyRead(StrictSchema):
+    insight: InsightRead
+    created_resource_type: str | None = None
+    created_resource_ids: list[UUID] = Field(default_factory=list)
+
+
+class AssignmentUploadRead(StrictSchema):
+    assignment: AssignmentRead
+    document: DocumentRead

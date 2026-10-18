@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -91,6 +91,27 @@ class AuditOutcome(StrEnum):
     failure = "failure"
 
 
+class InsightStatus(StrEnum):
+    new = "new"
+    accepted = "accepted"
+    applied = "applied"
+    snoozed = "snoozed"
+    dismissed = "dismissed"
+
+
+class InsightSeverity(StrEnum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
+class InsightActionType(StrEnum):
+    none = "none"
+    create_study_session = "create_study_session"
+    import_tasks = "import_tasks"
+    update_assignment = "update_assignment"
+
+
 class Institution(TimestampMixin, Base):
     __tablename__ = "institutions"
 
@@ -150,6 +171,31 @@ class UserRole(TimestampMixin, Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     role_id: Mapped[UUID] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), index=True)
+
+
+class UserSettings(TimestampMixin, Base):
+    __tablename__ = "user_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "max_study_hours_per_day > 0 AND max_study_hours_per_day <= 24",
+            name="ck_user_settings_max_study_hours",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    interface_language: Mapped[str] = mapped_column(String(16), default="en")
+    group_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    max_study_hours_per_day: Mapped[float] = mapped_column(Float, default=4.0)
+    earliest_start: Mapped[time] = mapped_column(default=time(8, 0))
+    latest_end: Mapped[time] = mapped_column(default=time(20, 0))
+    proactive_insights: Mapped[bool] = mapped_column(Boolean, default=True)
+    automatic_task_generation: Mapped[bool] = mapped_column(Boolean, default=True)
+    share_anonymized_completion_times: Mapped[bool] = mapped_column(Boolean, default=False)
+    deadline_reminders: Mapped[bool] = mapped_column(Boolean, default=True)
+    daily_briefing: Mapped[bool] = mapped_column(Boolean, default=True)
+    event_suggestions: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class AuthSession(Base):
@@ -341,6 +387,48 @@ class ScheduleEvent(TimestampMixin, Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     location: Mapped[str | None] = mapped_column(String(240), nullable=True)
+
+
+class Insight(TimestampMixin, Base):
+    __tablename__ = "insights"
+    __table_args__ = (
+        CheckConstraint("confidence >= 0 AND confidence <= 100", name="ck_insight_confidence"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    course_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    assignment_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    category: Mapped[str] = mapped_column(String(100))
+    title: Mapped[str] = mapped_column(String(240))
+    summary: Mapped[str] = mapped_column(Text)
+    suggestion: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[int] = mapped_column(Integer)
+    severity: Mapped[InsightSeverity] = mapped_column(
+        SqlEnum(InsightSeverity, native_enum=False, create_constraint=True, name="insight_severity")
+    )
+    status: Mapped[InsightStatus] = mapped_column(
+        SqlEnum(InsightStatus, native_enum=False, create_constraint=True, name="insight_status"),
+        default=InsightStatus.new,
+        index=True,
+    )
+    cta: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    action_type: Mapped[InsightActionType] = mapped_column(
+        SqlEnum(
+            InsightActionType,
+            native_enum=False,
+            create_constraint=True,
+            name="insight_action_type",
+        ),
+        default=InsightActionType.none,
+    )
+    action_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AuditEvent(Base):

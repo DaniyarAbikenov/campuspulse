@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated, TypeVar
 from uuid import UUID
 
@@ -12,9 +13,11 @@ from app.auth.router import router as auth_router
 from app.crud import create_entity, delete_entity, get_entity, list_entities, update_entity
 from app.db import models
 from app.db.session import get_session
+from app.product.router import router as product_router
 
 router = APIRouter()
 router.include_router(auth_router, prefix="/auth", tags=["auth"])
+router.include_router(product_router)
 RawSessionDep = Annotated[Session, Depends(get_session)]
 
 
@@ -120,8 +123,26 @@ def delete_semester(entity_id: UUID, session: SessionDep) -> Response:
 
 
 @router.get("/courses", response_model=list[schemas.CourseRead])
-def list_courses(session: SessionDep, offset: Offset = 0, limit: Limit = 50) -> list[models.Course]:
-    return list_entities(session, models.Course, offset=offset, limit=limit)
+def list_courses(
+    session: SessionDep,
+    offset: Offset = 0,
+    limit: Limit = 50,
+    q: str | None = Query(default=None, max_length=200),
+    semester_id: UUID | None = None,
+) -> list[models.Course]:
+    courses = list_entities(session, models.Course, offset=0, limit=200)
+    normalized_query = q.casefold().strip() if q else None
+    filtered = [
+        course
+        for course in courses
+        if (semester_id is None or course.semester_id == semester_id)
+        and (
+            normalized_query is None
+            or normalized_query
+            in f"{course.code} {course.name} {course.instructor_name or ''}".casefold()
+        )
+    ]
+    return filtered[offset : offset + limit]
 
 
 @router.post("/courses", response_model=schemas.CourseRead, status_code=status.HTTP_201_CREATED)
@@ -181,9 +202,31 @@ def delete_enrollment(entity_id: UUID, session: SessionDep) -> Response:
 
 @router.get("/assignments", response_model=list[schemas.AssignmentRead])
 def list_assignments(
-    session: SessionDep, offset: Offset = 0, limit: Limit = 50
+    session: SessionDep,
+    offset: Offset = 0,
+    limit: Limit = 50,
+    q: str | None = Query(default=None, max_length=200),
+    course_id: UUID | None = None,
+    assignment_status: Annotated[list[models.AssignmentStatus] | None, Query()] = None,
+    due_from: datetime | None = None,
+    due_to: datetime | None = None,
 ) -> list[models.Assignment]:
-    return list_entities(session, models.Assignment, offset=offset, limit=limit)
+    assignments = list_entities(session, models.Assignment, offset=0, limit=200)
+    normalized_query = q.casefold().strip() if q else None
+    filtered = [
+        assignment
+        for assignment in assignments
+        if (course_id is None or assignment.course_id == course_id)
+        and (not assignment_status or assignment.status in assignment_status)
+        and (due_from is None or _aware(assignment.due_at) >= _aware(due_from))
+        and (due_to is None or _aware(assignment.due_at) <= _aware(due_to))
+        and (normalized_query is None or normalized_query in assignment.title.casefold())
+    ]
+    return filtered[offset : offset + limit]
+
+
+def _aware(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 @router.post(

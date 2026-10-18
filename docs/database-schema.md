@@ -1,6 +1,6 @@
 # Database schema
 
-The MVP schema has 15 tables split into identity, academic planning, content and audit domains.
+The MVP schema has 17 tables split into identity, academic planning, content and audit domains.
 Mutable domain entities use UUID primary keys plus `created_at` and `updated_at`. Session and audit
 tables use explicit lifecycle timestamps instead. Values represented by Python enums are stored as
 validated strings so SQLite development databases and PostgreSQL behave consistently.
@@ -15,6 +15,7 @@ validated strings so SQLite development databases and PostgreSQL behave consiste
 | `auth_sessions` | Revocable CampusPulse refresh sessions. | Only a SHA-256 refresh-token hash is stored. Refresh tokens rotate on use; expiry and revocation are indexed. Deleting a user deletes all sessions. |
 | `roles` | Stable global role catalog. | `code` is unique. Initial codes are `student`, `academic_admin`, and `platform_admin`. |
 | `user_roles` | Many-to-many role assignment. | `(user_id, role_id)` is unique. Both foreign keys cascade on deletion. |
+| `user_settings` | Profile presentation, study availability, AI and notification preferences. | Exactly one row per user; deleting the user deletes the settings. |
 
 Google ID tokens and CampusPulse session tokens are verified. Roles are returned by `/auth/me`, and
 all academic CRUD handlers enforce the rules in [authorization.md](authorization.md).
@@ -37,6 +38,7 @@ all academic CRUD handlers enforce the rules in [authorization.md](authorization
 |---|---|---|
 | `documents` | Metadata for assignment, lecture and syllabus files. | File bytes live outside the database; `storage_key` addresses them. Assignment link is optional and cleared when the assignment is deleted. |
 | `audit_events` | Append-only record for future authentication and authorization activity. | Actor is optional and cleared after user deletion. Resource IDs are intentionally polymorphic and therefore have no foreign key. Application code must never update or delete audit rows. |
+| `insights` | Stored proactive recommendations and their executable CTA configuration. | Owned by one user; optional course and assignment context cascades on deletion. Confidence is 0–100. |
 
 ## Deletion strategy
 

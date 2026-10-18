@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     jwt_audience: str = "campuspulse-web"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
+    upload_directory: str = "storage/uploads"
+    max_upload_bytes: int = 20 * 1024 * 1024
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

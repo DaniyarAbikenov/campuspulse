@@ -36,6 +36,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "documents",
         "enrollments",
         "identity_accounts",
+        "insights",
         "institutions",
         "roles",
         "schedule_events",
@@ -43,6 +44,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "tasks",
         "user_roles",
         "users",
+        "user_settings",
     }
     assert set(inspect(engine).get_table_names()) == expected_tables
 
@@ -51,9 +53,25 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
     with engine.connect() as connection:
         counts = {
             table: connection.scalar(text(f"SELECT COUNT(*) FROM {table}"))
-            for table in ("roles", "users", "courses", "assignments", "tasks")
+            for table in (
+                "roles",
+                "users",
+                "courses",
+                "assignments",
+                "tasks",
+                "user_settings",
+                "insights",
+            )
         }
-    assert counts == {"roles": 3, "users": 1, "courses": 5, "assignments": 9, "tasks": 4}
+    assert counts == {
+        "roles": 3,
+        "users": 1,
+        "courses": 5,
+        "assignments": 9,
+        "tasks": 4,
+        "user_settings": 1,
+        "insights": 4,
+    }
 
     with engine.begin() as connection, pytest.raises(IntegrityError):
         connection.execute(text("UPDATE assignments SET status = 'invalid'"))
