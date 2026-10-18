@@ -116,6 +116,31 @@ def test_complete_academic_crud_flow(client: TestClient) -> None:
     assert assignment.status_code == 201
     assignment_id = assignment.json()["id"]
 
+    prerequisite = client.post(
+        "/api/v1/assignments",
+        json={
+            "course_id": graph["course_id"],
+            "title": "Assignment 2 — Domain Model",
+            "due_at": "2026-10-09T23:59:00+05:00",
+            "status": "completed",
+            "difficulty": "high",
+            "estimated_hours": 7.0,
+            "actual_hours": 7.5,
+            "progress": 100,
+        },
+    )
+    assert prerequisite.status_code == 201
+
+    relation = client.post(
+        "/api/v1/assignment-relations",
+        json={
+            "source_assignment_id": assignment_id,
+            "target_assignment_id": prerequisite.json()["id"],
+            "relation_type": "extends",
+        },
+    )
+    assert relation.status_code == 201
+
     task = client.post(
         "/api/v1/tasks",
         json={
@@ -163,8 +188,15 @@ def test_complete_academic_crud_flow(client: TestClient) -> None:
 
     assignments = client.get("/api/v1/assignments")
     assert assignments.status_code == 200
-    assert len(assignments.json()) == 1
-    assert assignments.json()[0]["title"] == "Assignment 3 — JWT Authentication"
+    assert len(assignments.json()) == 2
+    assert {item["title"] for item in assignments.json()} == {
+        "Assignment 2 — Domain Model",
+        "Assignment 3 — JWT Authentication",
+    }
+
+    relations = client.get("/api/v1/assignment-relations")
+    assert relations.status_code == 200
+    assert relations.json()[0]["relation_type"] == "extends"
 
     deleted = client.delete(f"/api/v1/tasks/{task.json()['id']}")
     assert deleted.status_code == 204
@@ -214,3 +246,23 @@ def test_invalid_schedule_range_returns_422(client: TestClient) -> None:
     )
     assert response.status_code == 422
 
+
+def test_assignment_cannot_relate_to_itself(client: TestClient) -> None:
+    graph = create_core_graph(client)
+    assignment = client.post(
+        "/api/v1/assignments",
+        json={
+            "course_id": graph["course_id"],
+            "title": "Self relation test",
+            "due_at": "2026-10-23T23:59:00+05:00",
+        },
+    ).json()
+    response = client.post(
+        "/api/v1/assignment-relations",
+        json={
+            "source_assignment_id": assignment["id"],
+            "target_assignment_id": assignment["id"],
+            "relation_type": "related_to",
+        },
+    )
+    assert response.status_code == 422

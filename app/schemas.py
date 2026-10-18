@@ -2,10 +2,21 @@ from datetime import date, datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictFloat, StrictInt, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    model_validator,
+)
 
 from app.db.models import (
+    AssignmentRelationType,
     AssignmentStatus,
+    AuditOutcome,
     Difficulty,
     DocumentKind,
     Priority,
@@ -45,11 +56,12 @@ class InstitutionRead(InstitutionCreate, EntityRead):
 
 
 class UserCreate(StrictSchema):
-    institution_id: UUID
+    institution_id: UUID | None = None
     email: EmailStr
     full_name: Annotated[str, Field(min_length=1, max_length=200)]
     student_number: Annotated[str, Field(min_length=1, max_length=64)] | None = None
     program: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    is_active: StrictBool = True
 
 
 class UserUpdate(StrictSchema):
@@ -58,9 +70,51 @@ class UserUpdate(StrictSchema):
     full_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
     student_number: Annotated[str, Field(min_length=1, max_length=64)] | None = None
     program: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    is_active: StrictBool | None = None
 
 
 class UserRead(UserCreate, EntityRead):
+    pass
+
+
+class IdentityAccountCreate(StrictSchema):
+    user_id: UUID
+    provider: Annotated[str, Field(min_length=1, max_length=64)]
+    subject: Annotated[str, Field(min_length=1, max_length=255)]
+    provider_email: EmailStr | None = None
+    last_login_at: datetime | None = None
+
+
+class IdentityAccountUpdate(StrictSchema):
+    provider_email: EmailStr | None = None
+    last_login_at: datetime | None = None
+
+
+class IdentityAccountRead(IdentityAccountCreate, EntityRead):
+    pass
+
+
+class RoleCreate(StrictSchema):
+    code: Annotated[str, Field(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")]
+    name: Annotated[str, Field(min_length=1, max_length=100)]
+    description: str | None = None
+
+
+class RoleUpdate(StrictSchema):
+    name: Annotated[str, Field(min_length=1, max_length=100)] | None = None
+    description: str | None = None
+
+
+class RoleRead(RoleCreate, EntityRead):
+    pass
+
+
+class UserRoleCreate(StrictSchema):
+    user_id: UUID
+    role_id: UUID
+
+
+class UserRoleRead(UserRoleCreate, EntityRead):
     pass
 
 
@@ -134,7 +188,6 @@ class EnrollmentRead(EnrollmentCreate, EntityRead):
 
 class AssignmentCreate(StrictSchema):
     course_id: UUID
-    related_assignment_id: UUID | None = None
     title: ShortText
     description: str | None = None
     due_at: datetime
@@ -147,7 +200,6 @@ class AssignmentCreate(StrictSchema):
 
 class AssignmentUpdate(StrictSchema):
     course_id: UUID | None = None
-    related_assignment_id: UUID | None = None
     title: ShortText | None = None
     description: str | None = None
     due_at: datetime | None = None
@@ -159,6 +211,26 @@ class AssignmentUpdate(StrictSchema):
 
 
 class AssignmentRead(AssignmentCreate, EntityRead):
+    pass
+
+
+class AssignmentRelationCreate(StrictSchema):
+    source_assignment_id: UUID
+    target_assignment_id: UUID
+    relation_type: AssignmentRelationType
+
+    @model_validator(mode="after")
+    def validate_distinct_assignments(self) -> "AssignmentRelationCreate":
+        if self.source_assignment_id == self.target_assignment_id:
+            raise ValueError("source_assignment_id and target_assignment_id must differ")
+        return self
+
+
+class AssignmentRelationUpdate(StrictSchema):
+    relation_type: AssignmentRelationType | None = None
+
+
+class AssignmentRelationRead(AssignmentRelationCreate, EntityRead):
     pass
 
 
@@ -247,3 +319,17 @@ class ScheduleEventUpdate(StrictSchema):
 class ScheduleEventRead(ScheduleEventCreate, EntityRead):
     pass
 
+
+class AuditEventCreate(StrictSchema):
+    actor_user_id: UUID | None = None
+    action: Annotated[str, Field(min_length=1, max_length=100)]
+    resource_type: Annotated[str, Field(min_length=1, max_length=100)]
+    resource_id: UUID | None = None
+    outcome: AuditOutcome = AuditOutcome.success
+    request_id: UUID | None = None
+    context_data: dict[str, object] | None = None
+
+
+class AuditEventRead(AuditEventCreate):
+    id: UUID
+    occurred_at: datetime

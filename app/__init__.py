@@ -1,2 +1,1 @@
 """CampusPulse backend application."""
-

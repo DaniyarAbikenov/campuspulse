@@ -13,6 +13,7 @@ services:
       CAMPUSPULSE_API_V1_PREFIX: /api/v1
     volumes:
       - ./app:/app/app
+      - ./migrations:/app/migrations
     ports:
       - "${API_PORT:-8000}:8000"
     networks:

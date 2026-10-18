@@ -52,9 +52,7 @@ def delete_institution(entity_id: UUID, session: SessionDep) -> Response:
 
 
 @router.get("/users", response_model=list[schemas.UserRead])
-def list_users(
-    session: SessionDep, offset: Offset = 0, limit: Limit = 50
-) -> list[models.User]:
+def list_users(session: SessionDep, offset: Offset = 0, limit: Limit = 50) -> list[models.User]:
     return list_entities(session, models.User, offset=offset, limit=limit)
 
 
@@ -69,9 +67,7 @@ def get_user(entity_id: UUID, session: SessionDep) -> models.User:
 
 
 @router.patch("/users/{entity_id}", response_model=schemas.UserRead)
-def update_user(
-    entity_id: UUID, payload: schemas.UserUpdate, session: SessionDep
-) -> models.User:
+def update_user(entity_id: UUID, payload: schemas.UserUpdate, session: SessionDep) -> models.User:
     return update_entity(session, models.User, entity_id, payload)
 
 
@@ -88,9 +84,7 @@ def list_semesters(
     return list_entities(session, models.Semester, offset=offset, limit=limit)
 
 
-@router.post(
-    "/semesters", response_model=schemas.SemesterRead, status_code=status.HTTP_201_CREATED
-)
+@router.post("/semesters", response_model=schemas.SemesterRead, status_code=status.HTTP_201_CREATED)
 def create_semester(payload: schemas.SemesterCreate, session: SessionDep) -> models.Semester:
     return create_entity(session, models.Semester, payload)
 
@@ -114,9 +108,7 @@ def delete_semester(entity_id: UUID, session: SessionDep) -> Response:
 
 
 @router.get("/courses", response_model=list[schemas.CourseRead])
-def list_courses(
-    session: SessionDep, offset: Offset = 0, limit: Limit = 50
-) -> list[models.Course]:
+def list_courses(session: SessionDep, offset: Offset = 0, limit: Limit = 50) -> list[models.Course]:
     return list_entities(session, models.Course, offset=offset, limit=limit)
 
 
@@ -153,9 +145,7 @@ def list_enrollments(
 @router.post(
     "/enrollments", response_model=schemas.EnrollmentRead, status_code=status.HTTP_201_CREATED
 )
-def create_enrollment(
-    payload: schemas.EnrollmentCreate, session: SessionDep
-) -> models.Enrollment:
+def create_enrollment(payload: schemas.EnrollmentCreate, session: SessionDep) -> models.Enrollment:
     return create_entity(session, models.Enrollment, payload)
 
 
@@ -187,9 +177,7 @@ def list_assignments(
 @router.post(
     "/assignments", response_model=schemas.AssignmentRead, status_code=status.HTTP_201_CREATED
 )
-def create_assignment(
-    payload: schemas.AssignmentCreate, session: SessionDep
-) -> models.Assignment:
+def create_assignment(payload: schemas.AssignmentCreate, session: SessionDep) -> models.Assignment:
     return create_entity(session, models.Assignment, payload)
 
 
@@ -211,10 +199,44 @@ def delete_assignment(entity_id: UUID, session: SessionDep) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/tasks", response_model=list[schemas.TaskRead])
-def list_tasks(
+@router.get("/assignment-relations", response_model=list[schemas.AssignmentRelationRead])
+def list_assignment_relations(
     session: SessionDep, offset: Offset = 0, limit: Limit = 50
-) -> list[models.Task]:
+) -> list[models.AssignmentRelation]:
+    return list_entities(session, models.AssignmentRelation, offset=offset, limit=limit)
+
+
+@router.post(
+    "/assignment-relations",
+    response_model=schemas.AssignmentRelationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_assignment_relation(
+    payload: schemas.AssignmentRelationCreate, session: SessionDep
+) -> models.AssignmentRelation:
+    return create_entity(session, models.AssignmentRelation, payload)
+
+
+@router.get("/assignment-relations/{entity_id}", response_model=schemas.AssignmentRelationRead)
+def get_assignment_relation(entity_id: UUID, session: SessionDep) -> models.AssignmentRelation:
+    return get_entity(session, models.AssignmentRelation, entity_id)
+
+
+@router.patch("/assignment-relations/{entity_id}", response_model=schemas.AssignmentRelationRead)
+def update_assignment_relation(
+    entity_id: UUID, payload: schemas.AssignmentRelationUpdate, session: SessionDep
+) -> models.AssignmentRelation:
+    return update_entity(session, models.AssignmentRelation, entity_id, payload)
+
+
+@router.delete("/assignment-relations/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_assignment_relation(entity_id: UUID, session: SessionDep) -> Response:
+    delete_entity(session, models.AssignmentRelation, entity_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/tasks", response_model=list[schemas.TaskRead])
+def list_tasks(session: SessionDep, offset: Offset = 0, limit: Limit = 50) -> list[models.Task]:
     return list_entities(session, models.Task, offset=offset, limit=limit)
 
 
@@ -229,9 +251,7 @@ def get_task(entity_id: UUID, session: SessionDep) -> models.Task:
 
 
 @router.patch("/tasks/{entity_id}", response_model=schemas.TaskRead)
-def update_task(
-    entity_id: UUID, payload: schemas.TaskUpdate, session: SessionDep
-) -> models.Task:
+def update_task(entity_id: UUID, payload: schemas.TaskUpdate, session: SessionDep) -> models.Task:
     return update_entity(session, models.Task, entity_id, payload)
 
 
@@ -248,12 +268,8 @@ def list_documents(
     return list_entities(session, models.Document, offset=offset, limit=limit)
 
 
-@router.post(
-    "/documents", response_model=schemas.DocumentRead, status_code=status.HTTP_201_CREATED
-)
-def create_document(
-    payload: schemas.DocumentCreate, session: SessionDep
-) -> models.Document:
+@router.post("/documents", response_model=schemas.DocumentRead, status_code=status.HTTP_201_CREATED)
+def create_document(payload: schemas.DocumentCreate, session: SessionDep) -> models.Document:
     return create_entity(session, models.Document, payload)
 
 
@@ -309,4 +325,3 @@ def update_schedule_event(
 def delete_schedule_event(entity_id: UUID, session: SessionDep) -> Response:
     delete_entity(session, models.ScheduleEvent, entity_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

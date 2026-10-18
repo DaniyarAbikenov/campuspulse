@@ -12,9 +12,7 @@ from app.db.models import Base
 ModelT = TypeVar("ModelT", bound=Base)
 
 
-def create_entity(
-    session: Session, model: type[ModelT], payload: BaseModel
-) -> ModelT:
+def create_entity(session: Session, model: type[ModelT], payload: BaseModel) -> ModelT:
     entity = model(**payload.model_dump())
     session.add(entity)
     _commit(session)
@@ -70,4 +68,3 @@ def _commit(session: Session) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail="The resource conflicts with existing or referenced data",
         ) from error
-
