@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { canonicalStatus, languages, setLocale, statusLabel, translate, useI18n } from "@/lib/i18n";
 import { StoreProvider, useStore } from "@/lib/store";
 
-afterEach(() => { act(() => setLocale("en")); });
+afterEach(() => {
+  act(() => setLocale("en"));
+});
 describe("Interface languages and canonical statuses", () => {
   it("supports exactly Kazakh, Russian and English", () => {
     expect(languages.map((language) => language.value)).toEqual(["kk", "ru", "en"]);
@@ -12,7 +14,7 @@ describe("Interface languages and canonical statuses", () => {
     const { result } = renderHook(() => useI18n());
     act(() => setLocale("kk"));
     expect(result.current.locale).toBe("kk");
-    expect(localStorage.getItem("campuspulse.locale")).toBe("kk");
+    expect(window.localStorage.getItem("campuspulse.locale")).toBe("kk");
     expect(document.documentElement.lang).toBe("kk");
   });
   it("maps server codes without changing them or losing unknown codes", () => {
@@ -34,6 +36,8 @@ describe("Interface languages and canonical statuses", () => {
     act(() => result.current.applyWorkloadPlan());
     expect(result.current.insights.find((insight) => insight.id === "i1")?.status).toBe("Applied");
     expect(result.current.tasks[0]?.column).toBe("todo");
-    expect(translate("untranslated_fixture_identifier", "ru")).toBe("untranslated_fixture_identifier");
+    expect(translate("untranslated_fixture_identifier", "ru")).toBe(
+      "untranslated_fixture_identifier",
+    );
   });
 });

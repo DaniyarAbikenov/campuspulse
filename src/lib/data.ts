@@ -3,6 +3,7 @@ export type Priority = "High" | "Medium" | "Low";
 
 export interface Course {
   id: string;
+  backendId?: string;
   name: string;
   code: string;
   instructor: string;
@@ -27,6 +28,7 @@ const courseCatalog: Course[] = [
 
 export interface Assignment {
   id: string;
+  backendId?: string;
   title: string;
   courseId: string;
   deadline: string;
@@ -55,6 +57,7 @@ export const assignmentOf = (id: string) => assignments.find((a) => a.id === id)
 
 export interface Task {
   id: string;
+  backendId?: string;
   title: string;
   description: string;
   courseId: string;
@@ -89,6 +92,7 @@ export const initialTasks: Task[] = [
 
 export interface Insight {
   id: string;
+  backendId?: string;
   type: "Workload Warning" | "Assignment Analysis" | "Study Preparation" | "Schedule Opportunity" | "Deadline Conflict";
   title: string;
   description: string;
@@ -131,7 +135,7 @@ export const tomorrowSchedule: Slot[] = [
 ];
 
 // Weekly calendar: day index 0=Mon
-export interface CalEvent { id: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; }
+export interface CalEvent { id: string; backendId?: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; }
 export const weekEvents: CalEvent[] = [
   { id: "c1", day: 0, start: 9, end: 11, title: "Advanced Databases", kind: "lecture", courseId: "adb" },
   { id: "c2", day: 0, start: 11, end: 13, title: "Software Engineering", kind: "lecture", courseId: "se" },
