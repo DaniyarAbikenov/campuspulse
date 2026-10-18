@@ -75,7 +75,7 @@ function Overview() {
         </div>
         <Link to="/insights" className="text-[12px] text-primary hover:underline">View all insights</Link>
       </div>
-      <div className="grid gap-2.5 md:grid-cols-3">{shown.map((i) => <InsightCard key={i.id} insight={i} compact />)}</div>
+      <div className="grid gap-2.5 lg:grid-cols-3">{shown.map((i) => <InsightCard key={i.id} insight={i} compact />)}</div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Upcoming Assignments" subtitle="Click a row to open the assignment" bodyClass="p-0" action={<Link to="/assignments" className="text-[12px] text-primary hover:underline">All</Link>}>

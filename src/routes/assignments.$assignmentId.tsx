@@ -181,7 +181,7 @@ function RichAssignment() {
           <Panel ai title="Analysis Status">
             {running ? <AnalysisProgress running onDone={finish} /> : (
               <dl className="space-y-2 text-[12.5px]">
-                <div className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</div>
+                <div><dt className="sr-only">Analysis result</dt><dd className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</dd></div>
                 {[["Requirements extracted", "6"], ["Related assignments detected", "1"], ["Estimated difficulty", "Medium–High"], ["Last analyzed", analyzedAt]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>)}
               </dl>
             )}

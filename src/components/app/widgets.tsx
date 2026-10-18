@@ -25,10 +25,10 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
   const muted = insight.status === "Dismissed";
   return (
     <article className={cn("ai-surface group flex flex-col p-3 transition-shadow hover:shadow-md", muted && "bg-secondary")}>
-      <div className="flex items-center gap-1.5">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5">
         <span className={cn("flex h-5 w-5 items-center justify-center rounded", m.cls)}><Icon className="h-3 w-3" /></span>
         <span className="text-[11px] font-medium text-muted-foreground">{insight.type}</span>
-        <span className="ml-auto flex items-center gap-2">
+        <span className="col-span-2 flex flex-wrap items-center gap-2">
           <span className="font-mono text-[10.5px] tabular-nums text-ai" title="Model confidence">{Math.round(insight.confidence * 100)}%</span>
           <PriorityIndicator priority={insight.priority} />
         </span>
