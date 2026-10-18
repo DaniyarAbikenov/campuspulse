@@ -18,7 +18,7 @@
 - [x] Run 15 regression tests and end-to-end checks.
 
 ## Multilingual interface
-- [ ] Add shared Kazakh, Russian and English translations and language switching.
-- [ ] Localize interface text, dates, notifications and demo descriptions without changing canonical data values.
-- [ ] Map canonical and server-style statuses to translated labels with safe unknown-status fallback.
-- [ ] Verify switching, persistence, status mapping and layout; run regression tests.
+- [x] Add shared Kazakh, Russian and English translations and language switching.
+- [x] Localize interface text, dates, notifications and demo descriptions without changing canonical data values.
+- [x] Map canonical and server-style statuses to translated labels with safe unknown-status fallback.
+- [x] Verify switching, persistence, status mapping, multilingual PDF workflow and layout; 19 regression tests passed.
