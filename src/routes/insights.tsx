@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/app/common";
 import { InsightCard } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/insights")({
@@ -27,9 +28,9 @@ function Insights() {
       <PageHeader title="AI Insights" subtitle="Proactive recommendations prepared by CampusPulse. Predictions are marked with confidence scores." />
       <div className="-mt-2 mb-3 flex overflow-x-auto gap-1 border-b">
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("-mb-px border-b-2 shrink-0 px-2 py-2 text-[13px]", tab === t ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+          <Button variant="ghost" size="sm" aria-pressed={tab === t} key={t} onClick={() => setTab(t)} className={cn("-mb-px border-b-2 shrink-0 px-2 py-2 text-[13px]", tab === t ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
             {t} <span className="text-[11.5px] text-muted-foreground">{t === "All" ? insights.length : insights.filter((i) => i.status === t).length}</span>
-          </button>
+          </Button>
         ))}
       </div>
       {list.length ? <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">{list.map((i) => <InsightCard key={i.id} insight={i} />)}</div>

@@ -99,8 +99,8 @@ export function StoreProvider({ children, onRoleChange }: { children: ReactNode;
   const liveCourses = summarizeCourses(liveAssignments);
   const proposalDelta = proposalTasks.reduce((sum, task) => sum + task.estimate, 0) - 8.5;
   const completedHours = tasks.filter((task) => task.column === "done" && task.ai).reduce((sum, task) => sum + task.estimate, 0);
-  const distribution = weeklyWorkload.map((day, index) => ({ ...day, required: Math.max(0, day.required + (index === 2 ? proposalDelta - completedHours : 0) + (workloadPlanApplied ? index === 0 ? 2 : index === 2 ? -2 : 0 : 0)) }));
-  const required = distribution.reduce((sum, day) => sum + day.required, 0);
+  const distribution = weeklyWorkload.map((day, index) => ({ ...day, required: Math.max(0, day.required + (index === 2 ? proposalDelta : 0) - completedHours * day.required / 21.5 + (workloadPlanApplied ? index === 0 ? 2 : index === 2 ? -2 : 0 : 0)) }));
+  const required = Math.round(distribution.reduce((sum, day) => sum + day.required, 0) * 100) / 100;
   const scheduledHours = events.filter((event) => event.kind === "study" && (!event.taskId || tasks.some((task) => task.id === event.taskId && task.column !== "done"))).reduce((sum, event) => sum + event.end - event.start, 0);
 
   const value: Store = {
@@ -110,8 +110,8 @@ export function StoreProvider({ children, onRoleChange }: { children: ReactNode;
     assignments: liveAssignments, courses: liveCourses, distribution,
     workload: { required, available: weeklyWorkload.reduce((sum, day) => sum + day.available, 0), allRemaining: liveCourses.reduce((sum, course) => sum + course.remaining, 0), scheduled: scheduledHours, unscheduled: Math.max(0, required - scheduledHours) },
     recordAnalysis: (source) => { setAnalysisSource(source); log({ title: "PDF analysis ready for approval", detail: `${source} · simulated fixture · ${proposalTasks.length} proposed tasks`, kind: "analysis", status: "success" }); },
-    setProposalEstimate: (index, estimate) => { if (imported.current || !Number.isFinite(estimate) || estimate <= 0) return; setProposalTasks((items) => items.map((task, i) => i === index ? { ...task, estimate } : task)); approved.current = false; setProposalApproved(false); },
-    approveProposal: () => { approved.current = true; setProposalApproved(true); setInsights((items) => items.map((insight) => insight.id === "i2" ? { ...insight, status: "Accepted" } : insight)); },
+    setProposalEstimate: (index, estimate) => { if (imported.current || !Number.isFinite(estimate) || estimate <= 0) return; setProposalTasks((items) => items.map((task, i) => i === index ? { ...task, estimate } : task)); approved.current = false; setProposalApproved(false); setInsights((items) => items.map((insight) => insight.id === "i2" ? { ...insight, status: "New" } : insight)); },
+    approveProposal: () => { if (imported.current) return; approved.current = true; setProposalApproved(true); setInsights((items) => items.map((insight) => insight.id === "i2" ? { ...insight, status: "Accepted" } : insight)); },
     scheduleGeneratedTasks: () => {
       if (!imported.current || scheduled.current) return false;
       const proposals = proposalTasks.map((task, i) => { const slot = generatedStudySlots[i]; return slot ? { ...slot, id: `study-g${i}`, taskId: `g${i}`, title: `Study: ${task.title}`, kind: "study" as const, courseId: task.courseId, end: slot.start + task.estimate } : null; }).filter((event): event is NonNullable<typeof event> => event !== null);

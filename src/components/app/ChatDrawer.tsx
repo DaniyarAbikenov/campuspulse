@@ -94,7 +94,7 @@ export function ChatDrawer() {
         </div>
         <div className="border-t p-3">
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {prompts.map((p) => <button key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{p}</button>)}
+            {prompts.map((p) => <Button variant="outline" size="sm" key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{p}</Button>)}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-md border px-2 focus-within:border-primary/50">
             <input aria-label="Message CampusPulse" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your workspace…" className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />

@@ -24,7 +24,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
   const Icon = m.icon;
   const muted = insight.status === "Dismissed";
   return (
-    <article className={cn("ai-surface group flex flex-col p-3 transition-shadow hover:shadow-md", muted && "opacity-60")}>
+    <article className={cn("ai-surface group flex flex-col p-3 transition-shadow hover:shadow-md", muted && "bg-secondary")}>
       <div className="flex items-center gap-1.5">
         <span className={cn("flex h-5 w-5 items-center justify-center rounded", m.cls)}><Icon className="h-3 w-3" /></span>
         <span className="text-[11px] font-medium text-muted-foreground">{insight.type}</span>
@@ -33,7 +33,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
           <PriorityIndicator priority={insight.priority} />
         </span>
       </div>
-      <h3 className="mt-2 text-[13px] font-semibold leading-snug tracking-[-0.005em]">{insight.title}</h3>
+      <h2 className="mt-2 text-[13px] font-semibold leading-snug tracking-[-0.005em]">{insight.title}</h2>
       <p className={cn("mt-1 text-[12px] leading-relaxed text-muted-foreground", compact && "line-clamp-2")}>{insight.description}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
         {insight.courses.map((c) => <CourseTag key={c} id={c} />)}
@@ -41,8 +41,8 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
       </div>
       <div className="mt-2.5 border-l-2 border-ai bg-ai-soft px-2 py-1.5 text-[11.5px] leading-snug"><span className="font-semibold text-ai">Suggested </span>{insight.action}</div>
       <div className="mt-auto flex items-center gap-1.5 pt-2.5 flex-wrap">
-        <Button size="sm" className="h-7 px-2.5 text-[12px]" onClick={() => { navigate({ to: insight.primary.to }); }}>{insight.primary.label}</Button>
-        <Button size="sm" variant="ghost" className="h-7 px-2 text-[12px] text-muted-foreground" onClick={() => {
+        <Button size="sm" className="h-7 px-2.5 text-[12px]" onClick={() => { if (insight.id === "i2") navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); else navigate({ to: insight.primary.to }); }}>{insight.primary.label}</Button>
+        <Button disabled={insight.status === "Applied" && insight.secondary !== "Open Assignment"} size="sm" variant="ghost" className="h-7 px-2 text-[12px] text-muted-foreground" onClick={() => {
           if (insight.secondary === "Open Assignment") { void navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); return; }
           const s = insight.secondary === "Remind Me Later" ? "Snoozed" : "Dismissed";
           setInsightStatus(insight.id, s);

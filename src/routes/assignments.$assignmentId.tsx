@@ -70,9 +70,9 @@ function RichAssignment() {
     setRunning(false);
     setAnalyzedAt("Oct 18, 09:46");
     recordAnalysis(analysisSource);
-    log({ title: "Assignment 3 re-analyzed", detail: "6 requirements · 1 dependency · 8.5h", kind: "analysis", status: "success" });
+    log({ title: "Assignment 3 re-analyzed", detail: `${requirements.length} requirements · 1 dependency · ${total}h`, kind: "analysis", status: "success" });
     toast.success("Analysis complete", { description: "6 requirements · 1 dependency · 6 tasks" });
-  }, [log]);
+  }, [log, recordAnalysis, analysisSource]);
 
   return (
     <>
@@ -98,12 +98,12 @@ function RichAssignment() {
           <Panel title={<span className="flex items-center gap-1.5">AI-Extracted Requirements <span className="text-[11px] font-normal tabular-nums text-muted-foreground">6</span></span>} ai subtitle="Click a requirement to highlight its source in the document" bodyClass="p-0">
             {requirements.map((r) => (
               <div key={r.id} className={cn("border-b last:border-0", openReq === r.id && "bg-secondary/50")}>
-                <button onClick={() => selectReq(r.id)} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-secondary/40">
+                <Button variant="ghost" aria-expanded={openReq === r.id} onClick={() => selectReq(r.id)} className="h-auto whitespace-normal flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-secondary/40">
                   {tasks.some((task) => task.req === r.id && task.column === "done") ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
                   <span className="font-mono text-[11.5px] text-muted-foreground">{r.id}</span>
                   <span className="flex-1 text-[12.5px]">{r.text}</span>
                   <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openReq === r.id && "rotate-180")} />
-                </button>
+                </Button>
                 {openReq === r.id && (
                   <div className="space-y-2 px-3.5 pb-2.5 pl-[58px] animate-in fade-in slide-in-from-top-1">
                     <p className="text-[12.5px] text-muted-foreground">{r.detail}</p>
@@ -171,7 +171,7 @@ function RichAssignment() {
             <Button variant="ghost" size="icon" aria-label="Zoom in" className="h-7 w-7" onClick={() => setZoom(Math.min(140, zoom + 10))}><Plus className="h-3 w-3" /></Button>
           </div>}>
             <div className="flex gap-2 border-b px-3 py-2">
-              {[1, 2, 3, 4].map((p) => <button key={p} onClick={() => setPage(p)} className={cn("h-10 w-8 rounded border text-[10px]", page === p ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground hover:border-primary/40")}>{p}</button>)}
+              {[1, 2, 3, 4].map((p) => <Button variant="outline" size="sm" aria-label={`Page ${p}`} aria-pressed={page === p} key={p} onClick={() => setPage(p)} className={cn("h-10 w-8 rounded border text-[10px]", page === p ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground hover:border-primary/40")}>{p}</Button>)}
               <span className="ml-auto self-center text-[11px] text-muted-foreground">Page {page} / 4</span>
             </div>
             <div className="h-[420px] overflow-auto bg-secondary p-4">
