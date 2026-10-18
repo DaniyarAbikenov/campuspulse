@@ -98,7 +98,7 @@ export interface Insight {
   action: string;
   primary: { label: string; to: string };
   secondary: string;
-  status: "New" | "Accepted" | "Dismissed" | "Snoozed";
+  status: "New" | "Accepted" | "Applied" | "Dismissed" | "Snoozed";
   confidence: number;
   sources: string[];
 }
@@ -124,14 +124,14 @@ export const weeklyWorkload = [
 export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event"; room?: string; courseId?: string; }
 
 export const tomorrowSchedule: Slot[] = [
-  { start: "09:00", end: "10:50", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
-  { start: "11:00", end: "12:50", title: "Software Engineering", kind: "lecture", room: "B2.110", courseId: "se" },
+  { start: "09:00", end: "11:00", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
+  { start: "11:00", end: "13:00", title: "Software Engineering", kind: "lecture", room: "B2.110", courseId: "se" },
   { start: "13:00", end: "15:00", title: "Free time", kind: "free" },
-  { start: "15:00", end: "16:50", title: "Operating Systems", kind: "lecture", room: "Lab 3", courseId: "os" },
+  { start: "15:00", end: "17:00", title: "Operating Systems", kind: "lecture", room: "Lab 3", courseId: "os" },
 ];
 
 // Weekly calendar: day index 0=Mon
-export interface CalEvent { id: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; }
+export interface CalEvent { id: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; }
 export const weekEvents: CalEvent[] = [
   { id: "c1", day: 0, start: 9, end: 11, title: "Advanced Databases", kind: "lecture", courseId: "adb" },
   { id: "c2", day: 0, start: 11, end: 13, title: "Software Engineering", kind: "lecture", courseId: "se" },
@@ -164,11 +164,11 @@ export const initialActivity: Activity[] = [
 ];
 
 export const requirements = [
-  { id: "R1", text: "Implement JWT-based authentication.", detail: "Issue signed access tokens on successful login. Use HS256 with a secret from configuration.", page: 2, done: true },
+  { id: "R1", text: "Implement JWT-based authentication.", detail: "Issue signed access tokens on successful login. Use HS256 with a secret from configuration.", page: 2, done: false },
   { id: "R2", text: "Secure selected REST endpoints.", detail: "All /api/orders and /api/users endpoints must require a valid token. /api/products remains public.", page: 2, done: false },
   { id: "R3", text: "Add role-based authorization.", detail: "Support at least STUDENT and ADMIN roles. Only ADMIN may delete users.", page: 2, done: false },
   { id: "R4", text: "Implement token expiration handling.", detail: "Access tokens expire after 15 minutes; provide a refresh endpoint.", page: 3, done: false },
-  { id: "R5", text: "Update existing user services.", detail: "Store BCrypt-hashed passwords in the existing User entity from Assignment 2.", page: 3, done: true },
+  { id: "R5", text: "Update existing user services.", detail: "Store BCrypt-hashed passwords in the existing User entity from Assignment 2.", page: 3, done: false },
   { id: "R6", text: "Document authentication workflow.", detail: "Add a README section with a sequence diagram of login and refresh.", page: 4, done: false },
 ];
 
@@ -233,3 +233,11 @@ export const adminActivity: Activity[] = [
   { id: "faculty-2", time: "09:30", title: "Course aggregates refreshed", detail: "5 courses · anonymised enrolments and overload risk", kind: "index", status: "success" },
   { id: "faculty-3", time: "07:30", title: "Faculty timetable synchronized", detail: "Fall 2026 · faculty scheduling", kind: "schedule", status: "success" },
 ];
+
+// Explicit demonstration excerpts, not a claim of parsing an uploaded file.
+export const documentFragments = knowledgeDocs.flatMap((doc) => doc.id === "d1"
+  ? requirements.map((req) => ({ id: `d1-${req.id}`, documentId: doc.id, page: req.page, text: req.detail, concept: req.text, assignmentId: "se-a3", requirementId: req.id }))
+  : doc.concepts.map((concept, i) => ({ id: `${doc.id}-${i}`, documentId: doc.id, page: Math.min(doc.pages, i + 1), text: `${concept} — demonstration excerpt from ${doc.title}.`, concept, assignmentId: doc.id === "d2" ? "se-a2" : doc.id === "d6" ? "os-l5" : undefined, requirementId: undefined })));
+
+export const demoClock = "09:46";
+export const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.round((hour % 1) * 60)).padStart(2, "0")}`;
