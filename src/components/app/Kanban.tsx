@@ -17,7 +17,7 @@ export const columns: { id: Task["column"]; label: string }[] = [
 const dot: Record<Task["column"], string> = { backlog: "bg-muted-foreground/40", todo: "bg-muted-foreground", progress: "bg-info", review: "bg-warning", done: "bg-success" };
 
 export function KanbanBoard({ courseId, filter }: { courseId?: string | undefined; filter?: ((t: Task) => boolean) | undefined }) {
-  useI18n();
+  const { locale } = useI18n();
   const { tasks, moveTask } = useStore();
   const [over, setOver] = useState<string | null>(null);
   const [open, setOpen] = useState<Task | null>(null);
@@ -27,40 +27,40 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
     <>
       <div className="max-w-full overflow-x-auto"><div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
         {localize(columns.map((col) => {
-  useI18n();
+  const { locale } = useI18n();
           const items = list.filter((t) => t.column === col.id);
           const hours = items.reduce((s, t) => s + t.estimate, 0);
           return (
             <div key={col.id}
               onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
               onDragLeave={() => setOver(null)}
-              onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(localize(`Moved to ${col.label}`)); }}
+              onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(localize(`Moved to ${col.label}`, locale)); }}
               className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", over === col.id && "bg-primary-soft ring-primary/40")}
             >
               <div className="mb-1.5 flex h-7 items-center gap-1.5 px-1.5 text-[12px] font-semibold">
-                <span className={cn("h-2 w-2 rounded-full", dot[col.id])} />{localize(col.label)}<span className="text-[11px] font-normal tabular-nums text-muted-foreground">{localize(items.length)}</span>
-                <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">{localize(hours)}{localize("h")}</span>
+                <span className={cn("h-2 w-2 rounded-full", dot[col.id])} />{localize(col.label, locale)}<span className="text-[11px] font-normal tabular-nums text-muted-foreground">{localize(items.length, locale)}</span>
+                <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">{localize(hours, locale)}{localize("h", locale)}</span>
               </div>
               <div className="space-y-1.5">
                 {localize(items.map((t) => (
-                  <div key={t.id} role="button" tabIndex={0} aria-label={localize(`Open task: ${t.title}`)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(t); } }} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)} onClick={() => setOpen(t)}
+                  <div key={t.id} role="button" tabIndex={0} aria-label={localize(`Open task: ${t.title}`, locale)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(t); } }} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)} onClick={() => setOpen(t)}
                     className={cn("cursor-grab rounded-md border bg-card px-2.5 py-2 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent)] transition-all hover:border-foreground/20 active:cursor-grabbing animate-in fade-in", t.ai && "border-l-2 border-l-ai", t.column === "done" && "bg-secondary")}>
                     <div className="flex items-start gap-1.5">
-                      <p className={cn("flex-1 text-[12.5px] font-medium leading-snug", t.column === "done" && "line-through decoration-muted-foreground/50")}>{localize(t.title)}</p>
-                      {localize(t.ai && <Sparkles className="h-3 w-3 shrink-0 text-ai" />)}
+                      <p className={cn("flex-1 text-[12.5px] font-medium leading-snug", t.column === "done" && "line-through decoration-muted-foreground/50")}>{localize(t.title, locale)}</p>
+                      {localize(t.ai && <Sparkles className="h-3 w-3 shrink-0 text-ai" />, locale)}
                     </div>
-                    <div className="mt-1 flex items-center gap-2"><CourseTag id={t.courseId} />{localize(t.req && <span className="font-mono text-[10.5px] text-muted-foreground">{localize(t.req)}</span>)}</div>
+                    <div className="mt-1 flex items-center gap-2"><CourseTag id={t.courseId} />{localize(t.req && <span className="font-mono text-[10.5px] text-muted-foreground">{localize(t.req, locale)}</span>, locale)}</div>
                     <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
                       <PriorityIndicator priority={t.priority} />
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{localize(t.estimate)}{localize("h ·")} {localize(t.due)}</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{localize(t.estimate, locale)}{localize("h ·", locale)} {localize(t.due, locale)}</span>
                     </div>
                   </div>
-                )))}
-                {localize(items.length === 0 && <div className="rounded-md border border-dashed px-2 py-6 text-center text-[11.5px] text-muted-foreground">{localize("Drop tasks here")}</div>)}
+                )), locale)}
+                {localize(items.length === 0 && <div className="rounded-md border border-dashed px-2 py-6 text-center text-[11.5px] text-muted-foreground">{localize("Drop tasks here", locale)}</div>, locale)}
               </div>
             </div>
           );
-        }))}
+        }), locale)}
       </div>
       </div>
       <Sheet open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
@@ -68,30 +68,30 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
           {localize(open && (
             <>
               <SheetHeader>
-                <SheetTitle className="text-[16px] leading-snug">{localize(open.title)}</SheetTitle>
-                <SheetDescription>{localize(open.ai ? "Generated by CampusPulse from the assignment brief" : "Created manually")}</SheetDescription>
+                <SheetTitle className="text-[16px] leading-snug">{localize(open.title, locale)}</SheetTitle>
+                <SheetDescription>{localize(open.ai ? "Generated by CampusPulse from the assignment brief" : "Created manually", locale)}</SheetDescription>
               </SheetHeader>
               <div className="space-y-4 px-4 text-[13px]">
-                <p className="text-muted-foreground">{localize(open.description)}</p>
+                <p className="text-muted-foreground">{localize(open.description, locale)}</p>
                 <dl className="grid grid-cols-[110px_1fr] gap-y-2.5">
-                  <dt className="text-muted-foreground">{localize("Course")}</dt><dd><CourseTag id={open.courseId} /></dd>
-                  <dt className="text-muted-foreground">{localize("Assignment")}</dt><dd>{localize(assignments.find((a) => a.id === open.assignmentId)?.title ?? "—")}</dd>
-                  <dt className="text-muted-foreground">{localize("Estimate")}</dt><dd>{localize(open.estimate)}{localize("h")}</dd>
-                  <dt className="text-muted-foreground">{localize("Due")}</dt><dd>{localize(open.due)}</dd>
-                  <dt className="text-muted-foreground">{localize("Priority")}</dt><dd><PriorityIndicator priority={open.priority} /></dd>
-                  {localize(open.req && <><dt className="text-muted-foreground">{localize("Requirement")}</dt><dd className="font-mono text-[12px]">{localize(open.req)} {localize("· Assignment_3.pdf")}</dd></>)}
-                  <dt className="text-muted-foreground">{localize("Status")}</dt>
+                  <dt className="text-muted-foreground">{localize("Course", locale)}</dt><dd><CourseTag id={open.courseId} /></dd>
+                  <dt className="text-muted-foreground">{localize("Assignment", locale)}</dt><dd>{localize(assignments.find((a) => a.id === open.assignmentId)?.title ?? "—", locale)}</dd>
+                  <dt className="text-muted-foreground">{localize("Estimate", locale)}</dt><dd>{localize(open.estimate, locale)}{localize("h", locale)}</dd>
+                  <dt className="text-muted-foreground">{localize("Due", locale)}</dt><dd>{localize(open.due, locale)}</dd>
+                  <dt className="text-muted-foreground">{localize("Priority", locale)}</dt><dd><PriorityIndicator priority={open.priority} /></dd>
+                  {localize(open.req && <><dt className="text-muted-foreground">{localize("Requirement", locale)}</dt><dd className="font-mono text-[12px]">{localize(open.req, locale)} {localize("· Assignment_3.pdf", locale)}</dd></>, locale)}
+                  <dt className="text-muted-foreground">{localize("Status", locale)}</dt>
                   <dd>
                     <Select value={tasksColumn(open)} onValueChange={(v) => { moveTask(open.id, v as Task["column"]); setOpen({ ...open, column: v as Task["column"] }); }}>
-                      <SelectTrigger aria-label={localize("Task status")} className="h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>{localize(columns.map((c) => <SelectItem key={c.id} value={c.id}>{localize(c.label)}</SelectItem>))}</SelectContent>
+                      <SelectTrigger aria-label={localize("Task status", locale)} className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>{localize(columns.map((c) => <SelectItem key={c.id} value={c.id}>{localize(c.label, locale)}</SelectItem>), locale)}</SelectContent>
                     </Select>
                   </dd>
                 </dl>
-                <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success(localize("Task completed")); }}>{localize("Mark as Completed")}</Button>
+                <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success(localize("Task completed", locale)); }}>{localize("Mark as Completed", locale)}</Button>
               </div>
             </>
-          ))}
+          ), locale)}
         </SheetContent>
       </Sheet>
     </>
@@ -100,7 +100,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
 const tasksColumn = (t: Task) => t.column;
 
 export function NewTaskButton() {
-  useI18n();
+  const { locale } = useI18n();
   const { addTask } = useStore();
-  return <Button size="sm" variant="outline" onClick={() => { addTask({ title: "New task", description: "Describe the work.", courseId: "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog")); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task")}</Button>;
+  return <Button size="sm" variant="outline" onClick={() => { addTask({ title: "New task", description: "Describe the work.", courseId: "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog", locale)); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>;
 }

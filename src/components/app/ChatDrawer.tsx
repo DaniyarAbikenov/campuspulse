@@ -45,7 +45,7 @@ function answer(q: string, tasksGenerated: boolean): Msg {
 const prompts = ["Why did you create these tasks?", "Why is this week overloaded?", "What should I work on first?", "Summarise the Databases midterm"];
 
 export function ChatDrawer() {
-  useI18n();
+  const { locale } = useI18n();
   const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload } = useStore();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -69,38 +69,38 @@ export function ChatDrawer() {
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ai-soft"><Sparkles className="h-4 w-4 text-ai" /></div>
           <div className="flex-1">
-            <SheetTitle className="text-[14px]">{localize("CampusPulse Assistant")}</SheetTitle><SheetDescription className="sr-only">{localize("Simulated academic assistant")}</SheetDescription>
-            <p className="text-[11.5px] text-muted-foreground">{localize("Context:")} {localize(role === "admin" ? "Faculty of Computing" : contextFor(path))}</p>
+            <SheetTitle className="text-[14px]">{localize("CampusPulse Assistant", locale)}</SheetTitle><SheetDescription className="sr-only">{localize("Simulated academic assistant", locale)}</SheetDescription>
+            <p className="text-[11.5px] text-muted-foreground">{localize("Context:", locale)} {localize(role === "admin" ? "Faculty of Computing" : contextFor(path), locale)}</p>
           </div>
-          <Button variant="ghost" size="icon" aria-label={localize("Close assistant")} onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" aria-label={localize("Close assistant", locale)} onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></Button>
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {localize(msgs.length === 0 && (
             <div className="rounded-lg border bg-secondary/50 p-3 text-[12.5px] text-muted-foreground">
-              {localize("I have access to your courses, assignments, schedule and generated tasks. Responses in this prototype are simulated from demo data.")}
+              {localize("I have access to your courses, assignments, schedule and generated tasks. Responses in this prototype are simulated from demo data.", locale)}
             </div>
-          ))}
+          ), locale)}
           {localize(msgs.map((m, i) => (
             <div key={i} className={cn("max-w-[90%] text-[13px]", m.role === "user" ? "ml-auto rounded-lg bg-primary px-3 py-2 text-primary-foreground" : "")}>
               {localize(m.role === "ai" ? (
                 <div className="rounded-lg border bg-card p-3">
-                  <p className="leading-relaxed">{localize(m.text)}</p>
-                  {localize(m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{localize(m.list.map((l) => <li key={l}>{localize(l)}</li>))}</ol>)}
-                  {localize(m.sources && <div className="mt-2 flex flex-wrap gap-1">{localize(m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{localize(s)}</span>))}</div>)}
+                  <p className="leading-relaxed">{localize(m.text, locale)}</p>
+                  {localize(m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{localize(m.list.map((l) => <li key={l}>{localize(l, locale)}</li>), locale)}</ol>, locale)}
+                  {localize(m.sources && <div className="mt-2 flex flex-wrap gap-1">{localize(m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{localize(s, locale)}</span>), locale)}</div>, locale)}
                 </div>
-              ) : m.text)}
+              ) : m.text, locale)}
             </div>
-          )))}
-          {localize(typing && <div className="flex gap-1 px-1">{localize([0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />))}</div>)}
+          )), locale)}
+          {localize(typing && <div className="flex gap-1 px-1">{localize([0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />), locale)}</div>, locale)}
           <div ref={end} />
         </div>
         <div className="border-t p-3">
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {localize(prompts.map((p) => <Button variant="outline" size="sm" key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{localize(p)}</Button>))}
+            {localize(prompts.map((p) => <Button variant="outline" size="sm" key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{localize(p, locale)}</Button>), locale)}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-md border px-2 focus-within:border-primary/50">
-            <input aria-label={localize("Message CampusPulse")} value={input} onChange={(e) => setInput(e.target.value)} placeholder={localize("Ask about your workspace…")} className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
-            <Button variant="ghost" size="icon" aria-label={localize("Send message")} type="submit" className="rounded p-1 text-primary hover:bg-primary-soft"><Send className="h-4 w-4" /></Button>
+            <input aria-label={localize("Message CampusPulse", locale)} value={input} onChange={(e) => setInput(e.target.value)} placeholder={localize("Ask about your workspace…", locale)} className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
+            <Button variant="ghost" size="icon" aria-label={localize("Send message", locale)} type="submit" className="rounded p-1 text-primary hover:bg-primary-soft"><Send className="h-4 w-4" /></Button>
           </form>
         </div>
       </SheetContent>

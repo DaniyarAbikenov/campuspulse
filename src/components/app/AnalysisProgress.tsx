@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export const analysisSteps = ["Reading document", "Extracting requirements", "Checking course context", "Detecting dependencies", "Estimating workload", "Generating tasks"];
 
 export function AnalysisProgress({ running, onDone, steps = analysisSteps }: { running: boolean; onDone: () => void; steps?: string[] }) {
-  useI18n();
+  const { locale } = useI18n();
   const [step, setStep] = useState(0);
   useEffect(() => {
     if (!running) { setStep(0); return; }
@@ -21,12 +21,12 @@ export function AnalysisProgress({ running, onDone, steps = analysisSteps }: { r
       {localize(steps.map((s, i) => (
         <div key={s} className={cn("flex items-center gap-2.5 text-[13px] transition-opacity", i > step && "text-muted-foreground")}>
           <span className={cn("flex h-5 w-5 items-center justify-center rounded-full border", i < step && "border-success bg-success-soft text-success", i === step && "border-primary text-primary")}>
-            {localize(i < step ? <Check className="h-3 w-3" /> : i === step ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className="text-[10px]">{localize(i + 1)}</span>)}
+            {localize(i < step ? <Check className="h-3 w-3" /> : i === step ? <Loader2 className="h-3 w-3 animate-spin" /> : <span className="text-[10px]">{localize(i + 1, locale)}</span>, locale)}
           </span>
-          <span className={cn(i === step && "font-medium")}>{localize(s)}</span>
-          {localize(i < step && <span className="ml-auto text-[11px] text-muted-foreground">{localize("done")}</span>)}
+          <span className={cn(i === step && "font-medium")}>{localize(s, locale)}</span>
+          {localize(i < step && <span className="ml-auto text-[11px] text-muted-foreground">{localize("done", locale)}</span>, locale)}
         </div>
-      )))}
+      )), locale)}
     </div>
   );
 }
