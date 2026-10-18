@@ -52,21 +52,24 @@ function Schedule() {
         <div className="panel overflow-x-auto">
           <div className="grid min-w-[760px] grid-cols-[52px_repeat(7,1fr)]">
             <div className="border-b" />
-            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === 0 && "text-primary")}>{d}</div>))}
-            <div className="relative">{localize(hours.map((h) => <div key={h} style={{ height: H }} className="pr-2 pt-0.5 text-right font-mono text-[10.5px] text-muted-foreground">{h}:00</div>))}</div>
+            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === 0 && "text-primary")}>{localize(d)}</div>))}
+            <div className="relative">{localize(hours.map((h) => <div key={h} style={{ height: H }} className="pr-2 pt-0.5 text-right font-mono text-[10.5px] text-muted-foreground">{localize(h)}{localize(":00")}</div>))}</div>
             {localize(days.map((_, di) => (
               <div key={di} className="relative border-l" style={{ height: H * hours.length }}>
-                {hours.map((h) => <div key={h} style={{ height: H }} className="border-b border-dashed border-border/70" />)}
-                {freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
+                {localize(hours.map((h) => <div key={h} style={{ height: H }} className="border-b border-dashed border-border/70" />))}
+                {localize(freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
                   <Button variant="ghost" aria-label={`Plan study session ${s.label}`} key={s.id} onClick={() => setSlot(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}
                     className="absolute inset-x-1 flex-col items-start whitespace-normal rounded-md border border-dashed border-success/50 bg-success-soft/70 p-1.5 text-left text-[11px] text-success hover:bg-success-soft">
                     <div className="font-medium">Free slot</div><div>+ Plan session</div>
                   </Button>
+                )))          </Button>
                 ))}
-                {events.filter((e) => e.day === di).map((e) => (
+                {localize(events.filter((e) => e.day === di).map((e) => (
                   <div key={e.id} style={{ top: (e.start - 8) * H + 1, height: (e.end - e.start) * H - 2 }} className={cn("absolute inset-x-1 overflow-hidden rounded-md border p-1.5 text-[11px] animate-in fade-in", kindCls[e.kind])}>
                     <div className="font-medium leading-tight">{e.title}</div>
                     <div className="font-mono text-[10px]">{formatHour(e.start)}–{formatHour(e.end)}</div>
+                  </div>
+                )))
                   </div>
                 ))}
               </div>
@@ -77,12 +80,12 @@ function Schedule() {
           <Panel title={localize("Free time this week")}>
             {localize(freeSlots.map((s) => (
               <div key={s.id} className="flex items-center justify-between border-b py-2 text-[12.5px] last:border-0">
-                <span>{s.label}</span>
-                {taken(s) ? <span className="text-[11.5px] text-primary">Planned</span> : <Button size="sm" variant="ghost" className="h-6 text-[11.5px]" onClick={() => setSlot(s)}>Plan</Button>}
+                <span>{localize(s.label)}</span>
+                {localize(taken(s) ? <span className="text-[11.5px] text-primary">Planned</span> : <Button size="sm" variant="ghost" className="h-6 text-[11.5px]" onClick={() => setSlot(s)}>Plan</Button>)>{localize("Plan")}</Button>}
               </div>
             )))}
           </Panel>
-          <Panel title={localize(<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> Suggestion</span>)}>
+          <Panel title={localize(<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> {localize("Suggestion")}</span>)}>
             <PredictionNote>{localize("Use")} <b>{localize("Mon 13:00–15:00")}</b> {localize("for JWT token generation (1.5h). It's the earliest slot before your heaviest days.")}</PredictionNote>
           </Panel>
         </div>
@@ -93,7 +96,7 @@ function Schedule() {
           <DialogHeader><DialogTitle className="text-[16px]">{localize("Plan study session")}</DialogTitle><DialogDescription>{localize(slot?.label)}</DialogDescription></DialogHeader>
           <div className="space-y-1.5"><Label htmlFor="schedule-task" className="text-[12px]">{localize("Work on")}</Label>
             <Select value={task} onValueChange={setTask}><SelectTrigger id="schedule-task"><SelectValue placeholder={localize("Choose an imported task")} /></SelectTrigger>
-              <SelectContent>{localize(tasks.filter((t) => t.column !== "done").map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>))}</SelectContent></Select>
+              <SelectContent>{localize(tasks.filter((t) => t.column !== "done").map((t) => <SelectItem key={t.id} value={t.id}>{localize(t.title)}</SelectItem>))}</SelectContent></Select>
           </div>
           <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setSlot(null)}>{localize("Cancel")}</Button><Button size="sm" disabled={!task} onClick={plan}>{localize("Add to calendar")}</Button></div>
         </DialogContent>

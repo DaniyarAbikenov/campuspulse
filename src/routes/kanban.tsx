@@ -40,7 +40,7 @@ function Kanban() {
   const visible = tasks.filter((task) => (course === "all" || task.courseId === course) && filter(task));
   const total = visible.filter((task) => task.column !== "done").reduce((sum, task) => sum + task.estimate, 0);
   const selector = (label: string, value: string, change: (value: string) => void, options: { value: string; label: string }[]) => (
-    <Select value={value} onValueChange={change}><SelectTrigger aria-label={localize(label)} className="w-full text-[12px]"><SelectValue /></SelectTrigger><SelectContent>{localize(options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>))}</SelectContent></Select>
+    <Select value={value} onValueChange={change}><SelectTrigger aria-label={localize(label)} className="w-full text-[12px]"><SelectValue /></SelectTrigger><SelectContent>{localize(options.map((option) => <SelectItem key={option.value} value={option.value}>{localize(option.label)}</SelectItem>))}</SelectContent></Select>
   );
   return (
     <>
@@ -55,11 +55,11 @@ function Kanban() {
         {localize(selector("Due date filter", due, setDue, [{ value: "all", label: "All dates" }, { value: "week", label: "This week" }, { value: "overdue", label: "Overdue" }]))}
         <Button variant="ghost" onClick={() => { setQuery(""); setCourse("all"); setAssignment("all"); setPriority("all"); setStatus("all"); setSource("all"); setDue("all"); }}>{localize("Clear filters")}</Button>
       </div>
-      {!tasksGenerated ? <section className="mb-3 border-l-2 border-ai bg-ai-soft p-3" aria-live="polite">
+      {localize(!tasksGenerated ? <section className="mb-3 border-l-2 border-ai bg-ai-soft p-3" aria-live="polite">
         <h2 className="text-[13px] font-semibold">{proposalApproved ? "Approved, not imported" : "Generated, not imported"}</h2>
         <p className="mt-1 text-[12px] text-muted-foreground">{proposalTasks.length} Assignment 3 proposals · {proposalTasks.reduce((sum, task) => sum + task.estimate, 0)}h. No board tasks or calendar sessions exist for these proposals yet.</p>
         <div className="mt-2 flex flex-wrap gap-2"><Button asChild size="sm" variant="outline"><Link to="/assignments/$assignmentId" params={{ assignmentId: "se-a3" }}>Review proposals</Link></Button><Button size="sm" onClick={() => { if (!proposalApproved) approveProposal(); else { addGeneratedTasks(); toast.success(localize("Approved tasks imported")); } }}>{proposalApproved ? "Import approved tasks" : "Approve task plan"}</Button></div>
-      </section> : <div className="mb-3 flex flex-wrap items-center gap-3 border-b pb-3" aria-live="polite"><span>{generatedScheduled ? "Assignment 3 sessions scheduled" : "Imported to Kanban · not scheduled"}</span><Button size="sm" disabled={generatedScheduled} onClick={() => { const ok = scheduleGeneratedTasks(); if (ok) toast.success(localize("6 study sessions scheduled; workload updated")); else toast.error(localize("The proposed times overlap existing sessions or edited estimates. Plan sessions individually in My Schedule.")); }}>Schedule approved tasks</Button><Button asChild size="sm" variant="outline"><Link to="/schedule">View schedule</Link></Button><Button asChild size="sm" variant="outline"><Link to="/workload">View workload</Link></Button></div>}
+      </section> : <div className="mb-3 flex flex-wrap items-center gap-3 border-b pb-3" aria-live="polite"><span>{generatedScheduled ? "Assignment 3 sessions scheduled" : "Imported to Kanban · not scheduled"}</span><Button size="sm" disabled={generatedScheduled} onClick={() => { const ok = scheduleGeneratedTasks(); if (ok) toast.success(localize("6 study sessions scheduled; workload updated")); else toast.error(localize("The proposed times overlap existing sessions or edited estimates. Plan sessions individually in My Schedule.")); }}>Schedule approved tasks</Button><Button asChild size="sm" variant="outline"><Link to="/schedule">View schedule</Link></Button><Button asChild size="sm" variant="outline"><Link to="/workload">View workload</Link></Button></div>)e")}</Link></Button><Button asChild size="sm" variant="outline"><Link to="/workload">{localize("View workload")}</Link></Button></div>}
       <KanbanBoard courseId={course === "all" ? undefined : course} filter={filter} />
     </>
   );

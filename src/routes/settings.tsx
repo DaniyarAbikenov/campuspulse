@@ -41,18 +41,18 @@ function Settings() {
           </div>
           <Button size="sm" className="mt-3" onClick={() => toast.success(localize("Profile saved"))}>{localize("Save")}</Button>
         </Panel>
-        {localize(role === "student" && <Panel title="Availability">
+        {localize(role === "student" && <Panel title={localize("Availability")}>
           <div className="grid gap-3 md:grid-cols-3">
-            <div><label htmlFor="availability-max" className="text-[12px] text-muted-foreground">Max study hours / day</label><Input id="availability-max" type="number" defaultValue={4} className="mt-1 h-9" /></div>
-            <div><label htmlFor="availability-start" className="text-[12px] text-muted-foreground">Earliest start</label><Input id="availability-start" type="time" defaultValue="08:00" className="mt-1 h-9" /></div>
-            <div><label htmlFor="availability-end" className="text-[12px] text-muted-foreground">Latest end</label><Input id="availability-end" type="time" defaultValue="21:00" className="mt-1 h-9" /></div>
+            <div><label htmlFor="availability-max" className="text-[12px] text-muted-foreground">{localize("Max study hours / day")}</label><Input id="availability-max" type="number" defaultValue={4} className="mt-1 h-9" /></div>
+            <div><label htmlFor="availability-start" className="text-[12px] text-muted-foreground">{localize("Earliest start")}</label><Input id="availability-start" type="time" defaultValue="08:00" className="mt-1 h-9" /></div>
+            <div><label htmlFor="availability-end" className="text-[12px] text-muted-foreground">{localize("Latest end")}</label><Input id="availability-end" type="time" defaultValue="21:00" className="mt-1 h-9" /></div>
           </div>
         </Panel>)
         }
         <Panel title={localize("AI agent")}>
           <Row title={localize("Proactive insights")} text={localize("Let CampusPulse create recommendations in the background.")} />
-          {localize(role === "student" && <Row title="Automatic task generation" text="Generate Kanban tasks when a new assignment is detected." />)}
-          {localize(role === "student" && <Row title="Share anonymised completion times" text="Contribute to historical workload statistics for your course." on={false} />)}
+          {localize(role === "student" && <Row title={localize("Automatic task generation")} text={localize("Generate Kanban tasks when a new assignment is detected.")} />)}
+          {localize(role === "student" && <Row title={localize("Share anonymised completion times")} text={localize("Contribute to historical workload statistics for your course.")} on={false} />)}
         </Panel>
         <Panel title={localize("Notifications")}>
           <Row title={localize("Deadline reminders")} text={localize("48h and 24h before each deadline.")} />

@@ -44,10 +44,11 @@ export function Topbar() {
         {localize((parts.length ? parts : [""]).map((p, i) => (
           <span key={i} className="flex min-w-0 items-center gap-1">
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
-            {i === parts.length - 1 || parts.length === 0 ? (
+            {localize(i === parts.length - 1 || parts.length === 0 ? (
               <span className="truncate font-medium">{crumbName(p, i)}</span>
             ) : (
               <Link to={`/${parts.slice(0, i + 1).join("/")}` as "/"} className="text-muted-foreground hover:text-foreground">{crumbName(p, i)}</Link>
+            ))/Link>
             )}
           </span>
         )))}
@@ -71,8 +72,8 @@ export function Topbar() {
             <div className="border-b px-3 py-2 text-[13px] font-semibold">{localize("Notifications")}</div>
             {localize((role === "admin" ? adminActivity : activity).slice(0, 5).map((a) => (
               <div key={a.id} className="border-b px-3 py-2 last:border-0">
-                <div className="text-[12.5px] font-medium">{a.title}</div>
-                <div className="text-[11.5px] text-muted-foreground">{a.time} · {a.detail}</div>
+                <div className="text-[12.5px] font-medium">{localize(a.title)}</div>
+                <div className="text-[11.5px] text-muted-foreground">{localize(a.time)} {localize("·")} {localize(a.detail)}</div>
               </div>
             )))}
             <Link to="/activity" className="block px-3 py-2 text-center text-[12px] text-primary hover:bg-secondary">{localize("View all activity")}</Link>
@@ -89,14 +90,14 @@ export function Topbar() {
         <CommandList>
           <CommandEmpty>{localize("No results found.")}</CommandEmpty>
           <CommandGroup heading={localize("Courses")}>
-            {localize((role === "admin" ? facultyCourseCatalog : courses).map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{c.name} <span className="ml-auto text-[11px] text-muted-foreground">{c.code}</span></CommandItem>))}
+            {localize((role === "admin" ? facultyCourseCatalog : courses).map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{localize(c.name)} <span className="ml-auto text-[11px] text-muted-foreground">{localize(c.code)}</span></CommandItem>))}
           </CommandGroup>
-          {localize(role === "student" && <CommandGroup heading="Assignments">
-            {assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{a.title} <span className="ml-auto text-[11px] text-muted-foreground">{courseOf(a.courseId).code}</span></CommandItem>)}
+          {localize(role === "student" && <CommandGroup heading={localize("Assignments")}>
+            {localize(assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{a.title} <span className="ml-auto text-[11px] text-muted-foreground">{courseOf(a.courseId).code}</span></CommandItem>))span></CommandItem>)}
           </CommandGroup>)
           }
           <CommandGroup heading={localize("Actions")}>
-            {localize(role === "student" && <CommandItem onSelect={() => { setOpen(false); setUploadOpen(true); }}>Upload assignment</CommandItem>)}
+            {localize(role === "student" && <CommandItem onSelect={() => { setOpen(false); setUploadOpen(true); }}>{localize("Upload assignment")}</CommandItem>)}
             <CommandItem onSelect={() => { setOpen(false); openChat(); }}>{localize("Ask CampusPulse")}</CommandItem>
           </CommandGroup>
         </CommandList>

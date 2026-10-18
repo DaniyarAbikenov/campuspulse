@@ -39,10 +39,10 @@ function Overview() {
         </>}
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label={localize("Upcoming Deadlines")} value={String(assignments.filter(isUpcomingDeadline).length)} sub="Through October 25" icon={CalendarClock} />
-        <MetricCard label={localize("Estimated Workload")} value={`${workloadTotals.required}h`} sub="Week 43 · exceeds capacity" icon={Hourglass} tone="warning" trend={{ dir: "up", text: `+${workloadTotals.required - workloadTotals.available}h over` }} />
-        <MetricCard label={localize("Active Courses")} value={String(courses.length)} sub="Fall Semester 2026" icon={BookOpen} />
-        <MetricCard label={localize("Available Study Time")} value={`${workloadTotals.available}h`} sub="Week 43 · available study time" icon={Clock} trend={{ dir: "down", text: "−3h", good: false }} />
+        <MetricCard label={localize("Upcoming Deadlines")} value={String(assignments.filter(isUpcomingDeadline).length)} sub={localize("Through October 25")} icon={CalendarClock} />
+        <MetricCard label={localize("Estimated Workload")} value={`${workloadTotals.required}h`} sub={localize("Week 43 · exceeds capacity")} icon={Hourglass} tone="warning" trend={{ dir: "up", text: `+${workloadTotals.required - workloadTotals.available}h over` }} />
+        <MetricCard label={localize("Active Courses")} value={String(courses.length)} sub={localize("Fall Semester 2026")} icon={BookOpen} />
+        <MetricCard label={localize("Available Study Time")} value={`${workloadTotals.available}h`} sub={localize("Week 43 · available study time")} icon={Clock} trend={{ dir: "down", text: "−3h", good: false }} />
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
@@ -54,10 +54,10 @@ function Overview() {
           <ol className="space-y-1.5">
             {localize((events.filter((e) => e.day === 0).sort((a, b) => a.start - b.start).map((e) => ({ ...e, start: formatHour(e.start), end: formatHour(e.end), room: undefined }))).map((s) => (
               <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>
-                <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
+                <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{localize(s.start)}{localize("–")}{localize(s.end)}</div>
                 <div className="min-w-0">
-                  <div className={cn("text-[13px] font-medium", s.kind === "free" && "text-success")}>{s.title}</div>
-                  {s.room && <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin className="h-3 w-3" />{s.room}</div>}
+                  <div className={cn("text-[13px] font-medium", s.kind === "free" && "text-success")}>{localize(s.title)}</div>
+                  {localize(s.room && <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin className="h-3 w-3" />{s.room}</div>)om)}</div>}
                 </div>
               </li>
             )))}

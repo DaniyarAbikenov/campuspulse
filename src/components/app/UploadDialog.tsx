@@ -52,7 +52,7 @@ export function UploadDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        {phase === "form" && (
+        {localize(phase === "form" && (
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label htmlFor="upload-course" className="text-[12px]">Course</Label>
@@ -76,6 +76,10 @@ export function UploadDialog() {
               <Button size="sm" disabled={!file} onClick={() => setPhase("running")}>Analyze Assignment</Button>
             </div>
           </div>
+        ))on>
+              <Button size="sm" disabled={!file} onClick={() => setPhase("running")}>{localize("Analyze Assignment")}</Button>
+            </div>
+          </div>
         )}
 
         {localize(phase === "running" && <div className="py-2"><AnalysisProgress running onDone={done} steps={steps} /></div>)}
@@ -83,24 +87,25 @@ export function UploadDialog() {
         {localize(phase === "result" && (
           <div className="space-y-3 text-[13px]">
             <div className="grid grid-cols-3 gap-2">
-              {[["Course", "Software Engineering"], ["Deadline", "Oct 23, 2026"], ["Estimate", `${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)} hours`]].map(([k, v]) => (
+              {localize([["Course", "Software Engineering"], ["Deadline", "Oct 23, 2026"], ["Estimate", `${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)} hours`]].map(([k, v]) => (
                 <div key={k} className="rounded-md border bg-secondary/50 px-3 py-2"><div className="text-[11px] text-muted-foreground">{k}</div><div className="font-medium">{v}</div></div>
+              )))iv>
               ))}
             </div>
             <div className="rounded-md border p-3">
-              <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> {requirements.length} requirements extracted</div>
-              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[12px] text-muted-foreground">{requirements.map((r) => <li key={r.id}><span className="font-mono text-[11px] text-foreground">{r.id}</span> {r.text}</li>)}</ul>
+              <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium"><CheckCircle2 className="h-3.5 w-3.5 text-success" /> {localize(requirements.length)} {localize("requirements extracted")}</div>
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[12px] text-muted-foreground">{localize(requirements.map((r) => <li key={r.id}><span className="font-mono text-[11px] text-foreground">{r.id}</span> {r.text}</li>))alize(r.text)}</li>)}</ul>
             </div>
-            <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info-soft px-3 py-2 text-[12.5px]"><Link2 className="h-3.5 w-3.5 text-info" /> Extends <b>Assignment 2 — Database Integration</b></div>
+            <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info-soft px-3 py-2 text-[12.5px]"><Link2 className="h-3.5 w-3.5 text-info" /> {localize("Extends")} <b>{localize("Assignment 2 — Database Integration")}</b></div>
             <div className="rounded-md border p-3">
-              <div className="mb-1.5 text-[12px] font-medium">{proposalTasks.length} generated tasks</div>
-              {proposalTasks.map((t) => <div key={t.title} className="flex justify-between py-0.5 text-[12px]"><span>{t.title}</span><span className="tabular-nums text-muted-foreground">{t.estimate}h</span></div>)}
+              <div className="mb-1.5 text-[12px] font-medium">{localize(proposalTasks.length)} {localize("generated tasks")}</div>
+              {localize(proposalTasks.map((t) => <div key={t.title} className="flex justify-between py-0.5 text-[12px]"><span>{t.title}</span><span className="tabular-nums text-muted-foreground">{t.estimate}h</span></div>))ate)}{localize("h")}</span></div>)}
             </div>
-            <div className="border-l-2 border-ai bg-ai-soft p-2 text-[12px]" role="status">{tasksGenerated ? "Imported to Kanban. Scheduling is a separate step." : proposalApproved ? "Approved, not imported. No board tasks or calendar sessions have been created." : "Generated, not imported. Review and approve before importing; the board and calendar are unchanged."}</div>
+            <div className="border-l-2 border-ai bg-ai-soft p-2 text-[12px]" role="status">{localize(tasksGenerated ? "Imported to Kanban. Scheduling is a separate step." : proposalApproved ? "Approved, not imported. No board tasks or calendar sessions have been created." : "Generated, not imported. Review and approve before importing; the board and calendar are unchanged.")}</div>
             <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { close(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); }}>Open Assignment</Button>
-              {!proposalApproved && !tasksGenerated && <Button size="sm" onClick={approveProposal}>Approve task plan</Button>}
-              <Button size="sm" disabled={!proposalApproved && !tasksGenerated} onClick={create}>{tasksGenerated ? "View Kanban" : "Import approved tasks"}</Button>
+              <Button variant="outline" size="sm" onClick={() => { close(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); }}>{localize("Open Assignment")}</Button>
+              {localize(!proposalApproved && !tasksGenerated && <Button size="sm" onClick={approveProposal}>Approve task plan</Button>)an")}</Button>}
+              <Button size="sm" disabled={!proposalApproved && !tasksGenerated} onClick={create}>{localize(tasksGenerated ? "View Kanban" : "Import approved tasks")}</Button>
             </div>
           </div>
         ))}

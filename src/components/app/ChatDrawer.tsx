@@ -77,26 +77,28 @@ export function ChatDrawer() {
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {localize(msgs.length === 0 && (
             <div className="rounded-lg border bg-secondary/50 p-3 text-[12.5px] text-muted-foreground">
-              I have access to your courses, assignments, schedule and generated tasks. Responses in this prototype are simulated from demo data.
+              {localize("I have access to your courses, assignments, schedule and generated tasks. Responses in this prototype are simulated from demo data.")}
             </div>
           ))}
           {localize(msgs.map((m, i) => (
             <div key={i} className={cn("max-w-[90%] text-[13px]", m.role === "user" ? "ml-auto rounded-lg bg-primary px-3 py-2 text-primary-foreground" : "")}>
-              {m.role === "ai" ? (
+              {localize(m.role === "ai" ? (
                 <div className="rounded-lg border bg-card p-3">
                   <p className="leading-relaxed">{m.text}</p>
                   {m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{m.list.map((l) => <li key={l}>{l}</li>)}</ol>}
                   {m.sources && <div className="mt-2 flex flex-wrap gap-1">{m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{s}</span>)}</div>}
                 </div>
+              ) : m.text))>)))}</span>)}</div>}
+                </div>
               ) : m.text}
             </div>
           )))}
-          {localize(typing && <div className="flex gap-1 px-1">{[0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />)}</div>)}
+          {localize(typing && <div className="flex gap-1 px-1">{localize([0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />))}</div>)}
           <div ref={end} />
         </div>
         <div className="border-t p-3">
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {localize(prompts.map((p) => <Button variant="outline" size="sm" key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{p}</Button>))}
+            {localize(prompts.map((p) => <Button variant="outline" size="sm" key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{localize(p)}</Button>))}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-md border px-2 focus-within:border-primary/50">
             <input aria-label={localize("Message CampusPulse")} value={input} onChange={(e) => setInput(e.target.value)} placeholder={localize("Ask about your workspace…")} className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />

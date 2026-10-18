@@ -1926,5 +1926,417 @@
   " plan": [
     " план",
     " жоспар"
+  ],
+  "Failed": [
+    "Ошибка",
+    "Қате"
+  ],
+  "Cancelled": [
+    "Отменено",
+    "Болдырылмады"
+  ],
+  "h": [
+    "ч",
+    "сағ"
+  ],
+  "Processing": [
+    "Обрабатывается",
+    "Өңделуде"
+  ],
+  "enabled": [
+    "включено",
+    "қосылды"
+  ],
+  "disabled": [
+    "выключено",
+    "өшірілді"
+  ],
+  "Week 43 · exceeds capacity": [
+    "Неделя 43 · превышение нагрузки",
+    "43-апта · жүктеме артық"
+  ],
+  "Week 43 · available study time": [
+    "Неделя 43 · доступное время учёбы",
+    "43-апта · қолжетімді оқу уақыты"
+  ],
+  "Estimated required vs. available hours · Week 43": [
+    "Необходимые и доступные часы · неделя 43",
+    "Қажетті және қолжетімді сағаттар · 43-апта"
+  ],
+  "Rebalancing applied.": [
+    "Перераспределение применено.",
+    "Қайта бөлу қолданылды."
+  ],
+  "Current forecast:": [
+    "Текущий прогноз:",
+    "Ағымдағы болжам:"
+  ],
+  ". Weekly capacity gap:": [
+    ". Недельный дефицит времени:",
+    ". Апталық уақыт тапшылығы:"
+  ],
+  "Monday study sessions are planned. See the calendar for remaining availability.": [
+    "Занятия на понедельник запланированы. Остальное свободное время — в календаре.",
+    "Дүйсенбі сессиялары жоспарланды. Қалған бос уақытты күнтізбеден қараңыз."
+  ],
+  "Monday 13:00–15:00 is available for Assignment 3.": [
+    "Понедельник 13:00–15:00 доступен для задания 3.",
+    "Дүйсенбі 13:00–15:00 3-тапсырма үшін бос."
+  ],
+  "Every action the CampusPulse agent took in your workspace (simulated).": [
+    "Все действия агента CampusPulse в вашем пространстве (демо).",
+    "Кеңістігіңіздегі CampusPulse агентінің барлық әрекеттері (демо)."
+  ],
+  "Click a row to open the assignment": [
+    "Откройте задание из таблицы",
+    "Тапсырманы кестеден ашыңыз"
+  ],
+  "6 requirements · 1 dependency · 6 tasks": [
+    "6 требований · 1 зависимость · 6 задач",
+    "6 талап · 1 тәуелділік · 6 міндет"
+  ],
+  "Assignment 3 re-analyzed": [
+    "Задание 3 проанализировано повторно",
+    "3-тапсырма қайта талданды"
+  ],
+  "This assignment hasn't been analyzed in depth yet. Upload the brief to extract requirements and generate tasks — or open": [
+    "Это задание ещё не проанализировано. Загрузите описание для извлечения требований или откройте",
+    "Бұл тапсырма әлі талданбаған. Талаптарды шығару үшін сипаттамасын жүктеңіз немесе ашыңыз"
+  ],
+  " to see a full analysis.": [
+    " для полного анализа.",
+    " толық талдауды көру үшін."
+  ],
+  "Extend the order-management REST service from Assignment 2 with stateless JWT authentication, protected endpoints and role-based authorization. Submit the repository link and a short README.": [
+    "Дополните REST-сервис из задания 2 JWT-аутентификацией, защищёнными эндпоинтами и ролевой авторизацией. Отправьте ссылку на репозиторий и краткий README.",
+    "2-тапсырмадағы REST сервисіне JWT аутентификациясын, қорғалған эндпоинттерді және рөлдік авторизацияны қосыңыз. Репозиторий сілтемесін және қысқа README жіберіңіз."
+  ],
+  "This assignment builds on the existing REST API and PostgreSQL integration implemented previously.": [
+    "Задание использует ранее реализованные REST API и интеграцию PostgreSQL.",
+    "Тапсырма бұрын іске асырылған REST API мен PostgreSQL интеграциясына негізделген."
+  ],
+  "This assignment continues the order-management service you developed in Assignments 1 and 2. You will secure the application using stateless token authentication.": [
+    "Задание продолжает сервис управления заказами из заданий 1 и 2. Защитите приложение токен-аутентификацией без хранения состояния.",
+    "Тапсырма 1 және 2-тапсырмалардағы тапсырыс сервисін жалғастырады. Қосымшаны токен аутентификациясымен қорғаңыз."
+  ],
+  "Work individually. Plagiarism checks will be applied to all repositories.": [
+    "Работайте самостоятельно. Все репозитории проверяются на плагиат.",
+    "Жеке орындаңыз. Барлық репозиторийлер плагиатқа тексеріледі."
+  ],
+  "Submit the repository URL on Moodle. Include a README with setup steps and the authentication flow.": [
+    "Отправьте ссылку в Moodle. Добавьте README с шагами настройки и процессом аутентификации.",
+    "Сілтемені Moodle-ге жіберіңіз. Баптау қадамдары мен аутентификация үдерісі жазылған README қосыңыз."
+  ],
+  "Assignments in this course build on each other. Delays in the current one shift the next by ~3 days.": [
+    "Задания связаны: задержка текущего сдвигает следующее примерно на 3 дня.",
+    "Тапсырмалар байланысты: ағымдағы кідіріс келесісін шамамен 3 күнге жылжытады."
+  ],
+  "Your actual time ran": [
+    "Фактическое время было",
+    "Нақты уақыт"
+  ],
+  " over estimates on average — plans now include that buffer.": [
+    " выше оценки — этот запас учтён в планах.",
+    " бағалаудан артық болды — жоспарларда бұл қор ескерілді."
+  ],
+  "CampusPulse has indexed": [
+    "CampusPulse проиндексировал",
+    "CampusPulse индекстеді"
+  ],
+  "assignment dependencies.": [
+    "зависимостей заданий.",
+    "тапсырма тәуелділігін."
+  ],
+  "Software Engineering · SE 3204 · Due October 23, 2026": [
+    "Программная инженерия · SE 3204 · Срок: 23 октября 2026",
+    "Бағдарламалық инженерия · SE 3204 · Мерзім: 2026 жылғы 23 қазан"
+  ],
+  "Assignment 3: Authentication": [
+    "Задание 3: Аутентификация",
+    "3-тапсырма: Аутентификация"
+  ],
+  "Due: 23 October 2026, 23:59. Weight: 15% of the final grade.": [
+    "Срок: 23 октября 2026, 23:59. Вес: 15% итоговой оценки.",
+    "Мерзім: 2026 жылғы 23 қазан, 23:59. Үлесі: қорытынды бағаның 15%-ы."
+  ],
+  "4. Deliverables": [
+    "4. Результаты",
+    "4. Нәтижелер"
+  ],
+  "Implement JWT-based authentication.": [
+    "Реализуйте JWT-аутентификацию.",
+    "JWT аутентификациясын іске асырыңыз."
+  ],
+  "Issue signed access tokens on successful login. Use HS256 with a secret from configuration.": [
+    "При входе выдавайте подписанные токены доступа. Используйте HS256 и секрет из конфигурации.",
+    "Кіргенде қолтаңбаланған токендерді беріңіз. HS256 мен конфигурациядағы құпияны пайдаланыңыз."
+  ],
+  "Secure selected REST endpoints.": [
+    "Защитите выбранные REST-эндпоинты.",
+    "Таңдалған REST эндпоинттерін қорғаңыз."
+  ],
+  "Add role-based authorization.": [
+    "Добавьте ролевую авторизацию.",
+    "Рөлдік авторизацияны қосыңыз."
+  ],
+  "Support at least STUDENT and ADMIN roles. Only ADMIN may delete users.": [
+    "Поддержите роли STUDENT и ADMIN. Только ADMIN может удалять пользователей.",
+    "STUDENT және ADMIN рөлдерін қолдаңыз. Пайдаланушыларды тек ADMIN жоя алады."
+  ],
+  "Implement token expiration handling.": [
+    "Обработайте истечение срока токена.",
+    "Токен мерзімінің аяқталуын өңдеңіз."
+  ],
+  "Access tokens expire after 15 minutes; provide a refresh endpoint.": [
+    "Токены истекают через 15 минут; добавьте эндпоинт обновления.",
+    "Токен мерзімі 15 минутта аяқталады; жаңарту эндпоинтін қосыңыз."
+  ],
+  "Update existing user services.": [
+    "Обновите сервисы пользователей.",
+    "Пайдаланушы сервистерін жаңартыңыз."
+  ],
+  "Store BCrypt-hashed passwords in the existing User entity from Assignment 2.": [
+    "Храните BCrypt-хеши паролей в сущности User из задания 2.",
+    "BCrypt пароль хештерін 2-тапсырманың User нысанында сақтаңыз."
+  ],
+  "Document authentication workflow.": [
+    "Опишите процесс аутентификации.",
+    "Аутентификация үдерісін құжаттаңыз."
+  ],
+  "Add a README section with a sequence diagram of login and refresh.": [
+    "Добавьте в README диаграмму последовательности входа и обновления.",
+    "README-ге кіру мен жаңартудың реттілік диаграммасын қосыңыз."
+  ],
+  "Design and implementation of a layered REST service, built incrementally across four connected assignments.": [
+    "Разработка многоуровневого REST-сервиса в четырёх связанных заданиях.",
+    "Төрт байланысты тапсырмада көпдеңгейлі REST сервисін жасау."
+  ],
+  "Query optimisation, indexing strategies, aggregation pipelines and transaction isolation.": [
+    "Оптимизация запросов, индексация, агрегация и изоляция транзакций.",
+    "Сұрауларды оңтайландыру, индекстеу, агрегация және транзакцияларды оқшаулау."
+  ],
+  "Processes, scheduling, memory management and concurrency through weekly labs.": [
+    "Процессы, планирование, память и параллелизм в лабораторных.",
+    "Апталық зертханалар арқылы процестер, жоспарлау, жад және қатар орындалу."
+  ],
+  "Research design, literature reviews and academic writing.": [
+    "Планирование исследований, обзор литературы и академическое письмо.",
+    "Зерттеуді жобалау, әдебиет шолуы және академиялық жазу."
+  ],
+  "Probability, inference, regression and applied data analysis in R.": [
+    "Вероятность, статистические выводы, регрессия и анализ данных в R.",
+    "Ықтималдық, статистикалық қорытынды, регрессия және R-де деректер талдауы."
+  ],
+  "Summary: this document introduces": [
+    "Кратко: документ описывает",
+    "Қысқаша: құжат сипаттайды"
+  ],
+  "and is referenced by": [
+    "и используется в",
+    "және пайдаланылады"
+  ],
+  " the generated task breakdown": [
+    " списке созданных задач",
+    " жасалған міндеттер тізімінде"
+  ],
+  " your study plan and related assignments": [
+    " учебном плане и связанных заданиях",
+    " оқу жоспары мен байланысты тапсырмаларда"
+  ],
+  "sourced demo fragments": [
+    "демо-фрагментов с источниками",
+    "дереккөзі көрсетілген демо үзінді"
+  ],
+  "· fixture excerpts, not the uploaded PDF text": [
+    "· демонстрационные фрагменты, не текст загруженного PDF",
+    "· демо үзінділер, жүктелген PDF мәтіні емес"
+  ],
+  "Draft plan references the": [
+    "Черновой план ссылается на",
+    "Жоспар жобасы сілтеме жасайды"
+  ],
+  "indexed Databases lectures. Midterm on Oct 30.": [
+    "проиндексированные лекции по базам данных. Экзамен 30 октября.",
+    "индекстелген дерекқорлар дәрістеріне. Емтихан 30 қазанда."
+  ],
+  "Query optimisation — Lecture 5": [
+    "Оптимизация запросов — Лекция 5",
+    "Сұрауларды оңтайландыру — 5-дәріс"
+  ],
+  "Indexing strategies — Lecture 6–7": [
+    "Индексация — Лекции 6–7",
+    "Индекстеу — 6–7 дәрістер"
+  ],
+  "Aggregation pipelines — Lecture 8": [
+    "Конвейеры агрегации — Лекция 8",
+    "Агрегация конвейерлері — 8-дәріс"
+  ],
+  "h study scheduled ·": [
+    "ч учёбы запланировано ·",
+    "сағ оқу жоспарланды ·"
+  ],
+  "h not yet scheduled": [
+    "ч ещё не запланировано",
+    "сағ әлі жоспарланбаған"
+  ],
+  "Assignment 3 proposals ·": [
+    "предложений для задания 3 ·",
+    "3-тапсырма ұсыныстары ·"
+  ],
+  "h. No board tasks or calendar sessions exist for these proposals yet.": [
+    "ч. Задачи и занятия для этих предложений пока не созданы.",
+    "сағ. Бұл ұсыныстар үшін тақта міндеттері мен сессиялар әлі жасалмады."
+  ],
+  "first day of Week 43": [
+    "первый день недели 43",
+    "43-аптаның бірінші күні"
+  ],
+  "all deadlines, including future weeks": [
+    "все сроки, включая будущие недели",
+    "барлық мерзімдер, келесі апталарды қоса"
+  ],
+  "all deadlines": [
+    "все сроки",
+    "барлық мерзімдер"
+  ],
+  "required": [
+    "требуется",
+    "қажет"
+  ],
+  "available": [
+    "доступно",
+    "қолжетімді"
+  ],
+  "scheduled": [
+    "запланировано",
+    "жоспарланған"
+  ],
+  "not scheduled": [
+    "не запланировано",
+    "жоспарланбаған"
+  ],
+  "imported and scheduled": [
+    "импортировано и запланировано",
+    "импортталды және жоспарланды"
+  ],
+  "imported, not scheduled": [
+    "импортировано, не запланировано",
+    "импортталды, жоспарланбады"
+  ],
+  "approved, not imported": [
+    "одобрено, не импортировано",
+    "мақұлданды, импортталмады"
+  ],
+  "generated, not imported": [
+    "создано, не импортировано",
+    "жасалды, импортталмады"
+  ],
+  "Review, approve and import the proposed tasks.": [
+    "Проверьте, одобрите и импортируйте предложенные задачи.",
+    "Ұсынылған міндеттерді қарап, мақұлдап, импорттаңыз."
+  ],
+  "Open the board to review tasks and calendar planning.": [
+    "Откройте доску для просмотра задач и планирования.",
+    "Міндеттер мен жоспарлауды қарау үшін тақтаны ашыңыз."
+  ],
+  "Extends Assignment 2.": [
+    "Продолжает задание 2.",
+    "2-тапсырманы жалғастырады."
+  ],
+  " tasks": [
+    " задач",
+    " міндет"
+  ],
+  "proposed tasks": [
+    "предложенных задач",
+    "ұсынылған міндет"
+  ],
+  "PDF analysis ready for approval": [
+    "Анализ PDF готов к одобрению",
+    "PDF талдауы мақұлдауға дайын"
+  ],
+  "simulated fixture": [
+    "демонстрационный пример",
+    "демо үлгі"
+  ],
+  "New recommendation created": [
+    "Новая рекомендация создана",
+    "Жаңа ұсыныс жасалды"
+  ],
+  "Workload forecast updated": [
+    "Прогноз нагрузки обновлён",
+    "Жүктеме болжамы жаңартылды"
+  ],
+  "Assignment dependency detected": [
+    "Обнаружена зависимость задания",
+    "Тапсырма тәуелділігі анықталды"
+  ],
+  "Six tasks generated": [
+    "Создано шесть задач",
+    "Алты міндет жасалды"
+  ],
+  "Assignment 3 analyzed": [
+    "Задание 3 проанализировано",
+    "3-тапсырма талданды"
+  ],
+  "Document indexed": [
+    "Документ проиндексирован",
+    "Құжат индекстелді"
+  ],
+  "Timetable synchronized": [
+    "Расписание синхронизировано",
+    "Кесте синхрондалды"
+  ],
+  "Approved tasks scheduled": [
+    "Одобренные задачи запланированы",
+    "Мақұлданған міндеттер жоспарланды"
+  ],
+  "Workload plan applied": [
+    "План нагрузки применён",
+    "Жүктеме жоспары қолданылды"
+  ],
+  "Faculty workload forecast updated": [
+    "Прогноз нагрузки факультета обновлён",
+    "Факультет жүктемесінің болжамы жаңартылды"
+  ],
+  "Course aggregates refreshed": [
+    "Сводки курсов обновлены",
+    "Курс қорытындылары жаңартылды"
+  ],
+  "Faculty timetable synchronized": [
+    "Расписание факультета синхронизировано",
+    "Факультет кестесі синхрондалды"
+  ],
+  "Anonymised course and cohort aggregates · no personal student records": [
+    "Обезличенные сводки курсов и групп · без личных данных студентов",
+    "Курс пен топтың анонимді қорытындылары · жеке студент деректері жоқ"
+  ],
+  "anonymised cohort data": [
+    "обезличенные данные групп",
+    "топтардың анонимді деректері"
+  ],
+  "Anonymised, aggregated demo data": [
+    "Обезличенные сводные демоданные",
+    "Анонимді жиынтық демо деректер"
+  ],
+  "estimated vs. reported hours": [
+    "оценка и сообщённые часы",
+    "болжамды және тіркелген сағаттар"
+  ],
+  "has the highest cohort forecast at": [
+    "имеет самый высокий прогноз группы:",
+    "топ болжамы ең жоғары:"
+  ],
+  "h. Review faculty deadlines before changing the schedule.": [
+    "ч. Проверьте сроки факультета перед изменением расписания.",
+    "сағ. Кестені өзгертпес бұрын факультет мерзімдерін тексеріңіз."
+  ],
+  "for JWT token generation (1.5h). It's the earliest slot before your heaviest days.": [
+    "для JWT-токенов (1,5 ч). Это ближайшее время перед самыми загруженными днями.",
+    "JWT токендерін жасау үшін (1,5 сағ). Бұл ең жүктелген күндерге дейінгі алғашқы бос уақыт."
+  ],
+  "of Software Engineering work (JWT token generation) to Monday 13:00–15:00, and start the Aggregation pipeline on Tuesday evening. This redistributes work; it does not add study capacity. The weekly gap remains": [
+    "работы по программной инженерии на понедельник 13:00–15:00 и начните агрегацию во вторник вечером. Это перераспределяет работу, не увеличивая доступное время. Дефицит остаётся",
+    "бағдарламалық инженерия жұмысын дүйсенбі 13:00–15:00-ге ауыстырып, агрегацияны сейсенбі кешке бастаңыз. Бұл жұмысты бөледі, бос уақытты арттырмайды. Апталық тапшылық өзгермейді"
   ]
 }

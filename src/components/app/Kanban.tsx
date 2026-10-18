@@ -26,7 +26,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
   return (
     <>
       <div className="max-w-full overflow-x-auto"><div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
-        {columns.map((col) => {
+        {localize(columns.map((col) => {
   useI18n();
           const items = list.filter((t) => t.column === col.id);
           const hours = items.reduce((s, t) => s + t.estimate, 0);
@@ -60,12 +60,16 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
               </div>
             </div>
           );
+        }))d px-2 py-6 text-center text-[11.5px] text-muted-foreground">Drop tasks here</div>) here")}</div>}
+              </div>
+            </div>
+          );
         })}
       </div>
       </div>
       <Sheet open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <SheetContent className="w-[420px] sm:max-w-[420px]">
-          {open && (
+          {localize(open && (
             <>
               <SheetHeader>
                 <SheetTitle className="text-[16px] leading-snug">{open.title}</SheetTitle>
@@ -89,6 +93,10 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
                   </dd>
                 </dl>
                 <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success(localize("Task completed")); }}>Mark as Completed</Button>
+              </div>
+            </>
+          ))/dl>
+                <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success(localize("Task completed")); }}>{localize("Mark as Completed")}</Button>
               </div>
             </>
           )}

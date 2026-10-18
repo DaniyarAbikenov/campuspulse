@@ -30,9 +30,9 @@ function Events() {
   return (
     <>
       <PageHeader title={localize("Campus Events")} subtitle={localize("Ranked by fit with your schedule and courses.")} />
-      <div className="mb-3 flex flex-wrap gap-1">{localize(cats.map((c) => <Button variant="ghost" size="sm" aria-pressed={cat === c} key={c} onClick={() => setCat(c)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", cat === c ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground")}>{c}</Button>))}</div>
+      <div className="mb-3 flex flex-wrap gap-1">{localize(cats.map((c) => <Button variant="ghost" size="sm" aria-pressed={cat === c} key={c} onClick={() => setCat(c)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", cat === c ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground")}>{localize(c)}</Button>))}</div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {list.map((e) => (
+        {localize(list.map((e) => (
           <article key={e.id} className="panel flex flex-col p-4">
             <div className="flex items-center justify-between"><span className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{e.category}</span><span className="text-[11.5px] font-medium text-ai tabular-nums">{e.match}% match</span></div>
             <h2 className="mt-2 text-[14px] font-semibold">{e.title}</h2>
@@ -44,6 +44,9 @@ function Events() {
             <p className="mt-3 rounded-md bg-ai-soft/60 px-2.5 py-1.5 text-[12px]">{e.reason}</p>
             <Button size="sm" variant={saved.includes(e.id) ? "secondary" : "outline"} className="mt-3 h-7 text-[12px]" onClick={() => { setSaved((s) => s.includes(e.id) ? s.filter((x) => x !== e.id) : [...s, e.id]); if (!saved.includes(e.id)) { const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].findIndex((day) => e.date.startsWith(day)); const start = Number(e.time.split("–")[0]?.split(":")[0] ?? 0); const end = Number(e.time.split("–")[1]?.split(":")[0] ?? start + 1); if (["e1", "e2", "e3", "e5", "e6"].includes(e.id) && !events.some((event) => event.title === e.title)) addEvent({ day, start, end, title: e.title, kind: "event" }); toast.success(localize("Event saved"), { description: localize(`${e.date} · ${e.time}`) }); } }}>
               {saved.includes(e.id) ? <><Check className="h-3.5 w-3.5" /> Added</> : "Save event"}
+            </Button>
+          </article>
+        )))-3.5 w-3.5" /> Added</> : "Save event"): "Save event"}
             </Button>
           </article>
         ))}

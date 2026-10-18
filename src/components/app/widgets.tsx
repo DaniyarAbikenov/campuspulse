@@ -50,9 +50,9 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
           setInsightStatus(insight.id, s);
           toast(s === "Snoozed" ? "We'll remind you tomorrow at 09:00" : "Insight dismissed", { action: { label: "Undo", onClick: () => setInsightStatus(insight.id, "New") } });
         }}>{localize(insight.secondary)}</Button>
-        {localize(insight.status === "New" && <Button size="sm" variant="outline" className="h-7 px-2 text-[12px]" onClick={() => setInsightStatus(insight.id, "Accepted")}>Accept recommendation</Button>)}
-        {["New", "Accepted"].includes(insight.status) && ["i1", "i2"].includes(insight.id) && <Button size="sm" variant="outline" onClick={() => { if (insight.id === "i1") applyWorkloadPlan(); else { approveProposal(); addGeneratedTasks(); } toast.success(localize("Recommendation applied")); }}>Apply{insight.id === "i2" && !tasksGenerated ? " to Kanban" : " plan"}</Button>}
-        {localize(!["Dismissed", "Applied"].includes(insight.status) && insight.secondary !== "Dismiss" && <Button size="sm" variant="ghost" onClick={() => setInsightStatus(insight.id, "Dismissed")}>Dismiss</Button>)}
+        {localize(insight.status === "New" && <Button size="sm" variant="outline" className="h-7 px-2 text-[12px]" onClick={() => setInsightStatus(insight.id, "Accepted")}>{localize("Accept recommendation")}</Button>)}
+        {localize(["New", "Accepted"].includes(insight.status) && ["i1", "i2"].includes(insight.id) && <Button size="sm" variant="outline" onClick={() => { if (insight.id === "i1") applyWorkloadPlan(); else { approveProposal(); addGeneratedTasks(); } toast.success(localize("Recommendation applied")); }}>Apply{insight.id === "i2" && !tasksGenerated ? " to Kanban" : " plan"}</Button>)an" : " plan")}</Button>}
+        {localize(!["Dismissed", "Applied"].includes(insight.status) && insight.secondary !== "Dismiss" && <Button size="sm" variant="ghost" onClick={() => setInsightStatus(insight.id, "Dismissed")}>{localize("Dismiss")}</Button>)}
         {localize(insight.status !== "New" && <span className="ml-auto"><StatusBadge status={insight.status} /></span>)}
       </div>
     </article>
@@ -70,10 +70,10 @@ export function WorkloadChart({ height = 220 }: { height?: number }) {
         <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} unit="h" />
         <Tooltip cursor={{ fill: cc.secondary }} contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="required" name="Required" radius={[3, 3, 0, 0]} barSize={22}>
+        <Bar dataKey="required" name={localize("Required")} radius={[3, 3, 0, 0]} barSize={22}>
           {localize(distribution.map((d) => <Cell key={d.day} fill={d.required > d.available ? cc.danger : cc.primary} />))}
         </Bar>
-        <Line dataKey="available" name="Available" type="stepAfter" stroke={cc.muted} strokeDasharray="4 4" dot={false} strokeWidth={1.5} />
+        <Line dataKey="available" name={localize("Available")} type="stepAfter" stroke={cc.muted} strokeDasharray="4 4" dot={false} strokeWidth={1.5} />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -111,11 +111,11 @@ export function AssignmentTable({ ids }: { ids?: string[] }) {
         <tbody>
           {localize(rows.map((a) => (
             <tr key={a.id} className="cursor-pointer border-b last:border-0 hover:bg-secondary/60">
-              <td className="px-3.5 py-2 font-medium"><Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="hover:text-primary">{a.title}</Link></td>
+              <td className="px-3.5 py-2 font-medium"><Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="hover:text-primary">{localize(a.title)}</Link></td>
               <td className="px-2 py-2"><CourseTag id={a.courseId} /></td>
-              <td className="px-2 py-2 tabular-nums">{a.deadline}</td>
-              <td className="px-2 py-2 tabular-nums text-muted-foreground">{a.estimate}h</td>
-              <td className="px-2 py-2"><div className="flex items-center gap-2"><ProgressBar value={a.progress} /><span className="w-8 text-right text-[11.5px] tabular-nums text-muted-foreground">{a.progress}%</span></div></td>
+              <td className="px-2 py-2 tabular-nums">{localize(a.deadline)}</td>
+              <td className="px-2 py-2 tabular-nums text-muted-foreground">{localize(a.estimate)}{localize("h")}</td>
+              <td className="px-2 py-2"><div className="flex items-center gap-2"><ProgressBar value={a.progress} /><span className="w-8 text-right text-[11.5px] tabular-nums text-muted-foreground">{localize(a.progress)}{localize("%")}</span></div></td>
               <td className="px-3.5 py-2"><StatusBadge status={a.status} /></td>
             </tr>
           )))}
@@ -131,7 +131,7 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
   useI18n();
   return (
     <ol className="relative space-y-2.5 before:absolute before:left-[11px] before:top-1 before:h-[calc(100%-8px)] before:w-px before:bg-border">
-      {items.map((a) => {
+      {localize(items.map((a) => {
   useI18n();
         const Icon = actIcon[a.kind];
         return (
@@ -142,6 +142,9 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
               <div className="truncate text-[11.5px] text-muted-foreground">{a.detail}</div>
             </div>
             <span className="font-mono text-[11px] text-muted-foreground">{a.time}</span>
+          </li>
+        );
+      }))pan>
           </li>
         );
       })}

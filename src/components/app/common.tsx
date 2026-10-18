@@ -13,9 +13,9 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
     <div className="page-header mb-4 grid grid-cols-1 items-end sm:flex sm:flex-wrap sm:justify-between gap-3 border-b pb-3">
       <div className="min-w-0">
         <h1 className="text-[18px] font-semibold leading-tight tracking-[-0.015em]">{localize(title)}</h1>
-        {localize(subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>)}
+        {localize(subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{localize(subtitle)}</p>)}
       </div>
-      {localize(actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div>)}
+      {localize(actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{localize(actions)}</div>)}
     </div>
   );
 }
@@ -27,10 +27,10 @@ export function Panel({ title, subtitle, action, children, className, bodyClass,
       {localize(title && (
         <header className="panel-header grid min-h-[42px] grid-cols-[minmax(0,1fr)_auto] items-center sm:flex sm:justify-between gap-2 border-b px-3.5 py-2">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight">{title}{ai && <AIBadge label="AI" />}</h2>
-            {subtitle && <p className="mt-0.5 text-[11.5px] leading-tight text-muted-foreground">{subtitle}</p>}
+            <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight">{localize(title)}{localize(ai && <AIBadge label="AI" />)ze("AI")} />}</h2>
+            {localize(subtitle && <p className="mt-0.5 text-[11.5px] leading-tight text-muted-foreground">{subtitle}</p>)itle)}</p>}
           </div>
-          {action && <div className="panel-actions min-w-0 shrink-0">{action}</div>}
+          {localize(action && <div className="panel-actions min-w-0 shrink-0">{action}</div>)on)}</div>}
         </header>
       ))}
       <div className={cn("min-w-0 overflow-x-auto p-3.5", bodyClass)}>{localize(children)}</div>
@@ -50,8 +50,8 @@ export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "defau
         <span className="text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums">{localize(value)}</span>
         {localize(trend && (
           <span className={cn("inline-flex items-center text-[11px] font-medium", trend.good ? "text-success" : "text-destructive")}>
-            {trend.dir === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            {trend.text}
+            {localize(trend.dir === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />)}
+            {localize(trend.text)}
           </span>
         ))}
       </div>

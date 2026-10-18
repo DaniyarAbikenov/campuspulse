@@ -104,21 +104,21 @@ function RichAssignment() {
             </dl>
           </Panel>
 
-          <Panel title={localize(<span className="flex items-center gap-1.5">AI-Extracted Requirements <span className="text-[11px] font-normal tabular-nums text-muted-foreground">6</span></span>)} ai subtitle={localize("Click a requirement to highlight its source in the document")} bodyClass="p-0">
+          <Panel title={localize(<span className="flex items-center gap-1.5">{localize("AI-Extracted Requirements")} <span className="text-[11px] font-normal tabular-nums text-muted-foreground">{localize("6")}</span></span>)} ai subtitle={localize("Click a requirement to highlight its source in the document")} bodyClass="p-0">
             {localize(requirements.map((r) => (
               <div key={r.id} className={cn("border-b last:border-0", openReq === r.id && "bg-secondary/50")}>
                 <Button variant="ghost" aria-expanded={openReq === r.id} onClick={() => selectReq(r.id)} className="h-auto whitespace-normal flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-secondary/40">
-                  {tasks.some((task) => task.req === r.id && task.column === "done") ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-                  <span className="font-mono text-[11.5px] text-muted-foreground">{r.id}</span>
-                  <span className="flex-1 text-[12.5px]">{r.text}</span>
+                  {localize(tasks.some((task) => task.req === r.id && task.column === "done") ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />)}
+                  <span className="font-mono text-[11.5px] text-muted-foreground">{localize(r.id)}</span>
+                  <span className="flex-1 text-[12.5px]">{localize(r.text)}</span>
                   <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", openReq === r.id && "rotate-180")} />
                 </Button>
-                {openReq === r.id && (
+                {localize(openReq === r.id && (
                   <div className="space-y-2 px-3.5 pb-2.5 pl-[58px] animate-in fade-in slide-in-from-top-1">
                     <p className="text-[12.5px] text-muted-foreground">{r.detail}</p>
                     <SourceReference file="Assignment_3.pdf" page={r.page} onClick={() => setPage(r.page)} />
                   </div>
-                )}
+                ))         )}
               </div>
             )))}
           </Panel>
@@ -133,8 +133,8 @@ function RichAssignment() {
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               {localize([["Reusable", "text-success", ["REST Controllers", "User Entity", "PostgreSQL Configuration"]], ["New", "text-primary", ["JWT Service", "Security Filters", "Authentication Endpoints"]], ["Modified", "text-warning", ["User Service", "Existing Tests"]]].map(([k, cls, items]) => (
                 <div key={k as string} className="rounded-md border bg-card p-2.5">
-                  <div className={cn("mb-1 text-[11.5px] font-semibold uppercase tracking-wide", cls as string)}>{k as string} components</div>
-                  {(items as string[]).map((i) => <div key={i} className="font-mono text-[12px]">{i}</div>)}
+                  <div className={cn("mb-1 text-[11.5px] font-semibold uppercase tracking-wide", cls as string)}>{localize(k as string)} {localize("components")}</div>
+                  {localize((items as string[]).map((i) => <div key={i} className="font-mono text-[12px]">{i}</div>))i)}</div>)}
                 </div>
               )))}
             </div>
@@ -150,12 +150,12 @@ function RichAssignment() {
               <thead><tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground [&>th]:font-semibold"><th scope="col" className="px-3.5 py-1.5 font-medium">{localize("#")}</th><th scope="col" className="font-medium">{localize("Task")}</th><th scope="col" className="font-medium">{localize("Priority")}</th><th scope="col" className="font-medium">{localize("Req.")}</th><th scope="col" className="px-4 text-right font-medium">{localize("Estimate")}</th></tr></thead>
               <tbody>{localize(proposalTasks.map((t, i) => (
                 <tr key={t.title} className="border-b last:border-0">
-                  <td className="px-3.5 py-2 align-top font-mono text-[11px] text-muted-foreground tabular-nums">{i + 1}</td>
-                  <td className="py-2 pr-3"><div className="font-medium">{t.title}</div><div className="text-[11.5px] text-muted-foreground">{t.description}</div></td>
+                  <td className="px-3.5 py-2 align-top font-mono text-[11px] text-muted-foreground tabular-nums">{localize(i + 1)}</td>
+                  <td className="py-2 pr-3"><div className="font-medium">{localize(t.title)}</div><div className="text-[11.5px] text-muted-foreground">{localize(t.description)}</div></td>
                   <td><PriorityIndicator priority={t.priority} /></td>
-                  <td className="font-mono text-[11.5px]">{t.req}</td>
+                  <td className="font-mono text-[11.5px]">{localize(t.req)}</td>
                   <td className="px-4 text-right tabular-nums">
-                    {editing ? <input aria-label={`Estimate for ${t.title}`} type="number" step="0.5" min="0" value={estimates[i]} onChange={(e) => setProposalEstimate(i, Number(e.target.value))} className="h-7 w-16 rounded border px-1.5 text-right" /> : `${estimates[i]}h`}
+                    {localize(editing ? <input aria-label={`Estimate for ${t.title}`} type="number" step="0.5" min="0" value={estimates[i]} onChange={(e) => setProposalEstimate(i, Number(e.target.value))} className="h-7 w-16 rounded border px-1.5 text-right" /> : `${estimates[i]}h`)ates[i]}h`}
                   </td>
                 </tr>
               )))}</tbody>
@@ -165,7 +165,7 @@ function RichAssignment() {
           <Panel ai title={localize("Workload Estimation")} subtitle={localize("Simulated demonstration data")}>
             <div className="grid gap-4 md:grid-cols-[220px_1fr]">
               <dl className="space-y-2 text-[13px]">
-                {localize([["AI Estimate", `${total} hours`], ["Historical Student Median", "9.2 hours"], ["Sample Size", "14 students"], ["Estimated Range", "7–12 hours"]].map(([k, v]) => <div key={k} className="flex justify-between border-b pb-1.5"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium tabular-nums">{v}</dd></div>))}
+                {localize([["AI Estimate", `${total} hours`], ["Historical Student Median", "9.2 hours"], ["Sample Size", "14 students"], ["Estimated Range", "7–12 hours"]].map(([k, v]) => <div key={k} className="flex justify-between border-b pb-1.5"><dt className="text-muted-foreground">{localize(k)}</dt><dd className="font-medium tabular-nums">{localize(v)}</dd></div>))}
               </dl>
               <SimpleBars data={historicalHours} x="range" y="students" height={150} />
             </div>
@@ -180,7 +180,7 @@ function RichAssignment() {
             <Button variant="ghost" size="icon" aria-label={localize("Zoom in")} className="h-7 w-7" onClick={() => setZoom(Math.min(140, zoom + 10))}><Plus className="h-3 w-3" /></Button>
           </div>}>
             <div className="flex gap-2 border-b px-3 py-2">
-              {localize([1, 2, 3, 4].map((p) => <Button variant="outline" size="sm" aria-label={`Page ${p}`} aria-pressed={page === p} key={p} onClick={() => setPage(p)} className={cn("h-10 w-8 rounded border text-[10px]", page === p ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground hover:border-primary/40")}>{p}</Button>))}
+              {localize([1, 2, 3, 4].map((p) => <Button variant="outline" size="sm" aria-label={localize(`Page ${p}`)} aria-pressed={page === p} key={p} onClick={() => setPage(p)} className={cn("h-10 w-8 rounded border text-[10px]", page === p ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground hover:border-primary/40")}>{localize(p)}</Button>))}
               <span className="ml-auto self-center text-[11px] text-muted-foreground">{localize("Page")} {localize(page)} {localize("/ 4")}</span>
             </div>
             <div className="h-[420px] overflow-auto bg-secondary p-4">
@@ -190,8 +190,8 @@ function RichAssignment() {
           <Panel ai title={localize("Analysis Status")}>
             {localize(running ? <AnalysisProgress running onDone={finish} /> : (
               <dl className="space-y-2 text-[12.5px]">
-                <div><dt className="sr-only">Analysis result</dt><dd className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</dd></div>
-                {[["Requirements extracted", "6"], ["Related assignments detected", "1"], ["Estimated difficulty", "Medium–High"], ["Last analyzed", analyzedAt]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>)}
+                <div><dt className="sr-only">{localize("Analysis result")}</dt><dd className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> {localize("Document processed successfully")}</dd></div>
+                {localize([["Requirements extracted", "6"], ["Related assignments detected", "1"], ["Estimated difficulty", "Medium–High"], ["Last analyzed", analyzedAt]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>))lize(v)}</dd></div>)}
               </dl>
             ))}
           </Panel>
@@ -209,16 +209,16 @@ function DocPage({ page, zoom, highlight }: { page: number; zoom: number; highli
     <div className="mx-auto origin-top bg-card p-6 font-serif text-[11px] leading-relaxed text-foreground shadow-sm" style={{ width: 300 * (zoom / 100), fontSize: 11 * (zoom / 100) }}>
       <div className="mb-3 border-b pb-2 font-sans text-[0.9em] text-muted-foreground">{localize("SE 3204 · Software Engineering · Fall 2026")}</div>
       {localize(page === 1 && <>
-        <h3 className="mb-2 font-sans text-[1.4em] font-bold">Assignment 3: Authentication</h3>
-        <p>Due: 23 October 2026, 23:59. Weight: 15% of the final grade.</p>
-        <p className="mt-2">This assignment continues the order-management service you developed in Assignments 1 and 2. You will secure the application using stateless token authentication.</p>
-        <p className="mt-2">Work individually. Plagiarism checks will be applied to all repositories.</p>
+        <h3 className="mb-2 font-sans text-[1.4em] font-bold">{localize("Assignment 3: Authentication")}</h3>
+        <p>{localize("Due: 23 October 2026, 23:59. Weight: 15% of the final grade.")}</p>
+        <p className="mt-2">{localize("This assignment continues the order-management service you developed in Assignments 1 and 2. You will secure the application using stateless token authentication.")}</p>
+        <p className="mt-2">{localize("Work individually. Plagiarism checks will be applied to all repositories.")}</p>
       </>)}
-      {localize(page > 1 && <h4 className="mb-2 font-sans font-semibold">{page === 4 ? "4. Deliverables" : `${page}. Requirements (cont.)`}</h4>)}
+      {localize(page > 1 && <h4 className="mb-2 font-sans font-semibold">{localize(page === 4 ? "4. Deliverables" : `${page}. Requirements (cont.)`)}</h4>)}
       {localize(reqsOnPage.map((r) => (
-        <p key={r.id} className="mt-2"><b className="font-sans">{r.id}.</b> <H id={r.id}>{r.text} {r.detail}</H></p>
+        <p key={r.id} className="mt-2"><b className="font-sans">{localize(r.id)}{localize(".")}</b> <H id={r.id}>{localize(r.text)} {localize(r.detail)}</H></p>
       )))}
-      {localize(page === 4 && <p className="mt-2">Submit the repository URL on Moodle. Include a README with setup steps and the authentication flow.</p>)}
+      {localize(page === 4 && <p className="mt-2">{localize("Submit the repository URL on Moodle. Include a README with setup steps and the authentication flow.")}</p>)}
       <p className="mt-3 text-muted-foreground">{localize("—")} {localize(page)} {localize("—")}</p>
     </div>
   );
