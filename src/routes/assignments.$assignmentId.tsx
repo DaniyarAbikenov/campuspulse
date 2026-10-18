@@ -160,7 +160,7 @@ function RichAssignment() {
           </Panel>
         </div>
 
-        <div className="space-y-4 lg:sticky lg:top-16 lg:self-start">
+        <div className="space-y-3 lg:sticky lg:top-16 lg:self-start">
           <Panel title="Assignment_3.pdf" bodyClass="p-0" action={<div className="flex items-center gap-1 text-[11.5px]">
             <button className="rounded p-1 hover:bg-secondary" onClick={() => setZoom(Math.max(70, zoom - 10))}><Minus className="h-3 w-3" /></button>
             <span className="w-9 text-center tabular-nums">{zoom}%</span>
@@ -174,7 +174,7 @@ function RichAssignment() {
               <DocPage page={page} zoom={zoom} highlight={openReq} />
             </div>
           </Panel>
-          <Panel title={<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> AI Analysis</span>}>
+          <Panel ai title="Analysis Status">
             {running ? <AnalysisProgress running onDone={finish} /> : (
               <dl className="space-y-2 text-[12.5px]">
                 <div className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" /> Document processed successfully</div>
