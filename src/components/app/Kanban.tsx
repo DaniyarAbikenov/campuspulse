@@ -41,7 +41,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
               <div className="space-y-1.5">
                 {items.map((t) => (
                   <div key={t.id} role="button" tabIndex={0} aria-label={`Open task: ${t.title}`} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(t); } }} draggable onDragStart={(e) => e.dataTransfer.setData("text/plain", t.id)} onClick={() => setOpen(t)}
-                    className={cn("cursor-grab rounded-md border bg-card px-2.5 py-2 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent)] transition-all hover:border-foreground/20 active:cursor-grabbing animate-in fade-in", t.ai && "border-l-2 border-l-ai", t.column === "done" && "opacity-70")}>
+                    className={cn("cursor-grab rounded-md border bg-card px-2.5 py-2 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent)] transition-all hover:border-foreground/20 active:cursor-grabbing animate-in fade-in", t.ai && "border-l-2 border-l-ai", t.column === "done" && "bg-secondary")}>
                     <div className="flex items-start gap-1.5">
                       <p className={cn("flex-1 text-[12.5px] font-medium leading-snug", t.column === "done" && "line-through decoration-muted-foreground/50")}>{t.title}</p>
                       {t.ai && <Sparkles className="h-3 w-3 shrink-0 text-ai" />}

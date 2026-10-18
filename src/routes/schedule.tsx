@@ -58,13 +58,13 @@ function Schedule() {
                 {freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
                   <Button variant="ghost" aria-label={`Plan study session ${s.label}`} key={s.id} onClick={() => setSlot(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}
                     className="absolute inset-x-1 flex-col items-start whitespace-normal rounded-md border border-dashed border-success/50 bg-success-soft/70 p-1.5 text-left text-[11px] text-success hover:bg-success-soft">
-                    <div className="font-medium">Free slot</div><div className="opacity-80">+ Plan session</div>
+                    <div className="font-medium">Free slot</div><div>+ Plan session</div>
                   </Button>
                 ))}
                 {events.filter((e) => e.day === di).map((e) => (
                   <div key={e.id} style={{ top: (e.start - 8) * H + 1, height: (e.end - e.start) * H - 2 }} className={cn("absolute inset-x-1 overflow-hidden rounded-md border p-1.5 text-[11px] animate-in fade-in", kindCls[e.kind])}>
                     <div className="font-medium leading-tight">{e.title}</div>
-                    <div className="font-mono text-[10px] opacity-70">{formatHour(e.start)}–{formatHour(e.end)}</div>
+                    <div className="font-mono text-[10px]">{formatHour(e.start)}–{formatHour(e.end)}</div>
                   </div>
                 ))}
               </div>
