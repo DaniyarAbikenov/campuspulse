@@ -20,6 +20,8 @@ import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as WorkloadRouteImport } from './routes/workload'
+import { Route as AdminCoursesRouteImport } from './routes/admin_.courses'
+import { Route as AdminStatisticsRouteImport } from './routes/admin_.statistics'
 import { Route as AssignmentsIndexRouteImport } from './routes/assignments.index'
 import { Route as AssignmentsAssignmentIdRouteImport } from './routes/assignments.$assignmentId'
 import { Route as CoursesIndexRouteImport } from './routes/courses.index'
@@ -80,6 +82,16 @@ const WorkloadRoute = WorkloadRouteImport.update({
   path: '/workload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCoursesRoute = AdminCoursesRouteImport.update({
+  id: '/admin_/courses',
+  path: '/admin/courses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminStatisticsRoute = AdminStatisticsRouteImport.update({
+  id: '/admin_/statistics',
+  path: '/admin/statistics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssignmentsIndexRoute = AssignmentsIndexRouteImport.update({
   id: '/assignments/',
   path: '/assignments/',
@@ -113,6 +125,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/statistics': typeof StatisticsRoute
   '/workload': typeof WorkloadRoute
+  '/admin/courses': typeof AdminCoursesRoute
+  '/admin/statistics': typeof AdminStatisticsRoute
   '/assignments/$assignmentId': typeof AssignmentsAssignmentIdRoute
   '/courses/$courseId': typeof CoursesCourseIdRoute
   '/assignments/': typeof AssignmentsIndexRoute
@@ -130,6 +144,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/statistics': typeof StatisticsRoute
   '/workload': typeof WorkloadRoute
+  '/admin/courses': typeof AdminCoursesRoute
+  '/admin/statistics': typeof AdminStatisticsRoute
   '/assignments/$assignmentId': typeof AssignmentsAssignmentIdRoute
   '/courses/$courseId': typeof CoursesCourseIdRoute
   '/assignments': typeof AssignmentsIndexRoute
@@ -148,6 +164,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/statistics': typeof StatisticsRoute
   '/workload': typeof WorkloadRoute
+  '/admin_/courses': typeof AdminCoursesRoute
+  '/admin_/statistics': typeof AdminStatisticsRoute
   '/assignments/$assignmentId': typeof AssignmentsAssignmentIdRoute
   '/courses/$courseId': typeof CoursesCourseIdRoute
   '/assignments/': typeof AssignmentsIndexRoute
@@ -167,6 +185,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/statistics'
     | '/workload'
+    | '/admin/courses'
+    | '/admin/statistics'
     | '/assignments/$assignmentId'
     | '/courses/$courseId'
     | '/assignments/'
@@ -184,6 +204,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/statistics'
     | '/workload'
+    | '/admin/courses'
+    | '/admin/statistics'
     | '/assignments/$assignmentId'
     | '/courses/$courseId'
     | '/assignments'
@@ -201,6 +223,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/statistics'
     | '/workload'
+    | '/admin_/courses'
+    | '/admin_/statistics'
     | '/assignments/$assignmentId'
     | '/courses/$courseId'
     | '/assignments/'
@@ -219,6 +243,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   StatisticsRoute: typeof StatisticsRoute
   WorkloadRoute: typeof WorkloadRoute
+  AdminCoursesRoute: typeof AdminCoursesRoute
+  AdminStatisticsRoute: typeof AdminStatisticsRoute
   AssignmentsAssignmentIdRoute: typeof AssignmentsAssignmentIdRoute
   CoursesCourseIdRoute: typeof CoursesCourseIdRoute
   AssignmentsIndexRoute: typeof AssignmentsIndexRoute
@@ -304,6 +330,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkloadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/courses': {
+      id: '/admin_/courses'
+      path: '/admin/courses'
+      fullPath: '/admin/courses'
+      preLoaderRoute: typeof AdminCoursesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/statistics': {
+      id: '/admin_/statistics'
+      path: '/admin/statistics'
+      fullPath: '/admin/statistics'
+      preLoaderRoute: typeof AdminStatisticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assignments/': {
       id: '/assignments/'
       path: '/assignments'
@@ -347,6 +387,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   StatisticsRoute: StatisticsRoute,
   WorkloadRoute: WorkloadRoute,
+  AdminCoursesRoute: AdminCoursesRoute,
+  AdminStatisticsRoute: AdminStatisticsRoute,
   AssignmentsAssignmentIdRoute: AssignmentsAssignmentIdRoute,
   CoursesCourseIdRoute: CoursesCourseIdRoute,
   AssignmentsIndexRoute: AssignmentsIndexRoute,
