@@ -10,33 +10,219 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as InsightsRouteImport } from './routes/insights'
+import { Route as KanbanRouteImport } from './routes/kanban'
+import { Route as KnowledgeRouteImport } from './routes/knowledge'
+import { Route as ScheduleRouteImport } from './routes/schedule'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StatisticsRouteImport } from './routes/statistics'
+import { Route as WorkloadRouteImport } from './routes/workload'
+import { Route as AssignmentsIndexRouteImport } from './routes/assignments.index'
+import { Route as AssignmentsAssignmentIdRouteImport } from './routes/assignments.$assignmentId'
+import { Route as CoursesIndexRouteImport } from './routes/courses.index'
+import { Route as CoursesCourseIdRouteImport } from './routes/courses.$courseId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KanbanRoute = KanbanRouteImport.update({
+  id: '/kanban',
+  path: '/kanban',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeRoute = KnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatisticsRoute = StatisticsRouteImport.update({
+  id: '/statistics',
+  path: '/statistics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkloadRoute = WorkloadRouteImport.update({
+  id: '/workload',
+  path: '/workload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssignmentsIndexRoute = AssignmentsIndexRouteImport.update({
+  id: '/assignments/',
+  path: '/assignments/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssignmentsAssignmentIdRoute = AssignmentsAssignmentIdRouteImport.update({
+  id: '/assignments/$assignmentId',
+  path: '/assignments/$assignmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoursesIndexRoute = CoursesIndexRouteImport.update({
+  id: '/courses/',
+  path: '/courses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoursesCourseIdRoute = CoursesCourseIdRouteImport.update({
+  id: '/courses/$courseId',
+  path: '/courses/$courseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/admin': typeof AdminRoute
+  '/events': typeof EventsRoute
+  '/insights': typeof InsightsRoute
+  '/kanban': typeof KanbanRoute
+  '/knowledge': typeof KnowledgeRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/statistics': typeof StatisticsRoute
+  '/workload': typeof WorkloadRoute
+  '/assignments/$assignmentId': typeof AssignmentsAssignmentIdRoute
+  '/courses/$courseId': typeof CoursesCourseIdRoute
+  '/assignments/': typeof AssignmentsIndexRoute
+  '/courses/': typeof CoursesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/admin': typeof AdminRoute
+  '/events': typeof EventsRoute
+  '/insights': typeof InsightsRoute
+  '/kanban': typeof KanbanRoute
+  '/knowledge': typeof KnowledgeRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/statistics': typeof StatisticsRoute
+  '/workload': typeof WorkloadRoute
+  '/assignments/$assignmentId': typeof AssignmentsAssignmentIdRoute
+  '/courses/$courseId': typeof CoursesCourseIdRoute
+  '/assignments': typeof AssignmentsIndexRoute
+  '/courses': typeof CoursesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/admin': typeof AdminRoute
+  '/events': typeof EventsRoute
+  '/insights': typeof InsightsRoute
+  '/kanban': typeof KanbanRoute
+  '/knowledge': typeof KnowledgeRoute
+  '/schedule': typeof ScheduleRoute
+  '/settings': typeof SettingsRoute
+  '/statistics': typeof StatisticsRoute
+  '/workload': typeof WorkloadRoute
+  '/assignments/$assignmentId': typeof AssignmentsAssignmentIdRoute
+  '/courses/$courseId': typeof CoursesCourseIdRoute
+  '/assignments/': typeof AssignmentsIndexRoute
+  '/courses/': typeof CoursesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/activity'
+    | '/admin'
+    | '/events'
+    | '/insights'
+    | '/kanban'
+    | '/knowledge'
+    | '/schedule'
+    | '/settings'
+    | '/statistics'
+    | '/workload'
+    | '/assignments/$assignmentId'
+    | '/courses/$courseId'
+    | '/assignments/'
+    | '/courses/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/activity'
+    | '/admin'
+    | '/events'
+    | '/insights'
+    | '/kanban'
+    | '/knowledge'
+    | '/schedule'
+    | '/settings'
+    | '/statistics'
+    | '/workload'
+    | '/assignments/$assignmentId'
+    | '/courses/$courseId'
+    | '/assignments'
+    | '/courses'
+  id:
+    | '__root__'
+    | '/'
+    | '/activity'
+    | '/admin'
+    | '/events'
+    | '/insights'
+    | '/kanban'
+    | '/knowledge'
+    | '/schedule'
+    | '/settings'
+    | '/statistics'
+    | '/workload'
+    | '/assignments/$assignmentId'
+    | '/courses/$courseId'
+    | '/assignments/'
+    | '/courses/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
+  AdminRoute: typeof AdminRoute
+  EventsRoute: typeof EventsRoute
+  InsightsRoute: typeof InsightsRoute
+  KanbanRoute: typeof KanbanRoute
+  KnowledgeRoute: typeof KnowledgeRoute
+  ScheduleRoute: typeof ScheduleRoute
+  SettingsRoute: typeof SettingsRoute
+  StatisticsRoute: typeof StatisticsRoute
+  WorkloadRoute: typeof WorkloadRoute
+  AssignmentsAssignmentIdRoute: typeof AssignmentsAssignmentIdRoute
+  CoursesCourseIdRoute: typeof CoursesCourseIdRoute
+  AssignmentsIndexRoute: typeof AssignmentsIndexRoute
+  CoursesIndexRoute: typeof CoursesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +234,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kanban': {
+      id: '/kanban'
+      path: '/kanban'
+      fullPath: '/kanban'
+      preLoaderRoute: typeof KanbanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge': {
+      id: '/knowledge'
+      path: '/knowledge'
+      fullPath: '/knowledge'
+      preLoaderRoute: typeof KnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/statistics': {
+      id: '/statistics'
+      path: '/statistics'
+      fullPath: '/statistics'
+      preLoaderRoute: typeof StatisticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workload': {
+      id: '/workload'
+      path: '/workload'
+      fullPath: '/workload'
+      preLoaderRoute: typeof WorkloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assignments/': {
+      id: '/assignments/'
+      path: '/assignments'
+      fullPath: '/assignments/'
+      preLoaderRoute: typeof AssignmentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assignments/$assignmentId': {
+      id: '/assignments/$assignmentId'
+      path: '/assignments/$assignmentId'
+      fullPath: '/assignments/$assignmentId'
+      preLoaderRoute: typeof AssignmentsAssignmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/courses/': {
+      id: '/courses/'
+      path: '/courses'
+      fullPath: '/courses/'
+      preLoaderRoute: typeof CoursesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/courses/$courseId': {
+      id: '/courses/$courseId'
+      path: '/courses/$courseId'
+      fullPath: '/courses/$courseId'
+      preLoaderRoute: typeof CoursesCourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
+  AdminRoute: AdminRoute,
+  EventsRoute: EventsRoute,
+  InsightsRoute: InsightsRoute,
+  KanbanRoute: KanbanRoute,
+  KnowledgeRoute: KnowledgeRoute,
+  ScheduleRoute: ScheduleRoute,
+  SettingsRoute: SettingsRoute,
+  StatisticsRoute: StatisticsRoute,
+  WorkloadRoute: WorkloadRoute,
+  AssignmentsAssignmentIdRoute: AssignmentsAssignmentIdRoute,
+  CoursesCourseIdRoute: CoursesCourseIdRoute,
+  AssignmentsIndexRoute: AssignmentsIndexRoute,
+  CoursesIndexRoute: CoursesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
