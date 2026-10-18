@@ -38,13 +38,13 @@ function Admin() {
         <Panel title="Cohort workload" subtitle="SE program · estimated vs. reported hours">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={cohort} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke=cc.border />
-              <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} stroke=cc.muted />
-              <YAxis tickLine={false} axisLine={false} fontSize={11} stroke=cc.muted />
+              <CartesianGrid vertical={false} stroke={cc.border} />
+              <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
+              <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="estimated" name="Estimated" fill=cc.primary radius={[4, 4, 0, 0]} />
-              <Bar dataKey="reported" name="Reported" fill=cc.soft radius={[4, 4, 0, 0]} />
+              <Bar dataKey="estimated" name="Estimated" fill={cc.primary} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="reported" name="Reported" fill={cc.soft} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Panel>

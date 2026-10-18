@@ -29,13 +29,13 @@ function Stats() {
         <Panel title="Planned vs. actual hours" subtitle="Per week">
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={semesterTrend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke=cc.border />
-              <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} stroke=cc.muted />
-              <YAxis tickLine={false} axisLine={false} fontSize={11} stroke=cc.muted />
+              <CartesianGrid vertical={false} stroke={cc.border} />
+              <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
+              <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-              <Line dataKey="planned" name="Planned" stroke=cc.muted strokeDasharray="4 4" dot={false} />
-              <Line dataKey="actual" name="Actual" stroke=cc.primary strokeWidth={2} dot={{ r: 3 }} />
+              <Line dataKey="planned" name="Planned" stroke={cc.muted} strokeDasharray="4 4" dot={false} />
+              <Line dataKey="actual" name="Actual" stroke={cc.primary} strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </Panel>
