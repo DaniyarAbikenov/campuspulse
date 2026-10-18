@@ -32,6 +32,7 @@ export const statusLabel = (status: string, language: Locale = locale) => transl
 
 export function translate(text: string, language: Locale = locale): string {
   if (language === "en" || !text.trim()) return text;
+  if (/\.pdf\b/i.test(text.trim()) && !text.includes(" · ")) return text;
   const index = language === "ru" ? 0 : 1;
   const exact = messages[text] ?? messages[text.trim()];
   if (exact) return text.replace(text.trim(), exact[index] ?? text.trim());
@@ -44,10 +45,11 @@ export function translate(text: string, language: Locale = locale): string {
     return new Intl.DateTimeFormat(intlLocale(language), { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
   });
   // Compose dynamic labels from catalog phrases, longest first, never alter IDs or data.
+  const translated: string[] = [];
   for (const { key, pattern } of phrasePatterns) {
-    result = result.replace(pattern, messages[key]?.[index] ?? key);
+    result = result.replace(pattern, () => { translated.push(messages[key]?.[index] ?? key); return `\u0000${translated.length - 1}\u0000`; });
   }
-  return result.replace(/\b(\d+(?:\.\d+)?)h\b/g, `$1 ${language === "ru" ? "ч" : "сағ"}`);
+  return result.replace(/\u0000(\d+)\u0000/g, (_match, position: string) => translated[Number(position)] ?? "").replace(/\b(\d+(?:\.\d+)?)h\b/g, `$1 ${language === "ru" ? "ч" : "сағ"}`);
 }
 
 /** Render-boundary helper: domain values, event handlers and objects remain untouched. */
