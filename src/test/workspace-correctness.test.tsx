@@ -24,10 +24,10 @@ describe("Workspace rules", () => {
     expect(result.current.insights.find((item) => item.id === "i1")?.status).toBe("New");
     expect(result.current.workloadPlanApplied).toBe(false);
   });
-  it("accepts a recommendation only when its plan is applied and does not duplicate the session", () => {
+  it("records Applied when executing the plan and does not duplicate the session", () => {
     const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
     act(() => result.current.applyWorkloadPlan());
-    expect(result.current.insights.find((item) => item.id === "i1")?.status).toBe("Accepted");
+    expect(result.current.insights.find((item) => item.id === "i1")?.status).toBe("Applied");
     expect(result.current.workloadPlanApplied).toBe(true);
     act(() => result.current.applyWorkloadPlan());
     expect(result.current.events.filter((event) => event.id === "rebalance-se")).toHaveLength(1);
@@ -42,10 +42,55 @@ describe("Workspace rules", () => {
     expect(scheduleDate).toBe("2026-10-19");
     expect(Date.parse(scheduleDate) - Date.parse(demoDate)).toBe(86400000);
   });
-  it("separates 21.5 weekly hours from 25.5 all-remaining hours", () => {
+  it("derives all remaining hours from open assignments, separate from this week", () => {
     expect(workloadTotals.required).toBe(21.5);
     expect(workloadTotals.available).toBe(12);
-    expect(workloadTotals.allRemaining).toBe(25.5);
+    expect(workloadTotals.allRemaining).toBe(29.5);
     expect(weeklyWorkload.reduce((sum, day) => sum + day.required, 0)).toBe(21.5);
+  });
+  it("Accept approves without executing, and Dismiss does not create tasks or events", () => {
+    const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
+    const count = result.current.tasks.length;
+    const sessions = result.current.events.length;
+    act(() => result.current.setInsightStatus("i2", "Accepted"));
+    expect(result.current.proposalApproved).toBe(true);
+    expect(result.current.tasks).toHaveLength(count);
+    expect(result.current.events).toHaveLength(sessions);
+    act(() => result.current.setInsightStatus("i2", "Dismissed"));
+    expect(result.current.proposalApproved).toBe(false);
+    expect(result.current.insights.find((item) => item.id === "i2")?.status).toBe("Dismissed");
+    expect(result.current.tasks).toHaveLength(count);
+  });
+  it("requires approval before importing, then schedules the imported plan exactly once", () => {
+    const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
+    act(() => { expect(result.current.addGeneratedTasks()).toBe(0); });
+    expect(result.current.tasksGenerated).toBe(false);
+    act(() => result.current.recordAnalysis("student-brief.pdf"));
+    expect(result.current.analysisSource).toBe("student-brief.pdf");
+    act(() => result.current.approveProposal());
+    act(() => { expect(result.current.addGeneratedTasks()).toBe(6); expect(result.current.addGeneratedTasks()).toBe(0); });
+    expect(result.current.tasks.filter((task) => task.assignmentId === "se-a3")).toHaveLength(6);
+    expect(result.current.events.filter((event) => event.taskId)).toHaveLength(0);
+    act(() => { expect(result.current.scheduleGeneratedTasks()).toBe(true); expect(result.current.scheduleGeneratedTasks()).toBe(false); });
+    expect(result.current.events.filter((event) => event.taskId)).toHaveLength(6);
+    expect(result.current.workload.scheduled).toBe(10.5);
+    expect(result.current.workload.unscheduled).toBe(11);
+    act(() => result.current.moveTask("g0", "done"));
+    expect(result.current.workload.required).toBe(21);
+    expect(result.current.assignments.find((assignment) => assignment.id === "se-a3")?.progress).toBe(17);
+  });
+  it("uses edited estimates at import rather than discarding the approved values", () => {
+    const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
+    act(() => result.current.setProposalEstimate(0, 1));
+    expect(result.current.workload.required).toBe(22);
+    act(() => result.current.approveProposal());
+    act(() => result.current.addGeneratedTasks());
+    expect(result.current.tasks.find((task) => task.id === "g0")?.estimate).toBe(1);
+    expect(result.current.assignments.find((assignment) => assignment.id === "se-a3")?.estimate).toBe(9);
+  });
+  it("keeps course assignment counts and remaining hours aligned to entities", () => {
+    const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
+    expect(result.current.courses.reduce((sum, course) => sum + course.assignments, 0)).toBe(result.current.assignments.length);
+    expect(result.current.courses.reduce((sum, course) => sum + course.remaining, 0)).toBe(29.5);
   });
 });

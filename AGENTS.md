@@ -18,3 +18,6 @@
 - Mobile navigation uses the shared Sidebar inside a Sheet; wide tables and boards scroll inside constrained content containers.
 - Document and workload totals are derived in the shared data module; applying a workload plan redistributes daily hours without changing weekly capacity.
 - Preserve the store context identity in Vite hot data during development; mounted providers and refreshed consumers must never use different context objects.
+- Generated task proposals, approval, import and scheduling are separate context transitions; import and scheduling are idempotent and use the approved estimates.
+- Course counts and assignment state are derived from assignment/task entities; scheduled hours allocate work while task completion reduces remaining workload.
+- Knowledge fragments use explicit fixture provenance and page/requirement links; uploaded file names must never imply real PDF parsing.

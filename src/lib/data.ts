@@ -235,7 +235,7 @@ export const adminActivity: Activity[] = [
 ];
 
 // Explicit demonstration excerpts, not a claim of parsing an uploaded file.
-export interface DocumentFragment { id: string; documentId: string; page: number; text: string; concept: string; assignmentId?: string; requirementId?: string; }
+export interface DocumentFragment { id: string; documentId: string; page: number; text: string; concept: string; assignmentId?: string | undefined; requirementId?: string | undefined; }
 export const documentFragments = knowledgeDocs.flatMap<DocumentFragment>((doc) => doc.id === "d1"
   ? requirements.map((req) => ({ id: `d1-${req.id}`, documentId: doc.id, page: req.page, text: req.detail, concept: req.text, assignmentId: "se-a3", requirementId: req.id }))
   : doc.concepts.map((concept, i) => ({ id: `${doc.id}-${i}`, documentId: doc.id, page: Math.min(doc.pages, i + 1), text: `${concept} — demonstration excerpt from ${doc.title}.`, concept, assignmentId: doc.id === "d2" ? "se-a2" : doc.id === "d6" ? "os-l5" : undefined, requirementId: undefined })));

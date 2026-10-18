@@ -31,7 +31,7 @@ function Kanban() {
   const [query, setQuery] = useState("");
   const filter = (task: (typeof tasks)[number]) => (assignment === "all" || task.assignmentId === assignment)
     && (priority === "all" || task.priority === priority) && (status === "all" || task.column === status)
-    && (source === "all" || (source === "ai" ? task.ai : !task.ai))
+    && (source === "all" || (source === "ai" ? !!task.ai : !task.ai))
     && (due === "all" || (due === "week" ? !["Oct 27", "Oct 29"].includes(task.due) : task.due === "Oct 17"))
     && (task.title + task.description + (task.req ?? "")).toLowerCase().includes(query.toLowerCase());
   const visible = tasks.filter((task) => (course === "all" || task.courseId === course) && filter(task));
