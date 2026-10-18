@@ -204,7 +204,7 @@ function RichAssignment() {
 function DocPage({ page, zoom, highlight }: { page: number; zoom: number; highlight: string | null }) {
   const { locale } = useI18n();
   const reqsOnPage = requirements.filter((r) => r.page === page);
-  const H = ({ id, children }: { id: string; children: React.ReactNode }) => { useI18n(); return <span className={cn("transition-all", highlight === id && "doc-highlight")}>{localize(children)}</span>; };ildren, locale)}</span>; };
+  const H = ({ id, children }: { id: string; children: React.ReactNode }) => <span className={cn("transition-all", highlight === id && "doc-highlight")}>{localize(children, locale)}</span>;
   return (
     <div className="mx-auto origin-top bg-card p-6 font-serif text-[11px] leading-relaxed text-foreground shadow-sm" style={{ width: 300 * (zoom / 100), fontSize: 11 * (zoom / 100) }}>
       <div className="mb-3 border-b pb-2 font-sans text-[0.9em] text-muted-foreground">{localize("SE 3204 · Software Engineering · Fall 2026", locale)}</div>
