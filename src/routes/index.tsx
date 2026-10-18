@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Overview() {
-  const { insights, activity, setUploadOpen, openChat } = useStore();
+  const { insights, activity, setUploadOpen, openChat, workloadPlanApplied } = useStore();
   const navigate = useNavigate();
   const shown = insights.filter((i) => ["i-new", "i1", "i2", "i3"].includes(i.id)).slice(0, 3);
   return (
@@ -46,7 +46,7 @@ function Overview() {
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Weekly Workload" subtitle="Estimated required vs. available hours · Week 43" action={<Link to="/workload" className="text-[12px] text-primary hover:underline">Details</Link>}>
           <WorkloadChart height={262} />
-          <PredictionNote><b>Wednesday and Thursday</b> have the highest workload (7h and 6h required). Consider moving one study session to Monday.</PredictionNote>
+          <PredictionNote>{workloadPlanApplied ? <>Plan applied: Wednesday now requires <b>5h</b>, Thursday <b>6h</b>. The weekly capacity gap remains <b>9.5h</b>.</> : <><b>Wednesday and Thursday</b> have the highest workload (7h and 6h required). Consider moving one study session to Monday.</>}</PredictionNote>
         </Panel>
         <Panel title="Tomorrow's Schedule" subtitle={`${new Date(`${scheduleDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · first day of Week 43`} action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
           <ol className="space-y-1.5">

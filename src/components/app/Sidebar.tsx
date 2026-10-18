@@ -49,7 +49,7 @@ const adminNav = [
 ] as const;
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
-  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights } = useStore();
+  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen } = useStore();
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
   const newCount = insights.filter((i) => i.status === "New").length;
@@ -63,6 +63,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
         <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(!collapsed)} className={cn("ml-auto rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground", (collapsed || mobile) && "hidden")} aria-label="Collapse sidebar">
           <PanelLeftClose className="h-4 w-4" />
         </Button>
+        {mobile && <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><PanelLeftClose /></Button>}
       </div>
       {collapsed && (
         <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(false)} className="mx-auto mb-2 rounded p-1.5 text-muted-foreground hover:bg-secondary" aria-label="Expand sidebar">
@@ -92,7 +93,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                 <Link
                   key={item.to + item.label}
                   to={item.to}
-                  activeOptions={{ exact: item.to === "/" }}
+                  activeOptions={{ exact: item.to === "/" || item.to === "/admin" }}
                   className={cn("group flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground", collapsed && "justify-center")}
                   activeProps={{ className: "bg-sidebar-accent !text-foreground font-medium" }}
                 >
