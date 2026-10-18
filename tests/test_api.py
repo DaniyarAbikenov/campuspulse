@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,8 +9,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.auth.google import GoogleClaims
-from app.auth.router import get_google_verifier
+from app.auth.router import get_current_user, get_google_verifier
+from app.auth.service import AuthenticatedUser
 from app.core.config import settings
+from app.db import models
 from app.db.models import Base
 from app.db.session import get_session
 from app.main import app
@@ -44,6 +47,22 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, None, None]
         yield test_client
     app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def platform_client(client: TestClient) -> Generator[TestClient, None, None]:
+    actor = models.User(
+        id=uuid4(),
+        institution_id=None,
+        email="platform.admin@campuspulse.local",
+        full_name="Platform Admin",
+        is_active=True,
+    )
+    client.app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(
+        user=actor, roles=["platform_admin"]
+    )
+    yield client
+    client.app.dependency_overrides.pop(get_current_user, None)
 
 
 def create_core_graph(client: TestClient) -> dict[str, str]:
@@ -98,7 +117,8 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_complete_academic_crud_flow(client: TestClient) -> None:
+def test_complete_academic_crud_flow(platform_client: TestClient) -> None:
+    client = platform_client
     graph = create_core_graph(client)
 
     enrollment = client.post(
@@ -111,6 +131,7 @@ def test_complete_academic_crud_flow(client: TestClient) -> None:
         "/api/v1/assignments",
         json={
             "course_id": graph["course_id"],
+            "owner_user_id": graph["user_id"],
             "title": "Assignment 3 — JWT Authentication",
             "description": "Add authentication and authorization.",
             "due_at": "2026-10-23T23:59:00+05:00",
@@ -127,6 +148,7 @@ def test_complete_academic_crud_flow(client: TestClient) -> None:
         "/api/v1/assignments",
         json={
             "course_id": graph["course_id"],
+            "owner_user_id": graph["user_id"],
             "title": "Assignment 2 — Domain Model",
             "due_at": "2026-10-09T23:59:00+05:00",
             "status": "completed",
@@ -210,12 +232,16 @@ def test_complete_academic_crud_flow(client: TestClient) -> None:
     assert client.get(f"/api/v1/tasks/{task.json()['id']}").status_code == 404
 
 
-def test_strict_validation_rejects_coercion_and_extra_fields(client: TestClient) -> None:
+def test_strict_validation_rejects_coercion_and_extra_fields(
+    platform_client: TestClient,
+) -> None:
+    client = platform_client
     graph = create_core_graph(client)
     response = client.post(
         "/api/v1/assignments",
         json={
             "course_id": graph["course_id"],
+            "owner_user_id": graph["user_id"],
             "title": "Invalid assignment",
             "due_at": "2026-10-23T23:59:00+05:00",
             "progress": "20",
@@ -227,7 +253,8 @@ def test_strict_validation_rejects_coercion_and_extra_fields(client: TestClient)
     assert {error["loc"][-1] for error in errors} == {"progress", "unexpected"}
 
 
-def test_foreign_key_conflict_returns_409(client: TestClient) -> None:
+def test_foreign_key_conflict_returns_409(platform_client: TestClient) -> None:
+    client = platform_client
     response = client.post(
         "/api/v1/courses",
         json={
@@ -239,7 +266,8 @@ def test_foreign_key_conflict_returns_409(client: TestClient) -> None:
     assert response.status_code == 409
 
 
-def test_invalid_schedule_range_returns_422(client: TestClient) -> None:
+def test_invalid_schedule_range_returns_422(platform_client: TestClient) -> None:
+    client = platform_client
     graph = create_core_graph(client)
     response = client.post(
         "/api/v1/schedule-events",
@@ -254,12 +282,14 @@ def test_invalid_schedule_range_returns_422(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_assignment_cannot_relate_to_itself(client: TestClient) -> None:
+def test_assignment_cannot_relate_to_itself(platform_client: TestClient) -> None:
+    client = platform_client
     graph = create_core_graph(client)
     assignment = client.post(
         "/api/v1/assignments",
         json={
             "course_id": graph["course_id"],
+            "owner_user_id": graph["user_id"],
             "title": "Self relation test",
             "due_at": "2026-10-23T23:59:00+05:00",
         },
@@ -319,7 +349,13 @@ def test_google_login_refresh_me_and_logout(client: TestClient) -> None:
         json={"credential": "fake-google-credential-token"},
     )
     assert second_login.status_code == 200
-    assert len(client.get("/api/v1/users").json()) == 1
+    second_tokens = second_login.json()
+    users = client.get(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {second_tokens['access_token']}"},
+    )
+    assert users.status_code == 200
+    assert len(users.json()) == 1
 
     refresh = client.post(
         "/api/v1/auth/refresh",
@@ -358,7 +394,10 @@ def test_google_login_requires_configuration(client: TestClient) -> None:
     assert response.status_code == 503
 
 
-def test_existing_external_email_requires_explicit_linking(client: TestClient) -> None:
+def test_existing_external_email_requires_explicit_linking(
+    platform_client: TestClient,
+) -> None:
+    client = platform_client
     graph = create_core_graph(client)
     existing_user = client.get(f"/api/v1/users/{graph['user_id']}").json()
     use_google_identity(
@@ -375,3 +414,244 @@ def test_existing_external_email_requires_explicit_linking(client: TestClient) -
         json={"credential": "fake-google-credential-token"},
     )
     assert response.status_code == 409
+
+
+def test_academic_routes_require_authentication(client: TestClient) -> None:
+    response = client.get("/api/v1/assignments")
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_academic_admin_is_limited_to_own_institution(platform_client: TestClient) -> None:
+    client = platform_client
+    own_institution = client.post(
+        "/api/v1/institutions",
+        json={"name": "Own University", "short_name": "OWN", "timezone_name": "UTC"},
+    ).json()
+    other_institution = client.post(
+        "/api/v1/institutions",
+        json={"name": "Other University", "short_name": "OTHER", "timezone_name": "UTC"},
+    ).json()
+
+    admin = models.User(
+        id=uuid4(),
+        institution_id=UUID(own_institution["id"]),
+        email="academic.admin@example.com",
+        full_name="Academic Admin",
+        is_active=True,
+    )
+    client.app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(
+        user=admin, roles=["academic_admin"]
+    )
+
+    own_semester = client.post(
+        "/api/v1/semesters",
+        json={
+            "institution_id": own_institution["id"],
+            "name": "Fall 2026",
+            "starts_on": "2026-09-01",
+            "ends_on": "2026-12-20",
+        },
+    )
+    assert own_semester.status_code == 201
+    outside_semester = client.post(
+        "/api/v1/semesters",
+        json={
+            "institution_id": other_institution["id"],
+            "name": "Fall 2026",
+            "starts_on": "2026-09-01",
+            "ends_on": "2026-12-20",
+        },
+    )
+    assert outside_semester.status_code == 403
+
+    semesters = client.get("/api/v1/semesters")
+    assert semesters.status_code == 200
+    assert [item["id"] for item in semesters.json()] == [own_semester.json()["id"]]
+
+
+def test_onboarding_and_student_data_isolation(platform_client: TestClient) -> None:
+    client = platform_client
+    institution = client.post(
+        "/api/v1/institutions",
+        json={
+            "name": "Astana IT University",
+            "short_name": "AITU",
+            "timezone_name": "Asia/Almaty",
+        },
+    ).json()
+    semester = client.post(
+        "/api/v1/semesters",
+        json={
+            "institution_id": institution["id"],
+            "name": "Fall Semester 2026",
+            "starts_on": "2026-09-01",
+            "ends_on": "2026-12-20",
+        },
+    ).json()
+    course = client.post(
+        "/api/v1/courses",
+        json={
+            "semester_id": semester["id"],
+            "code": "SE 3204",
+            "name": "Software Engineering",
+        },
+    ).json()
+    client.app.dependency_overrides.pop(get_current_user, None)
+
+    first_tokens = _login_google_user(
+        client,
+        subject="student-one",
+        email="student.one@gmail.com",
+        full_name="Student One",
+    )
+    second_tokens = _login_google_user(
+        client,
+        subject="student-two",
+        email="student.two@gmail.com",
+        full_name="Student Two",
+    )
+    first_headers = {"Authorization": f"Bearer {first_tokens['access_token']}"}
+    second_headers = {"Authorization": f"Bearer {second_tokens['access_token']}"}
+
+    for headers, student_number in (
+        (first_headers, "SE-0001"),
+        (second_headers, "SE-0002"),
+    ):
+        onboarding = client.post(
+            "/api/v1/auth/onboarding",
+            headers=headers,
+            json={
+                "institution_id": institution["id"],
+                "student_number": student_number,
+                "program": "Software Engineering",
+                "course_ids": [course["id"]],
+            },
+        )
+        assert onboarding.status_code == 200
+
+    assignment = client.post(
+        "/api/v1/assignments",
+        headers=first_headers,
+        json={
+            "course_id": course["id"],
+            "title": "Private assignment",
+            "due_at": "2026-10-23T23:59:00+05:00",
+        },
+    )
+    assert assignment.status_code == 201
+    assignment_id = assignment.json()["id"]
+    assert assignment.json()["owner_user_id"] == first_tokens["user_id"]
+
+    second_assignment = client.post(
+        "/api/v1/assignments",
+        headers=second_headers,
+        json={
+            "course_id": course["id"],
+            "title": "Second student's assignment",
+            "due_at": "2026-10-24T23:59:00+05:00",
+        },
+    ).json()
+    private_document = client.post(
+        "/api/v1/documents",
+        headers=second_headers,
+        json={
+            "course_id": course["id"],
+            "assignment_id": second_assignment["id"],
+            "name": "private-notes.pdf",
+            "kind": "assignment",
+        },
+    )
+    assert private_document.status_code == 201
+
+    first_assignments = client.get("/api/v1/assignments", headers=first_headers).json()
+    assert [item["id"] for item in first_assignments] == [assignment_id]
+    assert (
+        client.get(f"/api/v1/assignments/{assignment_id}", headers=second_headers).status_code
+        == 404
+    )
+    assert (
+        client.patch(
+            f"/api/v1/assignments/{assignment_id}",
+            headers=second_headers,
+            json={"progress": 50},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.patch(
+            f"/api/v1/assignments/{assignment_id}",
+            headers=first_headers,
+            json={"progress": 50},
+        ).status_code
+        == 200
+    )
+    assert client.get("/api/v1/documents", headers=first_headers).json() == []
+    assert (
+        client.post(
+            "/api/v1/assignment-relations",
+            headers=first_headers,
+            json={
+                "source_assignment_id": assignment_id,
+                "target_assignment_id": second_assignment["id"],
+                "relation_type": "related_to",
+            },
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/api/v1/institutions",
+            headers=first_headers,
+            json={
+                "name": "Unauthorized University",
+                "short_name": "UU",
+                "timezone_name": "UTC",
+            },
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/api/v1/auth/onboarding",
+            headers=first_headers,
+            json={
+                "institution_id": institution["id"],
+                "student_number": "SE-0001",
+                "program": "Software Engineering",
+                "course_ids": [],
+            },
+        ).status_code
+        == 409
+    )
+
+
+def _login_google_user(
+    client: TestClient,
+    *,
+    subject: str,
+    email: str,
+    full_name: str,
+) -> dict[str, str]:
+    use_google_identity(
+        client,
+        GoogleClaims(
+            subject=subject,
+            email=email,
+            email_verified=True,
+            full_name=full_name,
+        ),
+    )
+    response = client.post(
+        "/api/v1/auth/google",
+        json={"credential": "fake-google-credential-token"},
+    )
+    assert response.status_code == 200
+    tokens: dict[str, str] = response.json()
+    me = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert me.status_code == 200
+    tokens["user_id"] = me.json()["id"]
+    return tokens

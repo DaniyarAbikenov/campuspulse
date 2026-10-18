@@ -16,8 +16,8 @@ validated strings so SQLite development databases and PostgreSQL behave consiste
 | `roles` | Stable global role catalog. | `code` is unique. Initial codes are `student`, `academic_admin`, and `platform_admin`. |
 | `user_roles` | Many-to-many role assignment. | `(user_id, role_id)` is unique. Both foreign keys cascade on deletion. |
 
-Google ID tokens and CampusPulse session tokens are now verified. Roles are returned by `/auth/me`,
-but permissions are not yet enforced on academic CRUD handlers.
+Google ID tokens and CampusPulse session tokens are verified. Roles are returned by `/auth/me`, and
+all academic CRUD handlers enforce the rules in [authorization.md](authorization.md).
 
 ## Academic planning
 
@@ -26,7 +26,7 @@ but permissions are not yet enforced on academic CRUD handlers.
 | `semesters` | Institution-specific academic periods. | Name is unique per institution; end date cannot precede start date. |
 | `courses` | A course offering inside one semester. | Code is unique per semester. |
 | `enrollments` | User membership in a course. | One row per `(user_id, course_id)`. |
-| `assignments` | Course work with deadline, effort and progress. | Effort cannot be negative; progress is 0–100. |
+| `assignments` | Personal course work with deadline, effort and progress. | `owner_user_id` scopes state to one student; effort cannot be negative; progress is 0–100. |
 | `assignment_relations` | Typed graph between assignments. | Supports `depends_on`, `extends`, and `related_to`; self-relations and duplicate typed edges are rejected. |
 | `tasks` | Kanban-sized work item belonging to an assignment. | Effort cannot be negative; deleting the assignment deletes its tasks. |
 | `schedule_events` | Student calendar entry, optionally linked to a course. | End must be after start; deleting a user deletes the event; deleting a course clears only the course link. |
@@ -41,9 +41,10 @@ but permissions are not yet enforced on academic CRUD handlers.
 ## Deletion strategy
 
 Owned academic data cascades down the hierarchy: institution → semester → course → assignments →
-tasks and relations. Identity mappings, role assignments, enrollments and a user's calendar entries
-also cascade with their parent user. Optional historical context uses `SET NULL`, especially audit
-actors, course links on events and assignment links on documents.
+tasks and relations. Deleting an assignment owner also removes that user's assignments. Identity
+mappings, role assignments, enrollments and a user's calendar entries also cascade with their
+parent user. Optional historical context uses `SET NULL`, especially audit actors, course links on
+events and assignment links on documents.
 
 ## Migration and seed ownership
 

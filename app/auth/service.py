@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.google import GoogleClaims
@@ -15,6 +16,18 @@ class AuthenticationError(ValueError):
 
 
 class AccountLinkRequiredError(AuthenticationError):
+    pass
+
+
+class OnboardingError(ValueError):
+    pass
+
+
+class OnboardingAlreadyCompletedError(OnboardingError):
+    pass
+
+
+class OnboardingConflictError(OnboardingError):
     pass
 
 
@@ -189,6 +202,62 @@ def get_authenticated_user(session: Session, user_id: UUID) -> AuthenticatedUser
         ).all()
     )
     return AuthenticatedUser(user=user, roles=roles)
+
+
+def complete_onboarding(
+    session: Session,
+    authenticated_user: AuthenticatedUser,
+    *,
+    institution_id: UUID,
+    student_number: str,
+    program: str,
+    course_ids: list[UUID],
+) -> AuthenticatedUser:
+    user = authenticated_user.user
+    if user.institution_id is not None:
+        raise OnboardingAlreadyCompletedError("Onboarding has already been completed")
+    if session.get(models.Institution, institution_id) is None:
+        raise OnboardingError("Institution does not exist")
+
+    unique_course_ids = set(course_ids)
+    if unique_course_ids:
+        valid_course_ids = set(
+            session.scalars(
+                select(models.Course.id)
+                .join(models.Semester, models.Semester.id == models.Course.semester_id)
+                .where(
+                    models.Course.id.in_(unique_course_ids),
+                    models.Semester.institution_id == institution_id,
+                )
+            ).all()
+        )
+        if valid_course_ids != unique_course_ids:
+            raise OnboardingError("Every selected course must belong to the institution")
+
+    user.institution_id = institution_id
+    user.student_number = student_number
+    user.program = program
+    for course_id in unique_course_ids:
+        session.add(models.Enrollment(user_id=user.id, course_id=course_id))
+    session.add(
+        models.AuditEvent(
+            actor_user_id=user.id,
+            action="user.onboarding.complete",
+            resource_type="user",
+            resource_id=user.id,
+            outcome=models.AuditOutcome.success,
+            context_data={"enrolled_course_count": len(unique_course_ids)},
+        )
+    )
+    try:
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        raise OnboardingConflictError(
+            "Student number is already in use at this institution"
+        ) from error
+    session.refresh(user)
+    return AuthenticatedUser(user=user, roles=authenticated_user.roles)
 
 
 def _issue_session(

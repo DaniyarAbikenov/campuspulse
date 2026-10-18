@@ -219,6 +219,11 @@ class Assignment(TimestampMixin, Base):
     course_id: Mapped[UUID] = mapped_column(
         ForeignKey("courses.id", ondelete="CASCADE"), index=True
     )
+    owner_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", name="fk_assignments_owner_user_id_users", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     title: Mapped[str] = mapped_column(String(240))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

@@ -10,7 +10,11 @@ from app.auth.service import (
     AccountLinkRequiredError,
     AuthenticatedUser,
     AuthenticationError,
+    OnboardingAlreadyCompletedError,
+    OnboardingConflictError,
+    OnboardingError,
     authenticate_google,
+    complete_onboarding,
     get_authenticated_user,
     refresh_session,
     revoke_session,
@@ -127,6 +131,38 @@ def me(current: CurrentUserDep) -> schemas.AuthUserRead:
         full_name=current.user.full_name,
         institution_id=current.user.institution_id,
         roles=current.roles,
+    )
+
+
+@router.post("/onboarding", response_model=schemas.AuthUserRead)
+def onboarding(
+    payload: schemas.OnboardingRequest,
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> schemas.AuthUserRead:
+    try:
+        completed = complete_onboarding(
+            session,
+            current,
+            institution_id=payload.institution_id,
+            student_number=payload.student_number,
+            program=payload.program,
+            course_ids=payload.course_ids,
+        )
+    except OnboardingAlreadyCompletedError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except OnboardingConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except OnboardingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+    return schemas.AuthUserRead(
+        id=completed.user.id,
+        email=completed.user.email,
+        full_name=completed.user.full_name,
+        institution_id=completed.user.institution_id,
+        roles=completed.roles,
     )
 
 

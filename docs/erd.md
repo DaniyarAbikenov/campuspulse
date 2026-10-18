@@ -17,6 +17,7 @@ erDiagram
     USER ||--o{ ENROLLMENT : has
     COURSE ||--o{ ENROLLMENT : includes
     COURSE ||--o{ ASSIGNMENT : contains
+    USER ||--o{ ASSIGNMENT : owns
     ASSIGNMENT ||--o{ ASSIGNMENT_RELATION : is_source
     ASSIGNMENT ||--o{ ASSIGNMENT_RELATION : is_target
     ASSIGNMENT ||--o{ TASK : breaks_into
@@ -95,6 +96,7 @@ erDiagram
     ASSIGNMENT {
         uuid id PK
         uuid courseId FK
+        uuid ownerUserId FK
         string title
         datetime dueAt
         string status

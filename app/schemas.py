@@ -188,6 +188,7 @@ class EnrollmentRead(EnrollmentCreate, EntityRead):
 
 class AssignmentCreate(StrictSchema):
     course_id: UUID
+    owner_user_id: UUID | None = None
     title: ShortText
     description: str | None = None
     due_at: datetime
@@ -211,7 +212,7 @@ class AssignmentUpdate(StrictSchema):
 
 
 class AssignmentRead(AssignmentCreate, EntityRead):
-    pass
+    owner_user_id: UUID
 
 
 class AssignmentRelationCreate(StrictSchema):
@@ -356,3 +357,10 @@ class AuthUserRead(StrictSchema):
     full_name: str
     institution_id: UUID | None
     roles: list[str]
+
+
+class OnboardingRequest(StrictSchema):
+    institution_id: UUID
+    student_number: Annotated[str, Field(min_length=1, max_length=64)]
+    program: Annotated[str, Field(min_length=1, max_length=200)]
+    course_ids: Annotated[list[UUID], Field(max_length=20)] = Field(default_factory=list)

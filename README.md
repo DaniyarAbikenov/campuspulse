@@ -2,8 +2,8 @@
 
 Typed FastAPI service for the initial CampusPulse academic domain. It supports Google Identity
 Services sign-in, CampusPulse access and refresh tokens, identity mapping, roles and audit events.
-Permission enforcement, MCP, AI workflows, document parsing and a policy engine are not implemented
-yet.
+Academic CRUD is protected by role and ownership checks. MCP, AI workflows, document parsing and a
+configurable policy engine are not implemented yet.
 
 ## Domain resources
 
@@ -24,7 +24,8 @@ database and Pydantic models, so they cannot be mutated through an unsecured API
 Request bodies use strict Pydantic v2 schemas: implicit type coercion and unknown fields are rejected.
 
 The schema overview is in [docs/database-schema.md](docs/database-schema.md), and the Mermaid ERD is
-in [docs/erd.md](docs/erd.md).
+in [docs/erd.md](docs/erd.md). The access rules are documented in
+[docs/authorization.md](docs/authorization.md).
 
 ## Local Google authentication
 
@@ -49,6 +50,11 @@ Authentication endpoints:
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `POST /api/v1/auth/onboarding`
+
+Every academic CRUD endpoint requires `Authorization: Bearer <access_token>`. A newly created
+Google user completes onboarding once to select an institution, profile details and initial
+courses.
 
 ## Run with Docker and hot reload
 

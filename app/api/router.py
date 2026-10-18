@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import schemas
+from app.auth.authorization import set_actor
+from app.auth.router import CurrentUserDep
 from app.auth.router import router as auth_router
 from app.crud import create_entity, delete_entity, get_entity, list_entities, update_entity
 from app.db import models
@@ -13,7 +15,15 @@ from app.db.session import get_session
 
 router = APIRouter()
 router.include_router(auth_router, prefix="/auth", tags=["auth"])
-SessionDep = Annotated[Session, Depends(get_session)]
+RawSessionDep = Annotated[Session, Depends(get_session)]
+
+
+def get_authorized_session(current: CurrentUserDep, session: RawSessionDep) -> Session:
+    set_actor(session, current)
+    return session
+
+
+SessionDep = Annotated[Session, Depends(get_authorized_session)]
 Offset = Annotated[int, Query(ge=0)]
 Limit = Annotated[int, Query(ge=1, le=200)]
 SchemaT = TypeVar("SchemaT", bound=BaseModel)

@@ -168,6 +168,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[1],
             course_id=course_ids["SE 3204"],
+            owner_user_id=student_id,
             title="Assignment 1 — Requirements Analysis",
             due_at=datetime.fromisoformat("2026-09-25T23:59:00+05:00"),
             status=models.AssignmentStatus.completed,
@@ -179,6 +180,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[2],
             course_id=course_ids["SE 3204"],
+            owner_user_id=student_id,
             title="Assignment 2 — Domain Model",
             due_at=datetime.fromisoformat("2026-10-09T23:59:00+05:00"),
             status=models.AssignmentStatus.completed,
@@ -190,6 +192,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[3],
             course_id=course_ids["SE 3204"],
+            owner_user_id=student_id,
             title="Assignment 3 — JWT Authentication",
             description="Implement authentication and role-ready identity mapping.",
             due_at=datetime.fromisoformat("2026-10-23T23:59:00+05:00"),
@@ -201,6 +204,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[4],
             course_id=course_ids["CS 3302"],
+            owner_user_id=student_id,
             title="Query Optimization Lab",
             due_at=datetime.fromisoformat("2026-10-21T18:00:00+05:00"),
             status=models.AssignmentStatus.todo,
@@ -211,6 +215,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[5],
             course_id=course_ids["CS 3401"],
+            owner_user_id=student_id,
             title="Routing Protocol Simulation",
             due_at=datetime.fromisoformat("2026-10-28T23:59:00+05:00"),
             status=models.AssignmentStatus.upcoming,
@@ -221,6 +226,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[6],
             course_id=course_ids["MATH 3102"],
+            owner_user_id=student_id,
             title="Problem Set 5 — Random Variables",
             due_at=datetime.fromisoformat("2026-10-20T20:00:00+05:00"),
             status=models.AssignmentStatus.todo,
@@ -231,6 +237,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[7],
             course_id=course_ids["HUM 2105"],
+            owner_user_id=student_id,
             title="Literature Review Draft",
             due_at=datetime.fromisoformat("2026-10-26T17:00:00+05:00"),
             status=models.AssignmentStatus.in_progress,
@@ -241,6 +248,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[8],
             course_id=course_ids["CS 3302"],
+            owner_user_id=student_id,
             title="Normalization Exercises",
             due_at=datetime.fromisoformat("2026-11-02T18:00:00+05:00"),
             status=models.AssignmentStatus.upcoming,
@@ -251,6 +259,7 @@ def seed_database(session: Session) -> SeedSummary:
         models.Assignment(
             id=assignment_ids[9],
             course_id=course_ids["SE 3204"],
+            owner_user_id=student_id,
             title="Assignment 4 — API Integration",
             due_at=datetime.fromisoformat("2026-11-06T23:59:00+05:00"),
             status=models.AssignmentStatus.upcoming,

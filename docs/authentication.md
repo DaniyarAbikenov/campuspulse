@@ -73,7 +73,11 @@ exchange. `POST /auth/logout` revokes the current refresh session. Existing acce
 expire after 15 minutes.
 
 `GET /api/v1/auth/me` returns the user profile and current role codes. The academic CRUD routes are
-still open until the authorization phase introduces ownership and role policies.
+protected by the access token and the policies in [authorization.md](authorization.md).
+
+A new Google user initially has no institution. `POST /api/v1/auth/onboarding` accepts the
+institution, student number, program and up to 20 course IDs. It validates that every course belongs
+to the selected institution, creates enrollments and can only succeed once.
 
 For local prototyping the refresh token is returned in JSON. Before production deployment, move it
 to a `Secure`, `HttpOnly`, `SameSite` cookie and add the corresponding CSRF design.
