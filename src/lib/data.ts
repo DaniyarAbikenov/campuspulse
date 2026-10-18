@@ -17,7 +17,7 @@ export interface Course {
   summary: string;
 }
 
-export const courses: Course[] = [
+const courseCatalog: Course[] = [
   { id: "se", name: "Software Engineering", code: "SE 3204", instructor: "Dr. A. Morgan", assignments: 4, completed: 2, progress: 58, remaining: 8.5, nextDeadline: "Oct 23", color: "bg-primary", docs: 3, technologies: ["Spring Boot", "PostgreSQL", "JWT", "JUnit"], summary: "Design and implementation of a layered REST service, built incrementally across four connected assignments." },
   { id: "adb", name: "Advanced Databases", code: "CS 3112", instructor: "Prof. L. Kessler", assignments: 5, completed: 3, progress: 64, remaining: 7.5, nextDeadline: "Oct 22", color: "bg-info", docs: 7, technologies: ["PostgreSQL", "MongoDB", "Query plans"], summary: "Query optimisation, indexing strategies, aggregation pipelines and transaction isolation." },
   { id: "os", name: "Operating Systems", code: "CS 2207", instructor: "Dr. R. Iskakov", assignments: 6, completed: 4, progress: 71, remaining: 4, nextDeadline: "Oct 24", color: "bg-warning", docs: 9, technologies: ["C", "POSIX threads", "xv6"], summary: "Processes, scheduling, memory management and concurrency through weekly labs." },
@@ -213,7 +213,7 @@ export const documentTotals = {
 export const workloadTotals = {
   required: weeklyWorkload.reduce((sum, day) => sum + day.required, 0),
   available: weeklyWorkload.reduce((sum, day) => sum + day.available, 0),
-  allRemaining: courses.reduce((sum, course) => sum + course.remaining, 0),
+  allRemaining: assignments.filter((assignment) => assignment.status !== "Completed").reduce((sum, assignment) => sum + assignment.estimate, 0),
 };
 export const adminCohort = [
   { week: "W40", estimated: 14, reported: 15 }, { week: "W41", estimated: 16, reported: 17 },
@@ -241,3 +241,18 @@ export const documentFragments = knowledgeDocs.flatMap((doc) => doc.id === "d1"
 
 export const demoClock = "09:46";
 export const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.round((hour % 1) * 60)).padStart(2, "0")}`;
+
+export const summarizeCourses = (items: Assignment[]) => courseCatalog.map((course) => {
+  const rows = items.filter((assignment) => assignment.courseId === course.id);
+  const open = rows.filter((assignment) => assignment.status !== "Completed");
+  return { ...course, assignments: rows.length, completed: rows.filter((assignment) => assignment.status === "Completed").length,
+    progress: rows.length ? Math.round(rows.reduce((sum, assignment) => sum + assignment.progress, 0) / rows.length) : 0,
+    remaining: open.reduce((sum, assignment) => sum + assignment.estimate, 0), docs: knowledgeDocs.filter((doc) => doc.courseId === course.id).length };
+});
+export const courses = summarizeCourses(assignments);
+export const upcomingAssignments = assignments.filter((assignment) => ["se-a3", "adb-a4", "os-l5"].includes(assignment.id));
+export const generatedStudySlots = [
+  { day: 0, start: 13, end: 13.5 }, { day: 0, start: 13.5, end: 15 },
+  { day: 2, start: 15, end: 17 }, { day: 2, start: 17, end: 18.5 },
+  { day: 4, start: 13, end: 14 }, { day: 4, start: 14, end: 16 },
+];
