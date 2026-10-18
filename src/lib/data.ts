@@ -266,3 +266,9 @@ export const facultySummary = {
   peak: adminCohort.reduce((highest, week) => week.estimated > highest.estimated ? week : highest),
   averageLoad: Math.round(adminCohort.reduce((sum, week) => sum + week.estimated, 0) / adminCohort.length * 10) / 10,
 };
+
+export const dateOf = (label: string) => new Date(`${label}, 2026 12:00:00 GMT`).toISOString().slice(0, 10);
+export const isUpcomingDeadline = (assignment: Assignment) => assignment.status !== "Completed" && dateOf(assignment.deadline) > demoDate && dateOf(assignment.deadline) <= "2026-10-25";
+export const taskMatchesDate = (task: Task, range: string) => range === "all" || (range === "overdue"
+  ? task.column !== "done" && dateOf(task.due) < demoDate
+  : dateOf(task.due) >= scheduleDate && dateOf(task.due) <= "2026-10-25");

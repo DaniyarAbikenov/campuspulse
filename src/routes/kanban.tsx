@@ -10,6 +10,7 @@ import { KanbanBoard, NewTaskButton } from "@/components/app/Kanban";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Link } from "@tanstack/react-router";
+import { taskMatchesDate } from "@/lib/data";
 
 export const Route = createFileRoute("/kanban")({
   beforeLoad: guardWorkspace,
@@ -32,7 +33,7 @@ function Kanban() {
   const filter = (task: (typeof tasks)[number]) => (assignment === "all" || task.assignmentId === assignment)
     && (priority === "all" || task.priority === priority) && (status === "all" || task.column === status)
     && (source === "all" || (source === "ai" ? !!task.ai : !task.ai))
-    && (due === "all" || (due === "week" ? !["Oct 27", "Oct 29"].includes(task.due) : task.due === "Oct 17"))
+    && taskMatchesDate(task, due)
     && (task.title + task.description + (task.req ?? "")).toLowerCase().includes(query.toLowerCase());
   const visible = tasks.filter((task) => (course === "all" || task.courseId === course) && filter(task));
   const total = visible.filter((task) => task.column !== "done").reduce((sum, task) => sum + task.estimate, 0);

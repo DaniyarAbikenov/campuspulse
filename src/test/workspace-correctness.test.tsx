@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StoreProvider, useStore } from "@/lib/store";
-import { documentTotals, knowledgeDocs, workloadTotals, weeklyWorkload, demoDate, scheduleDate } from "@/lib/data";
+import { documentTotals, knowledgeDocs, workloadTotals, weeklyWorkload, demoDate, scheduleDate, taskMatchesDate, initialTasks } from "@/lib/data";
 import { workspaceDestination, guardWorkspace } from "@/lib/workspace-access";
 
 describe("Workspace rules", () => {
@@ -92,5 +92,12 @@ describe("Workspace rules", () => {
     const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
     expect(result.current.courses.reduce((sum, course) => sum + course.assignments, 0)).toBe(result.current.assignments.length);
     expect(result.current.courses.reduce((sum, course) => sum + course.remaining, 0)).toBe(29.5);
+  });
+  it("filters overdue open tasks separately from the October 19–25 week", () => {
+    const overdue = { ...initialTasks[0], id: "overdue", title: "Late task", description: "", courseId: "se", estimate: 1, priority: "Low" as const, due: "Oct 17", column: "todo" as const };
+    expect(taskMatchesDate(overdue, "overdue")).toBe(true);
+    expect(taskMatchesDate({ ...overdue, column: "done" }, "overdue")).toBe(false);
+    expect(taskMatchesDate({ ...overdue, due: "Oct 19" }, "week")).toBe(true);
+    expect(taskMatchesDate({ ...overdue, due: "Oct 27" }, "week")).toBe(false);
   });
 });
