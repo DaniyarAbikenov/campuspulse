@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, Send, X, FileText } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useStore } from "@/lib/store";
 import { generatedTasks, workloadTotals, adminCourses } from "@/lib/data";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[] }
 
 const contextFor = (path: string) => {
   if (path.startsWith("/assignments")) return "Assignment 3 — JWT Authentication";
-  if (path.startsWith("/kanban")) return "Kanban Board · 14 tasks";
+  if (path.startsWith("/kanban")) return "Kanban Board";
   if (path.startsWith("/courses/se")) return "Software Engineering";
   if (path.startsWith("/courses")) return "Courses";
   if (path.startsWith("/schedule")) return "Week 43 schedule";
@@ -37,13 +38,13 @@ function answer(q: string, tasksGenerated: boolean): Msg {
   if (l.includes("midterm") || l.includes("database")) {
     return { role: "ai", text: "The Advanced Databases midterm (Oct 30) covers Lectures 4–8. I suggest three 90-minute sessions: query optimisation, indexing, and aggregation pipelines.", sources: ["Lecture 4–8 slides", "Syllabus"] };
   }
-  return { role: "ai", text: "Based on your current workspace: 4 deadlines in the next 7 days, 21.5h estimated work and 12h available. I can explain a recommendation, plan a study session, or summarise a course.", sources: ["Workspace snapshot"] };
+  return { role: "ai", text: `Based on your current workspace: 3 deadlines through Oct 25, ${workloadTotals.required}h estimated work and ${workloadTotals.available}h available. I can explain a recommendation, plan a study session, or summarise a course.`, sources: ["Workspace snapshot"] };
 }
 
 const prompts = ["Why did you create these tasks?", "Why is this week overloaded?", "What should I work on first?", "Summarise the Databases midterm"];
 
 export function ChatDrawer() {
-  const { chatOpen, setChatOpen, tasksGenerated, role } = useStore();
+  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload } = useStore();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -57,7 +58,7 @@ export function ChatDrawer() {
     setMsgs((m) => [...m, { role: "user", text: q }]);
     setInput("");
     setTyping(true);
-    setTimeout(() => { setMsgs((m) => [...m, role === "admin" ? { role: "ai", text: `Faculty demo: ${adminCourses.length} courses tracked in this view. Advanced Databases has the highest course overload risk at 22%. These are anonymised cohort aggregates, not individual student records.`, sources: ["Faculty course aggregates"] } : answer(q, tasksGenerated)]); setTyping(false); }, 900);
+    setTimeout(() => { setMsgs((m) => [...m, role === "admin" ? { role: "ai", text: `Faculty demo: ${adminCourses.length} courses tracked in this view. Advanced Databases has the highest course overload risk at 22%. These are anonymised cohort aggregates, not individual student records.`, sources: ["Faculty course aggregates"] } : q.toLowerCase().match(/workload|overload|week/) ? { role: "ai", text: `Week 43: ${workload.required}h required, ${workload.available}h capacity, ${workload.scheduled}h scheduled and ${workload.unscheduled}h not yet scheduled.`, sources: ["Live workspace"] } : answer(q, tasksGenerated)]); setTyping(false); }, 900);
   };
 
   return (
@@ -66,10 +67,10 @@ export function ChatDrawer() {
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ai-soft"><Sparkles className="h-4 w-4 text-ai" /></div>
           <div className="flex-1">
-            <SheetTitle className="text-[14px]">CampusPulse Assistant</SheetTitle>
+            <SheetTitle className="text-[14px]">CampusPulse Assistant</SheetTitle><SheetDescription className="sr-only">Simulated academic assistant</SheetDescription>
             <p className="text-[11.5px] text-muted-foreground">Context: {role === "admin" ? "Faculty of Computing" : contextFor(path)}</p>
           </div>
-          <button onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></button>
+          <Button variant="ghost" size="icon" aria-label="Close assistant" onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></Button>
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {msgs.length === 0 && (
@@ -96,8 +97,8 @@ export function ChatDrawer() {
             {prompts.map((p) => <button key={p} onClick={() => send(p)} className="rounded-md border px-2 py-1 text-[11.5px] text-muted-foreground hover:border-primary/40 hover:text-primary">{p}</button>)}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-md border px-2 focus-within:border-primary/50">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your workspace…" className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
-            <button type="submit" className="rounded p-1 text-primary hover:bg-primary-soft"><Send className="h-4 w-4" /></button>
+            <input aria-label="Message CampusPulse" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your workspace…" className="h-9 min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
+            <Button variant="ghost" size="icon" aria-label="Send message" type="submit" className="rounded p-1 text-primary hover:bg-primary-soft"><Send className="h-4 w-4" /></Button>
           </form>
         </div>
       </SheetContent>

@@ -1,5 +1,5 @@
 import { guardWorkspace } from "@/lib/workspace-access";
-import { adminCohort as cohort, adminCourses as courseRows } from "@/lib/data";
+import { adminCohort as cohort, adminCourses as courseRows, facultySummary } from "@/lib/data";
 import { cc } from "@/lib/chartColors";
 import { createFileRoute } from "@tanstack/react-router";
 import { Users, AlertTriangle, BookOpen, Gauge } from "lucide-react";
@@ -20,10 +20,10 @@ function Admin() {
     <>
       <PageHeader title="Academic Overview" subtitle="Faculty of Computing · Fall 2026 · Anonymised, aggregated demo data" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Active students" value="1,284" sub="Using CampusPulse" icon={Users} />
-        <MetricCard label="At risk of overload" value="17%" sub="Week 44 forecast" icon={AlertTriangle} tone="warning" trend={{ dir: "up", text: "+5%" }} />
-        <MetricCard label="Courses tracked" value="42" sub="18 with dependencies" icon={BookOpen} />
-        <MetricCard label="Avg weekly load" value="19.6h" sub="Median per student" icon={Gauge} />
+        <MetricCard label="Course enrolments" value={String(facultySummary.enrolments)} sub="Not unique students" icon={Users} />
+        <MetricCard label="Highest course risk" value={`${facultySummary.highestRisk}%`} sub="Faculty sample" icon={AlertTriangle} tone="warning" trend={{ dir: "up", text: "+5%" }} />
+        <MetricCard label="Courses tracked" value={String(facultySummary.courses)} sub="Faculty sample" icon={BookOpen} />
+        <MetricCard label="Avg weekly load" value={`${facultySummary.averageLoad}h`} sub="Mean cohort weekly forecast" icon={Gauge} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <Panel title="Cohort workload" subtitle="SE program · estimated vs. reported hours">
@@ -40,12 +40,12 @@ function Admin() {
           </ResponsiveContainer>
         </Panel>
         <Panel title="Deadline clustering">
-          <PredictionNote><b>Week 44</b> has 5 major deadlines across SE, ADB and OS for the same cohort. Shifting the OS Lab 6 deadline by 3 days would reduce overload risk from 17% to an estimated 9%.</PredictionNote>
+          <PredictionNote><b>{facultySummary.peak.week}</b> has the highest cohort forecast at {facultySummary.peak.estimated}h. Review faculty deadlines before changing the schedule.</PredictionNote>
         </Panel>
       </div>
       <Panel title="Courses" className="mt-4" bodyClass="p-0">
         <table className="w-full text-[13px]">
-          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th className="px-4 py-2 font-medium">Course</th><th className="font-medium">Students</th><th className="font-medium">Current assignment median</th><th className="font-medium">Instructor estimate</th><th className="w-48 px-4 font-medium">Overload risk</th></tr></thead>
+          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">Course</th><th scope="col" className="font-medium">Students</th><th scope="col" className="font-medium">Current assignment median</th><th scope="col" className="font-medium">Instructor estimate</th><th scope="col" className="w-48 px-4 font-medium">Overload risk</th></tr></thead>
           <tbody>{courseRows.map((c) => (
             <tr key={c.name} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{c.name}</td><td className="tabular-nums">{c.students}</td><td className="tabular-nums">{c.median}h</td><td className="tabular-nums">{c.estimate}h</td>
               <td className="px-4"><div className="flex items-center gap-2"><ProgressBar value={c.risk * 3} /><span className="w-8 text-[11.5px] tabular-nums">{c.risk}%</span></div></td></tr>

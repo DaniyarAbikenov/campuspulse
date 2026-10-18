@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { assignments, courses, courseOf, adminActivity } from "@/lib/data";
+import { assignments, courses, courseOf, adminActivity, facultyCourseCatalog } from "@/lib/data";
 
 const labels: Record<string, string> = {
   "": "Overview", schedule: "My Schedule", insights: "AI Insights", courses: "Courses", assignments: "Assignments",
@@ -54,7 +54,7 @@ export function Topbar() {
           <Search className="h-3.5 w-3.5" /> Search courses, assignments…
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">⌘K</kbd>
         </Button>
-        <span className="hidden items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[12px] text-muted-foreground lg:flex"><CalendarRange className="h-3.5 w-3.5" /> Fall 2026 · Week 8</span>
+        <span className="hidden items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[12px] text-muted-foreground lg:flex"><CalendarRange className="h-3.5 w-3.5" /> Fall 2026 · Week 43</span>
         <Button variant="ghost" size="icon" className="h-8 w-8 xl:hidden" aria-label="Search workspace" onClick={() => setOpen(true)}><Search /></Button>
         <Popover>
           <PopoverTrigger asChild>
@@ -85,7 +85,7 @@ export function Topbar() {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Courses">
-            {courses.map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{c.name} <span className="ml-auto text-[11px] text-muted-foreground">{c.code}</span></CommandItem>)}
+            {(role === "admin" ? facultyCourseCatalog : courses).map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{c.name} <span className="ml-auto text-[11px] text-muted-foreground">{c.code}</span></CommandItem>)}
           </CommandGroup>
           {role === "student" && <CommandGroup heading="Assignments">
             {assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{a.title} <span className="ml-auto text-[11px] text-muted-foreground">{courseOf(a.courseId).code}</span></CommandItem>)}

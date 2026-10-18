@@ -5,7 +5,8 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import { Target, Timer, CheckCircle2, Flame } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { SimpleBars } from "@/components/app/widgets";
-import { assignments, courseOf, semesterTrend } from "@/lib/data";
+import { useStore } from "@/lib/store";
+import { courses, courseOf, semesterTrend } from "@/lib/data";
 
 export const Route = createFileRoute("/statistics")({
   beforeLoad: guardWorkspace,
@@ -17,20 +18,23 @@ export const Route = createFileRoute("/statistics")({
 });
 
 function Stats() {
-  const done = assignments.filter((a) => a.actual);
+  const { assignments, workload } = useStore();
+  const done = assignments.filter((a) => a.actual !== undefined);
+  const actual = done.reduce((sum, a) => sum + (a.actual ?? 0), 0);
+  const estimate = done.reduce((sum, a) => sum + a.estimate, 0);
   return (
     <>
       <PageHeader title="Study Statistics" subtitle="Fall Semester 2026 · Weeks 36–43" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Total study time" value="119h" sub="This semester" icon={Timer} />
-        <MetricCard label="Estimate accuracy" value="89%" sub="Actual vs. AI estimate" icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
-        <MetricCard label="Completed" value="12" sub="Assignments & labs" icon={CheckCircle2} />
+        <MetricCard label="Reported study time" value={`${actual}h`} sub="Completed assignments" icon={Timer} />
+        <MetricCard label="Estimate accuracy" value={`${Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100)}%`} sub="Actual vs. AI estimate" icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
+        <MetricCard label="Completed" value={String(assignments.filter((a) => a.status === "Completed").length)} sub="Assignments & labs" icon={CheckCircle2} />
         <MetricCard label="Study streak" value="6 days" sub="Longest: 11 days" icon={Flame} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <Panel title="Planned vs. actual hours" subtitle="Per week">
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={semesterTrend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <LineChart data={semesterTrend.map((week) => week.week === "W43" ? { ...week, planned: workload.required } : week)} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={cc.border} />
               <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
               <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
@@ -41,11 +45,11 @@ function Stats() {
             </LineChart>
           </ResponsiveContainer>
         </Panel>
-        <Panel title="Hours by course"><SimpleBars data={[{ c: "SE", h: 34 }, { c: "ADB", h: 29 }, { c: "OS", h: 27 }, { c: "RM", h: 14 }, { c: "STAT", h: 15 }]} x="c" y="h" height={240} /></Panel>
+        <Panel title="Reported assignment hours by course"><SimpleBars data={courses.map((course) => ({ c: course.code.split(" ")[0], h: done.filter((a) => a.courseId === course.id).reduce((sum, a) => sum + (a.actual ?? 0), 0) }))} x="c" y="h" height={240} /></Panel>
       </div>
       <Panel title="Estimate vs. actual" subtitle="Completed assignments" className="mt-4" bodyClass="p-0">
         <table className="w-full text-[13px]">
-          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th className="px-4 py-2 font-medium">Assignment</th><th className="font-medium">Course</th><th className="font-medium">Estimate</th><th className="font-medium">Actual</th><th className="px-4 font-medium">Δ</th></tr></thead>
+          <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">Assignment</th><th scope="col" className="font-medium">Course</th><th scope="col" className="font-medium">Estimate</th><th scope="col" className="font-medium">Actual</th><th scope="col" className="px-4 font-medium">Δ</th></tr></thead>
           <tbody>{done.map((a) => { const d = (a.actual ?? 0) - a.estimate; return (
             <tr key={a.id} className="border-b last:border-0"><td className="px-4 py-2.5 font-medium">{a.title}</td><td>{courseOf(a.courseId).name}</td><td className="tabular-nums">{a.estimate}h</td><td className="tabular-nums">{a.actual}h</td><td className={`px-4 tabular-nums ${d > 0 ? "text-destructive" : "text-success"}`}>{d > 0 ? "+" : ""}{d}h</td></tr>
           ); })}</tbody>

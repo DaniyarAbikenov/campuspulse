@@ -72,25 +72,25 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       )}
       {!collapsed && (
         <div className="px-3 pb-2">
-          <Button variant="outline" className="h-auto flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left hover:bg-secondary">
+          <div className="flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left">
             <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">AITU</div>
             <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-[12.5px] font-medium">Astana IT University</div>
               <div className="text-[11px] text-muted-foreground">Fall Semester 2026</div>
             </div>
-            <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </Button>
+            </div>
         </div>
       )}
 
       <nav className="flex-1 overflow-y-auto px-2 py-1">
         {nav.map((g) => (
           <div key={g.group} className="mb-3">
-            {!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground/80">{g.group}</div>}
+            {!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{g.group}</div>}
             {g.items.map((item) => {
               const Icon = item.icon;
               const link = (
                 <Link
+                  aria-label={item.label}
                   key={item.to + item.label}
                   to={item.to}
                   activeOptions={{ exact: item.to === "/" || item.to === "/admin" }}
@@ -112,7 +112,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
 
       <div className="border-t p-2">
         <DropdownMenu>
-          <DropdownMenuTrigger className={cn("flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-secondary", collapsed && "justify-center")}>
+          <DropdownMenuTrigger aria-label="Switch workspace" className={cn("flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-secondary", collapsed && "justify-center")}>
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{role === "admin" ? "AA" : "DS"}</div>
             {!collapsed && (
               <div className="min-w-0 flex-1 leading-tight">
@@ -145,7 +145,7 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   useEffect(() => { setMobileNavOpen(false); }, [pathname, setMobileNavOpen]);
   return <>
-    <div className="sticky top-0 hidden h-screen shrink-0 md:block"><SidebarContent /></div>
+    <div className="sticky top-0 hidden h-dvh shrink-0 md:block"><SidebarContent /></div>
     <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
       <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0 [&>button]:hidden">
         <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
