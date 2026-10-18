@@ -16,7 +16,7 @@ export const Route = createFileRoute("/insights")({
   component: Insights,
 });
 
-const tabs = ["New", "Accepted", "Snoozed", "Dismissed", "All"] as const;
+const tabs = ["New", "Accepted", "Applied", "Snoozed", "Dismissed", "All"] as const;
 
 function Insights() {
   const { insights } = useStore();

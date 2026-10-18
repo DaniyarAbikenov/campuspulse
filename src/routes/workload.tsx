@@ -18,8 +18,8 @@ export const Route = createFileRoute("/workload")({
 });
 
 function Workload() {
-  const { workloadPlanApplied: applied, applyWorkloadPlan } = useStore();
-  const distribution = weeklyWorkload.map((day) => ({ ...day, required: day.required + (applied ? day.day === "Mon" ? 2 : day.day === "Wed" ? -2 : 0 : 0) }));
+  const { workloadPlanApplied: applied, applyWorkloadPlan, distribution, workload: workloadTotals, courses } = useStore();
+  const peak = distribution.reduce((highest, day) => day.required > highest.required ? day : highest);
   const max = Math.max(...courses.map((c) => c.remaining));
   return (
     <>
@@ -28,8 +28,9 @@ function Workload() {
         <MetricCard label="Required" value={`${workloadTotals.required}h`} sub="This week" icon={Hourglass} />
         <MetricCard label="Available" value={`${workloadTotals.available}h`} sub="Free study time" icon={Clock} />
         <MetricCard label="Overload" value={`${workloadTotals.required - workloadTotals.available}h`} sub="Weekly capacity gap" icon={AlertTriangle} tone="warning" />
-        <MetricCard label="Peak day" value={applied ? "Thu" : "Wed"} sub={applied ? "6h required · 1.5h free" : "7h required · 3.5h free"} icon={TrendingUp} />
+        <MetricCard label="Peak day" value={peak.day} sub={`${peak.required}h required · ${peak.available}h free`} icon={TrendingUp} />
       </div>
+      <div className="mt-3 flex flex-wrap gap-4 border-b pb-3 text-[13px]" aria-live="polite"><span>Scheduled study: <b>{workloadTotals.scheduled}h</b></span><span>Not yet scheduled: <b>{workloadTotals.unscheduled}h</b></span><span>Scheduling allocates work; completing tasks reduces required hours.</span></div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Daily distribution" subtitle="Red bars exceed available time"><WorkloadChart height={260} /></Panel>
         <Panel title="All remaining by course" subtitle={`${workloadTotals.allRemaining}h · all deadlines, including future weeks`}>
@@ -43,7 +44,7 @@ function Workload() {
           ))}
         </Panel>
         <Panel title="Rebalancing plan">
-          <PredictionNote>Move <b>2h</b> of Software Engineering work (JWT token generation) to Monday 13:00–15:00, and start the Aggregation pipeline on Tuesday evening. This redistributes work; it does not add study capacity. The weekly gap remains <b>9.5h</b>.</PredictionNote>
+          <PredictionNote>Move <b>2h</b> of Software Engineering work (JWT token generation) to Monday 13:00–15:00, and start the Aggregation pipeline on Tuesday evening. This redistributes work; it does not add study capacity. The weekly gap remains <b>{workloadTotals.required - workloadTotals.available}h</b>.</PredictionNote>
           <Button size="sm" className="mt-3" disabled={applied} onClick={() => { applyWorkloadPlan(); toast.success("Plan applied", { description: "Wednesday reduced from 7h to 5h" }); }}>{applied ? "Plan applied" : "Apply plan"}</Button>
         </Panel>
       </div>

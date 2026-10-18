@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { MetricCard, PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { ActivityFeed, AssignmentTable, InsightCard, WorkloadChart } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
-import { tomorrowSchedule, workloadTotals, demoDate, scheduleDate } from "@/lib/data";
+import { tomorrowSchedule, workloadTotals, demoDate, scheduleDate, formatHour } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -22,9 +22,9 @@ export const Route = createFileRoute("/")({
 });
 
 function Overview() {
-  const { insights, activity, setUploadOpen, openChat, workloadPlanApplied } = useStore();
+  const { insights, activity, setUploadOpen, openChat, workloadPlanApplied, workload: workloadTotals, events, courses, assignments } = useStore();
   const navigate = useNavigate();
-  const shown = insights.filter((i) => ["i-new", "i1", "i2", "i3"].includes(i.id)).slice(0, 3);
+  const shown = insights.filter((i) => ["i-new", "i1", "i2", "i3"].includes(i.id) && i.status === "New").slice(0, 3);
   return (
     <>
       <PageHeader
@@ -37,20 +37,20 @@ function Overview() {
         </>}
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Upcoming Deadlines" value="4" sub="Next 7 days" icon={CalendarClock} trend={{ dir: "up", text: "+2 vs last week" }} />
+        <MetricCard label="Upcoming Deadlines" value={String(assignments.filter((a) => ["se-a3", "adb-a4", "os-l5"].includes(a.id) && a.status !== "Completed").length)} sub="Next 7 days" icon={CalendarClock} trend={{ dir: "up", text: "+2 vs last week" }} />
         <MetricCard label="Estimated Workload" value={`${workloadTotals.required}h`} sub="Week 43 · exceeds capacity" icon={Hourglass} tone="warning" trend={{ dir: "up", text: `+${workloadTotals.required - workloadTotals.available}h over` }} />
-        <MetricCard label="Active Courses" value="5" sub="Fall Semester 2026" icon={BookOpen} />
+        <MetricCard label="Active Courses" value={String(courses.length)} sub="Fall Semester 2026" icon={BookOpen} />
         <MetricCard label="Available Study Time" value={`${workloadTotals.available}h`} sub="Week 43 · available study time" icon={Clock} trend={{ dir: "down", text: "−3h", good: false }} />
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title="Weekly Workload" subtitle="Estimated required vs. available hours · Week 43" action={<Link to="/workload" className="text-[12px] text-primary hover:underline">Details</Link>}>
           <WorkloadChart height={262} />
-          <PredictionNote>{workloadPlanApplied ? <>Plan applied: Wednesday now requires <b>5h</b>, Thursday <b>6h</b>. The weekly capacity gap remains <b>9.5h</b>.</> : <><b>Wednesday and Thursday</b> have the highest workload (7h and 6h required). Consider moving one study session to Monday.</>}</PredictionNote>
+          <PredictionNote>{workloadPlanApplied ? <>Plan applied: Wednesday now requires <b>5h</b>, Thursday <b>6h</b>. The weekly capacity gap remains <b>{workloadTotals.required - workloadTotals.available}h</b>.</> : <><b>Wednesday and Thursday</b> have the highest workload (7h and 6h required). Consider moving one study session to Monday.</>}</PredictionNote>
         </Panel>
         <Panel title="Tomorrow's Schedule" subtitle={`${new Date(`${scheduleDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · first day of Week 43`} action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
           <ol className="space-y-1.5">
-            {tomorrowSchedule.map((s) => (
+            {(events.filter((e) => e.day === 0).sort((a, b) => a.start - b.start).map((e) => ({ ...e, start: formatHour(e.start), end: formatHour(e.end), room: undefined }))).map((s) => (
               <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>
                 <div className="w-[92px] shrink-0 whitespace-nowrap font-mono text-[11px] leading-5 text-muted-foreground">{s.start}–{s.end}</div>
                 <div className="min-w-0">
@@ -60,7 +60,7 @@ function Overview() {
               </li>
             ))}
           </ol>
-          <div className="mt-3"><PredictionNote>You have a 2-hour free slot. This could be a good opportunity to work on <b>Assignment 3</b>.</PredictionNote></div>
+          <div className="mt-3"><PredictionNote>{events.some((e) => e.day === 0 && e.kind === "study") ? "Monday study sessions are planned. See the calendar for remaining availability." : "Monday 13:00–15:00 is available for Assignment 3."}</PredictionNote></div>
           <div className="mt-3 flex gap-2">
             <Button size="sm" className="h-7 flex-1 text-[12px]" onClick={() => navigate({ to: "/schedule" })}>Plan Study Session</Button>
             <Button size="sm" variant="outline" className="h-7 flex-1 text-[12px]" onClick={() => navigate({ to: "/events" })}>Explore Activities</Button>

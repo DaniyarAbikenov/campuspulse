@@ -21,7 +21,7 @@ export const Route = createFileRoute("/assignments/")({
 const filters = ["All", "In Progress", "To Do", "Upcoming", "Completed"] as const;
 
 function Assignments() {
-  const { setUploadOpen } = useStore();
+  const { setUploadOpen, assignments } = useStore();
   const [f, setF] = useState<(typeof filters)[number]>("All");
   const ids = assignments.filter((a) => f === "All" || a.status === f).map((a) => a.id);
   return (
