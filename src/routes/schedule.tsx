@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -27,6 +28,7 @@ const H = 44;
 const kindCls = { lecture: "border-border bg-card", study: "border-primary/30 bg-primary-soft text-primary", event: "border-info/30 bg-info-soft text-info", free: "" };
 
 function Schedule() {
+  const { locale } = useI18n();
   const { events, addEvent, log, tasks, workload } = useStore();
   const [slot, setSlot] = useState<(typeof freeSlots)[number] | null>(null);
   const [task, setTask] = useState("");
@@ -38,62 +40,62 @@ function Schedule() {
     if (!selected) return;
     addEvent({ day: slot.day, start: slot.start, end: Math.min(slot.end, slot.start + selected.estimate), title: `Study: ${selected.title}`, kind: "study", courseId: selected.courseId, taskId: selected.id });
     log({ title: "Study session planned", detail: `${slot.label} · ${task}`, kind: "schedule", status: "success" });
-    toast.success("Study session added", { description: slot.label });
+    toast.success(localize("Study session added", locale), { description: localize(slot.label, locale) });
     setSlot(null);
   };
 
   return (
     <>
-      <PageHeader title="My Schedule" subtitle="Week 43 · October 19 – 25, 2026" actions={<Button size="sm" onClick={() => setSlot(freeSlots.find((s) => !taken(s)) ?? null)}><Plus className="h-3.5 w-3.5" /> Plan Study Session</Button>} />
-      <p className="mb-3 text-[13px]" aria-live="polite">{workload.scheduled}h study scheduled · {workload.unscheduled}h not yet scheduled</p>
+      <PageHeader title={localize("My Schedule", locale)} subtitle={localize("Week 43 · October 19 – 25, 2026", locale)} actions={<Button size="sm" onClick={() => setSlot(freeSlots.find((s) => !taken(s)) ?? null)}><Plus className="h-3.5 w-3.5" /> {localize("Plan Study Session", locale)}</Button>} />
+      <p className="mb-3 text-[13px]" aria-live="polite">{localize(workload.scheduled, locale)}{localize("h study scheduled ·", locale)} {localize(workload.unscheduled, locale)}{localize("h not yet scheduled", locale)}</p>
       <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
         <div className="panel overflow-x-auto">
           <div className="grid min-w-[760px] grid-cols-[52px_repeat(7,1fr)]">
             <div className="border-b" />
-            {days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === 0 && "text-primary")}>{d}</div>)}
-            <div className="relative">{hours.map((h) => <div key={h} style={{ height: H }} className="pr-2 pt-0.5 text-right font-mono text-[10.5px] text-muted-foreground">{h}:00</div>)}</div>
-            {days.map((_, di) => (
+            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === 0 && "text-primary")}>{localize(d, locale)}</div>), locale)}
+            <div className="relative">{localize(hours.map((h) => <div key={h} style={{ height: H }} className="pr-2 pt-0.5 text-right font-mono text-[10.5px] text-muted-foreground">{localize(h, locale)}{localize(":00", locale)}</div>), locale)}</div>
+            {localize(days.map((_, di) => (
               <div key={di} className="relative border-l" style={{ height: H * hours.length }}>
-                {hours.map((h) => <div key={h} style={{ height: H }} className="border-b border-dashed border-border/70" />)}
-                {freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
-                  <Button variant="ghost" aria-label={`Plan study session ${s.label}`} key={s.id} onClick={() => setSlot(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}
+                {localize(hours.map((h) => <div key={h} style={{ height: H }} className="border-b border-dashed border-border/70" />), locale)}
+                {localize(freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
+                  <Button variant="ghost" aria-label={localize(`Plan study session ${s.label}`, locale)} key={s.id} onClick={() => setSlot(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}
                     className="absolute inset-x-1 flex-col items-start whitespace-normal rounded-md border border-dashed border-success/50 bg-success-soft/70 p-1.5 text-left text-[11px] text-success hover:bg-success-soft">
-                    <div className="font-medium">Free slot</div><div>+ Plan session</div>
+                    <div className="font-medium">{localize("Free slot", locale)}</div><div>{localize("+ Plan session", locale)}</div>
                   </Button>
-                ))}
-                {events.filter((e) => e.day === di).map((e) => (
+                )), locale)}
+                {localize(events.filter((e) => e.day === di).map((e) => (
                   <div key={e.id} style={{ top: (e.start - 8) * H + 1, height: (e.end - e.start) * H - 2 }} className={cn("absolute inset-x-1 overflow-hidden rounded-md border p-1.5 text-[11px] animate-in fade-in", kindCls[e.kind])}>
-                    <div className="font-medium leading-tight">{e.title}</div>
-                    <div className="font-mono text-[10px]">{formatHour(e.start)}–{formatHour(e.end)}</div>
+                    <div className="font-medium leading-tight">{localize(e.title, locale)}</div>
+                    <div className="font-mono text-[10px]">{localize(formatHour(e.start), locale)}{localize("–", locale)}{localize(formatHour(e.end), locale)}</div>
                   </div>
-                ))}
+                )), locale)}
               </div>
-            ))}
+            )), locale)}
           </div>
         </div>
         <div className="space-y-4">
-          <Panel title="Free time this week">
-            {freeSlots.map((s) => (
+          <Panel title={localize("Free time this week", locale)}>
+            {localize(freeSlots.map((s) => (
               <div key={s.id} className="flex items-center justify-between border-b py-2 text-[12.5px] last:border-0">
-                <span>{s.label}</span>
-                {taken(s) ? <span className="text-[11.5px] text-primary">Planned</span> : <Button size="sm" variant="ghost" className="h-6 text-[11.5px]" onClick={() => setSlot(s)}>Plan</Button>}
+                <span>{localize(s.label, locale)}</span>
+                {localize(taken(s) ? <span className="text-[11.5px] text-primary">{localize("Planned", locale)}</span> : <Button size="sm" variant="ghost" className="h-6 text-[11.5px]" onClick={() => setSlot(s)}>{localize("Plan", locale)}</Button>, locale)}
               </div>
-            ))}
+            )), locale)}
           </Panel>
-          <Panel title={<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> Suggestion</span>}>
-            <PredictionNote>Use <b>Mon 13:00–15:00</b> for JWT token generation (1.5h). It's the earliest slot before your heaviest days.</PredictionNote>
+          <Panel title={localize(<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> {localize("Suggestion", locale)}</span>, locale)}>
+            <PredictionNote>{localize("Use", locale)} <b>{localize("Mon 13:00–15:00", locale)}</b> {localize("for JWT token generation (1.5h). It's the earliest slot before your heaviest days.", locale)}</PredictionNote>
           </Panel>
         </div>
       </div>
 
       <Dialog open={!!slot} onOpenChange={(o) => !o && setSlot(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="text-[16px]">Plan study session</DialogTitle><DialogDescription>{slot?.label}</DialogDescription></DialogHeader>
-          <div className="space-y-1.5"><Label htmlFor="schedule-task" className="text-[12px]">Work on</Label>
-            <Select value={task} onValueChange={setTask}><SelectTrigger id="schedule-task"><SelectValue placeholder="Choose an imported task" /></SelectTrigger>
-              <SelectContent>{tasks.filter((t) => t.column !== "done").map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}</SelectContent></Select>
+          <DialogHeader><DialogTitle className="text-[16px]">{localize("Plan study session", locale)}</DialogTitle><DialogDescription>{localize(slot?.label, locale)}</DialogDescription></DialogHeader>
+          <div className="space-y-1.5"><Label htmlFor="schedule-task" className="text-[12px]">{localize("Work on", locale)}</Label>
+            <Select value={task} onValueChange={setTask}><SelectTrigger id="schedule-task"><SelectValue placeholder={localize("Choose an imported task", locale)} /></SelectTrigger>
+              <SelectContent>{localize(tasks.filter((t) => t.column !== "done").map((t) => <SelectItem key={t.id} value={t.id}>{localize(t.title, locale)}</SelectItem>), locale)}</SelectContent></Select>
           </div>
-          <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setSlot(null)}>Cancel</Button><Button size="sm" disabled={!task} onClick={plan}>Add to calendar</Button></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setSlot(null)}>{localize("Cancel", locale)}</Button><Button size="sm" disabled={!task} onClick={plan}>{localize("Add to calendar", locale)}</Button></div>
         </DialogContent>
       </Dialog>
     </>

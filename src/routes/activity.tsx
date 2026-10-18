@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Cpu, Database, ShieldCheck } from "lucide-react";
@@ -16,23 +17,24 @@ export const Route = createFileRoute("/activity")({
 });
 
 function ActivityPage() {
+  const { locale } = useI18n();
   const { activity: studentActivity, role } = useStore();
   const activity = role === "admin" ? adminActivity : studentActivity;
   return (
     <>
-      <PageHeader title="Agent Activity" subtitle="Every action the CampusPulse agent took in your workspace (simulated)." />
+      <PageHeader title={localize("Agent Activity", locale)} subtitle={localize("Every action the CampusPulse agent took in your workspace (simulated).", locale)} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Actions today" value={String(activity.length)} sub="Since 07:30" icon={Bot} />
-        {role === "student" ? <MetricCard label="Documents indexed" value={String(documentTotals.count)} sub={`${documentTotals.pages} pages`} icon={Database} /> : <MetricCard label="Faculty courses" value={String(facultySummary.courses)} sub="Anonymised faculty sample" icon={Database} />}
-        <MetricCard label="Background jobs" value="3" sub="Timetable, LMS, forecast" icon={Cpu} />
-        <MetricCard label="Permissions" value="Read-only" sub="No submissions on your behalf" icon={ShieldCheck} />
+        <MetricCard label={localize("Actions today", locale)} value={String(activity.length)} sub={localize("Since 07:30", locale)} icon={Bot} />
+        {localize(role === "student" ? <MetricCard label={localize("Documents indexed", locale)} value={String(documentTotals.count)} sub={localize(`${documentTotals.pages} pages`, locale)} icon={Database} /> : <MetricCard label={localize("Faculty courses", locale)} value={String(facultySummary.courses)} sub={localize("Anonymised faculty sample", locale)} icon={Database} />, locale)}
+        <MetricCard label={localize("Background jobs", locale)} value="3" sub={localize("Timetable, LMS, forecast", locale)} icon={Cpu} />
+        <MetricCard label={localize("Permissions", locale)} value="Read-only" sub={localize("No submissions on your behalf", locale)} icon={ShieldCheck} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Panel title="Timeline"><ActivityFeed items={activity} /></Panel>
-        <Panel title="Scheduled jobs" className="h-fit">
-          {[["Timetable sync", "Every day · 07:30", "Healthy"], ["LMS assignment scan", "Every 2 hours", "Healthy"], ["Workload forecast", "On change", "Healthy"], ["Event matching", "Daily · 18:00", "Paused"]].map(([n, s, st]) => (
-            <div key={n} className="flex items-center justify-between border-b py-2 text-[12.5px] last:border-0"><div><div className="font-medium">{n}</div><div className="text-[11.5px] text-muted-foreground">{s}</div></div><span className={st === "Healthy" ? "text-success" : "text-warning"}>{st}</span></div>
-          ))}
+        <Panel title={localize("Timeline", locale)}><ActivityFeed items={activity} /></Panel>
+        <Panel title={localize("Scheduled jobs", locale)} className="h-fit">
+          {localize([["Timetable sync", "Every day · 07:30", "Healthy"], ["LMS assignment scan", "Every 2 hours", "Healthy"], ["Workload forecast", "On change", "Healthy"], ["Event matching", "Daily · 18:00", "Paused"]].map(([n, s, st]) => (
+            <div key={n} className="flex items-center justify-between border-b py-2 text-[12.5px] last:border-0"><div><div className="font-medium">{localize(n, locale)}</div><div className="text-[11.5px] text-muted-foreground">{localize(s, locale)}</div></div><span className={st === "Healthy" ? "text-success" : "text-warning"}>{localize(st, locale)}</span></div>
+          )), locale)}
         </Panel>
       </div>
     </>

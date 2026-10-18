@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -21,20 +22,23 @@ import { ChatDrawer } from "@/components/app/ChatDrawer";
 import { UploadDialog } from "@/components/app/UploadDialog";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { LanguageInitialization } from "@/lib/i18n";
 
 function NotFoundComponent() {
+  const { locale } = useI18n();
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-5xl font-semibold text-foreground">404</h1>
-        <p className="mt-2 text-sm text-muted-foreground">This page doesn't exist in your workspace.</p>
-        <Link to="/" className="mt-5 inline-flex rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover">Back to Overview</Link>
+        <h1 className="text-5xl font-semibold text-foreground">{localize("404", locale)}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{localize("This page doesn't exist in your workspace.", locale)}</p>
+        <Link to="/" className="mt-5 inline-flex rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover">{localize("Back to Overview", locale)}</Link>
       </div>
     </div>
   );
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
+  const { locale } = useI18n();
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -43,9 +47,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">This page didn't load</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Something went wrong. Try refreshing.</p>
-        <button onClick={() => { router.invalidate(); reset(); }} className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Try again</button>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">{localize("This page didn't load", locale)}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{localize("Something went wrong. Try refreshing.", locale)}</p>
+        <button onClick={() => { router.invalidate(); reset(); }} className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{localize("Try again", locale)}</button>
       </div>
     </div>
   );
@@ -76,13 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; work
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const { locale } = useI18n();
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        {children}
+        {localize(children, locale)}
         <Scripts />
       </body>
     </html>
@@ -90,10 +95,12 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  const { locale } = useI18n();
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   return (
     <QueryClientProvider client={queryClient}>
+      <LanguageInitialization />
       <StoreProvider onRoleChange={(workspaceRole) => router.update({ context: { ...router.options.context, queryClient, workspaceRole } })}>
         <TooltipProvider delayDuration={200}>
           <div className="flex min-h-screen">
@@ -115,6 +122,7 @@ function RootComponent() {
 }
 
 function WorkspaceContent() {
+  const { locale } = useI18n();
   const { role } = useStore();
   const router = useRouter();
   const path = useRouterState({ select: (state) => state.location.pathname });

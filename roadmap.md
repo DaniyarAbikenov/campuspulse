@@ -16,3 +16,9 @@
 - [x] Add sourced Knowledge Base fragments and links.
 - [x] Audit and fix accessibility; verify 390/768/1280 layouts (automated WCAG scan and keyboard flows).
 - [x] Run 15 regression tests and end-to-end checks.
+
+## Multilingual interface
+- [x] Add shared Kazakh, Russian and English translations and language switching.
+- [x] Localize interface text, dates, notifications and demo descriptions without changing canonical data values.
+- [x] Map canonical and server-style statuses to translated labels with safe unknown-status fallback.
+- [x] Verify switching, persistence, status mapping, multilingual PDF workflow and layout; 19 regression tests passed.

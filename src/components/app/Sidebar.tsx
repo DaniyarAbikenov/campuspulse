@@ -1,3 +1,4 @@
+import { localize, useI18n } from "@/lib/i18n";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, CalendarDays, Sparkles, BookOpen, ClipboardList, KanbanSquare, Library, PartyPopper,
@@ -49,6 +50,7 @@ const adminNav = [
 ] as const;
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
+  const { locale } = useI18n();
   const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen } = useStore();
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
@@ -59,38 +61,39 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
     <aside className={cn("flex h-dvh shrink-0 flex-col border-r bg-sidebar transition-[width] duration-200", mobile ? "w-full border-0" : collapsed ? "w-[60px]" : "w-[248px]")}>
       <div className="flex h-12 items-center gap-2 px-3.5">
         <Logo />
-        {!collapsed && <span className="text-[14px] font-semibold tracking-tight">CampusPulse</span>}
-        <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(!collapsed)} className={cn("ml-auto rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground", (collapsed || mobile) && "hidden")} aria-label="Collapse sidebar">
+        {localize(!collapsed && <span className="text-[14px] font-semibold tracking-tight">{localize("CampusPulse", locale)}</span>, locale)}
+        <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(!collapsed)} className={cn("ml-auto rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground", (collapsed || mobile) && "hidden")} aria-label={localize("Collapse sidebar", locale)}>
           <PanelLeftClose className="h-4 w-4" />
         </Button>
-        {mobile && <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}><PanelLeftClose /></Button>}
+        {localize(mobile && <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" aria-label={localize("Close navigation", locale)} onClick={() => setMobileNavOpen(false)}><PanelLeftClose /></Button>, locale)}
       </div>
-      {collapsed && (
-        <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(false)} className="mx-auto mb-2 rounded p-1.5 text-muted-foreground hover:bg-secondary" aria-label="Expand sidebar">
+      {localize(collapsed && (
+        <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(false)} className="mx-auto mb-2 rounded p-1.5 text-muted-foreground hover:bg-secondary" aria-label={localize("Expand sidebar", locale)}>
           <PanelLeftOpen className="h-4 w-4" />
         </Button>
-      )}
-      {!collapsed && (
+      ), locale)}
+      {localize(!collapsed && (
         <div className="px-3 pb-2">
           <div className="flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">AITU</div>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">{localize("AITU", locale)}</div>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-[12.5px] font-medium">Astana IT University</div>
-              <div className="text-[11px] text-muted-foreground">Fall Semester 2026</div>
+              <div className="truncate text-[12.5px] font-medium">{localize("Astana IT University", locale)}</div>
+              <div className="text-[11px] text-muted-foreground">{localize("Fall Semester 2026", locale)}</div>
             </div>
             </div>
         </div>
-      )}
+      ), locale)}
 
       <nav className="flex-1 overflow-y-auto px-2 py-1">
-        {nav.map((g) => (
+        {localize(nav.map((g) => (
           <div key={g.group} className="mb-3">
-            {!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{g.group}</div>}
-            {g.items.map((item) => {
+            {localize(!collapsed && <div className="px-2 pb-1 text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{localize(g.group, locale)}</div>, locale)}
+            {localize(g.items.map((item) => {
+  
               const Icon = item.icon;
               const link = (
                 <Link
-                  aria-label={item.label}
+                  aria-label={localize(item.label, locale)}
                   key={item.to + item.label}
                   to={item.to}
                   activeOptions={{ exact: item.to === "/" || item.to === "/admin" }}
@@ -98,40 +101,40 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
                   activeProps={{ className: "bg-sidebar-accent !text-foreground font-medium" }}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  {!collapsed && "badge" in item && newCount > 0 && <span className="rounded bg-primary-soft px-1.5 text-[10.5px] font-semibold text-primary">{newCount}</span>}
+                  {localize(!collapsed && <span className="flex-1 truncate">{localize(item.label, locale)}</span>, locale)}
+                  {localize(!collapsed && "badge" in item && newCount > 0 && <span className="rounded bg-primary-soft px-1.5 text-[10.5px] font-semibold text-primary">{localize(newCount, locale)}</span>, locale)}
                 </Link>
               );
               return collapsed ? (
-                <Tooltip key={item.label}><TooltipTrigger asChild>{link}</TooltipTrigger><TooltipContent side="right">{item.label}</TooltipContent></Tooltip>
+                <Tooltip key={item.label}><TooltipTrigger asChild>{localize(link, locale)}</TooltipTrigger><TooltipContent side="right">{localize(item.label, locale)}</TooltipContent></Tooltip>
               ) : link;
-            })}
+            }), locale)}
           </div>
-        ))}
+        )), locale)}
       </nav>
 
       <div className="border-t p-2">
         <DropdownMenu>
-          <DropdownMenuTrigger aria-label="Switch workspace" className={cn("flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-secondary", collapsed && "justify-center")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{role === "admin" ? "AA" : "DS"}</div>
-            {!collapsed && (
+          <DropdownMenuTrigger aria-label={localize("Switch workspace", locale)} className={cn("flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-secondary", collapsed && "justify-center")}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{localize(role === "admin" ? "AA" : "DS", locale)}</div>
+            {localize(!collapsed && (
               <div className="min-w-0 flex-1 leading-tight">
-                <div className="truncate text-[12.5px] font-medium">{role === "admin" ? "Academic Admin" : "Demo Student"}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{role === "admin" ? "Faculty of Computing" : "Software Engineering · SE-2429"}</div>
+                <div className="truncate text-[12.5px] font-medium">{localize(role === "admin" ? "Academic Admin" : "Demo Student", locale)}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{localize(role === "admin" ? "Faculty of Computing" : "Software Engineering · SE-2429", locale)}</div>
               </div>
-            )}
-            {!collapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />}
+            ), locale)}
+            {localize(!collapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />, locale)}
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-56">
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Switch workspace</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-[11px] text-muted-foreground">{localize("Switch workspace", locale)}</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => { setRole("student"); navigate({ to: "/" }); }}>
-              <GraduationCap className="h-4 w-4" /> Student Workspace {role === "student" && <Check className="ml-auto h-3.5 w-3.5" />}
+              <GraduationCap className="h-4 w-4" /> {localize("Student Workspace", locale)} {localize(role === "student" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => { setRole("admin"); navigate({ to: "/admin" }); }}>
-              <Users className="h-4 w-4" /> Academic Administrator Demo {role === "admin" && <Check className="ml-auto h-3.5 w-3.5" />}
+              <Users className="h-4 w-4" /> {localize("Academic Administrator Demo", locale)} {localize(role === "admin" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}><Settings className="h-4 w-4" /> Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}><Settings className="h-4 w-4" /> {localize("Settings", locale)}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -141,6 +144,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
 
 
 export function Sidebar() {
+  const { locale } = useI18n();
   const { mobileNavOpen, setMobileNavOpen } = useStore();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   useEffect(() => { setMobileNavOpen(false); }, [pathname, setMobileNavOpen]);
@@ -148,8 +152,8 @@ export function Sidebar() {
     <div className="sticky top-0 hidden h-dvh shrink-0 md:block"><SidebarContent /></div>
     <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
       <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0 [&>button]:hidden">
-        <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
-        <SheetDescription className="sr-only">CampusPulse workspace pages</SheetDescription>
+        <SheetTitle className="sr-only">{localize("Workspace navigation", locale)}</SheetTitle>
+        <SheetDescription className="sr-only">{localize("CampusPulse workspace pages", locale)}</SheetDescription>
         <SidebarContent mobile />
       </SheetContent>
     </Sheet>
