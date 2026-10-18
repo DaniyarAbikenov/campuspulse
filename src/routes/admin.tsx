@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { adminCohort as cohort, adminCourses as courseRows } from "@/lib/data";
 import { cc } from "@/lib/chartColors";
 import { createFileRoute } from "@tanstack/react-router";
@@ -6,7 +7,8 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { MetricCard, PageHeader, Panel, PredictionNote, ProgressBar } from "@/components/app/common";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Academic Overview — CampusPulse AI" }, { name: "description", content: "Administrator view of student workload, at-risk cohorts and deadline clustering." },
     { property: "og:title", content: "Academic Overview — CampusPulse AI" }, { property: "og:description", content: "Administrator view of student workload and deadline clustering." },
   ] }),

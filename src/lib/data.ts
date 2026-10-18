@@ -227,3 +227,9 @@ export const adminCourses = [
   { id: "rm", name: "Research Methods", students: 142, median: 3.2, estimate: 3.5, risk: 6 },
   { id: "stat", name: "Statistics", students: 156, median: 2.4, estimate: 2, risk: 9 },
 ];
+
+export const adminActivity: Activity[] = [
+  { id: "faculty-1", time: "09:45", title: "Faculty workload forecast updated", detail: "SE cohort · Week 44 peak: 26h", kind: "forecast", status: "warning" },
+  { id: "faculty-2", time: "09:30", title: "Course aggregates refreshed", detail: "5 courses · anonymised enrolments and overload risk", kind: "index", status: "success" },
+  { id: "faculty-3", time: "07:30", title: "Faculty timetable synchronized", detail: "Fall 2026 · faculty scheduling", kind: "schedule", status: "success" },
+];

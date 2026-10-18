@@ -1,15 +1,17 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CalendarClock, Clock, BookOpen, Hourglass, Plus, Sparkles, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MetricCard, PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { ActivityFeed, AssignmentTable, InsightCard, WorkloadChart } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
-import { tomorrowSchedule, workloadTotals } from "@/lib/data";
+import { tomorrowSchedule, workloadTotals, demoDate, scheduleDate } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: guardWorkspace,
   head: () => ({
-    meta: [
+    meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
       { title: "Overview — CampusPulse AI" },
       { name: "description", content: "Your academic command center: deadlines, workload, schedule and AI recommendations." },
       { property: "og:title", content: "Overview — CampusPulse AI" },
@@ -29,7 +31,7 @@ function Overview() {
         title="Good afternoon."
         subtitle="Here's what's happening across your academic workspace."
         actions={<>
-          <span className="mr-1 text-[12.5px] text-muted-foreground">Sunday, October 18, 2026</span>
+          <span className="mr-1 text-[12.5px] text-muted-foreground">{new Date(`${demoDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}</span>
           <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}><Plus className="h-3.5 w-3.5" /> Add Assignment</Button>
           <Button size="sm" onClick={() => openChat("Overview")}><Sparkles className="h-3.5 w-3.5" /> Ask CampusPulse</Button>
         </>}
@@ -46,7 +48,7 @@ function Overview() {
           <WorkloadChart height={262} />
           <PredictionNote><b>Wednesday and Thursday</b> have the highest workload (7h and 6h required). Consider moving one study session to Monday.</PredictionNote>
         </Panel>
-        <Panel title="Tomorrow's Schedule" subtitle="Monday, Oct 19 · first day of Week 43" action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
+        <Panel title="Tomorrow's Schedule" subtitle={`${new Date(`${scheduleDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })} · first day of Week 43`} action={<Link to="/schedule" className="text-[12px] text-primary hover:underline">Week</Link>}>
           <ol className="space-y-1.5">
             {tomorrowSchedule.map((s) => (
               <li key={s.start} className={cn("flex gap-3 rounded-md border px-2.5 py-1.5", s.kind === "free" ? "border-dashed border-success/40 bg-success-soft" : "bg-card")}>

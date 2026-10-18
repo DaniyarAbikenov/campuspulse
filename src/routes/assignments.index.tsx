@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Upload } from "lucide-react";
@@ -9,7 +10,8 @@ import { assignments } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/assignments/")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Assignments — CampusPulse AI" }, { name: "description", content: "All assignments across your courses with estimates and progress." },
     { property: "og:title", content: "Assignments — CampusPulse AI" }, { property: "og:description", content: "All assignments across your courses with estimates and progress." },
   ] }),

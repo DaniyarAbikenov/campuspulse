@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
@@ -10,7 +11,8 @@ import { useStore } from "@/lib/store";
 import { courses } from "@/lib/data";
 
 export const Route = createFileRoute("/kanban")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Kanban Board — CampusPulse AI" }, { name: "description", content: "Drag academic tasks across stages, including AI-generated tasks." },
     { property: "og:title", content: "Kanban Board — CampusPulse AI" }, { property: "og:description", content: "Drag academic tasks across stages, including AI-generated tasks." },
   ] }),

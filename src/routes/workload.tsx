@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useStore } from "@/lib/store";
 import { Hourglass, Clock, AlertTriangle, TrendingUp } from "lucide-react";
@@ -8,7 +9,8 @@ import { WorkloadChart } from "@/components/app/widgets";
 import { courses, weeklyWorkload, workloadTotals } from "@/lib/data";
 
 export const Route = createFileRoute("/workload")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "My Workload — CampusPulse AI" }, { name: "description", content: "Required vs. available study hours, overload days and rebalancing suggestions." },
     { property: "og:title", content: "My Workload — CampusPulse AI" }, { property: "og:description", content: "Required vs. available study hours and rebalancing suggestions." },
   ] }),

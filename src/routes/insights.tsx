@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
@@ -7,7 +8,8 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/insights")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "AI Insights — CampusPulse AI" }, { name: "description", content: "Proactive, structured recommendations about workload, deadlines and study preparation." },
     { property: "og:title", content: "AI Insights — CampusPulse AI" }, { property: "og:description", content: "Proactive, structured recommendations from CampusPulse." },
   ] }),

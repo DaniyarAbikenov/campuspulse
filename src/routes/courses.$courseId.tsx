@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowRight, Brain, FileText, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { assignments, courses, knowledgeDocs } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/courses/$courseId")({
+  beforeLoad: guardWorkspace,
   loader: ({ params }) => {
     const course = courses.find((c) => c.id === params.courseId);
     if (!course) throw notFound();
@@ -17,7 +19,7 @@ export const Route = createFileRoute("/courses/$courseId")({
   head: ({ loaderData }) => {
     const t = loaderData ? `${loaderData.course.name} — CampusPulse AI` : "Course — CampusPulse AI";
     const d = loaderData?.course.summary ?? "Course workspace";
-    return { meta: [{ title: t }, { name: "description", content: d }, { property: "og:title", content: t }, { property: "og:description", content: d }] };
+    return { meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, { title: t }, { name: "description", content: d }, { property: "og:title", content: t }, { property: "og:description", content: d }] };
   },
   component: CourseDetails,
 });

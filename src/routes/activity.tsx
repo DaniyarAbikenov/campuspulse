@@ -1,12 +1,14 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Cpu, Database, ShieldCheck } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { ActivityFeed } from "@/components/app/widgets";
-import { documentTotals } from "@/lib/data";
+import { documentTotals, adminActivity } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/activity")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Agent Activity — CampusPulse AI" }, { name: "description", content: "A transparent log of everything the CampusPulse agent did in your workspace." },
     { property: "og:title", content: "Agent Activity — CampusPulse AI" }, { property: "og:description", content: "A transparent log of the CampusPulse agent's actions." },
   ] }),
@@ -14,7 +16,8 @@ export const Route = createFileRoute("/activity")({
 });
 
 function ActivityPage() {
-  const { activity } = useStore();
+  const { activity: studentActivity, role } = useStore();
+  const activity = role === "admin" ? adminActivity : studentActivity;
   return (
     <>
       <PageHeader title="Agent Activity" subtitle="Every action the CampusPulse agent took in your workspace (simulated)." />

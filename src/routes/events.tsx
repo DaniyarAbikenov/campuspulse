@@ -1,3 +1,4 @@
+import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarDays, MapPin, Clock, Check } from "lucide-react";
@@ -8,7 +9,8 @@ import { campusEvents } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/events")({
-  head: () => ({ meta: [
+  beforeLoad: guardWorkspace,
+  head: () => ({ meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, 
     { title: "Campus Events — CampusPulse AI" }, { name: "description", content: "Campus activities matched to your free time and interests." },
     { property: "og:title", content: "Campus Events — CampusPulse AI" }, { property: "og:description", content: "Campus activities matched to your free time and interests." },
   ] }),

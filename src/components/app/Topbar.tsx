@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { assignments, courses, courseOf } from "@/lib/data";
+import { assignments, courses, courseOf, adminActivity } from "@/lib/data";
 
 const labels: Record<string, string> = {
   "": "Overview", schedule: "My Schedule", insights: "AI Insights", courses: "Courses", assignments: "Assignments",
@@ -50,22 +50,22 @@ export function Topbar() {
         ))}
       </nav>
       <div className="flex shrink-0 items-center gap-1 md:ml-auto md:gap-2">
-        <button onClick={() => setOpen(true)} className="hidden h-8 w-52 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 xl:flex">
+        <Button variant="outline" onClick={() => setOpen(true)} className="hidden h-8 w-72 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 xl:flex">
           <Search className="h-3.5 w-3.5" /> Search courses, assignments…
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">⌘K</kbd>
-        </button>
+        </Button>
         <span className="hidden items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[12px] text-muted-foreground lg:flex"><CalendarRange className="h-3.5 w-3.5" /> Fall 2026 · Week 8</span>
         <Button variant="ghost" size="icon" className="h-8 w-8 xl:hidden" aria-label="Search workspace" onClick={() => setOpen(true)}><Search /></Button>
         <Popover>
           <PopoverTrigger asChild>
-            <button className="relative rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Notifications">
+            <Button variant="ghost" size="icon" className="h-8 w-8 relative rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Notifications">
               <Bell className="h-4 w-4" />
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive" />
-            </button>
+            </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="border-b px-3 py-2 text-[13px] font-semibold">Notifications</div>
-            {activity.slice(0, 5).map((a) => (
+            {(role === "admin" ? adminActivity : activity).slice(0, 5).map((a) => (
               <div key={a.id} className="border-b px-3 py-2 last:border-0">
                 <div className="text-[12.5px] font-medium">{a.title}</div>
                 <div className="text-[11.5px] text-muted-foreground">{a.time} · {a.detail}</div>
