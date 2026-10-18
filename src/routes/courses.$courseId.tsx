@@ -45,7 +45,7 @@ function CourseDetails() {
           <TabsContent value="overview" className="space-y-4">
             <Panel title="Course summary"><p className="text-[13px] leading-relaxed text-muted-foreground">{course.summary}</p><div className="mt-3 flex items-center gap-2"><ProgressBar value={course.progress} /><span className="text-[12px] tabular-nums">{course.progress}%</span></div></Panel>
             <div className="grid gap-4 md:grid-cols-2">
-              <Panel title="Workload by assignment" subtitle="Estimated hours"><SimpleBars data={list.map((a) => ({ name: a.title.split(" — ")[0].replace("Assignment", "A"), hours: a.estimate }))} x="name" y="hours" height={170} /></Panel>
+              <Panel title="Workload by assignment" subtitle="Estimated hours"><SimpleBars data={list.map((a) => ({ name: a.title.split(" — ")[0]!.replace("Assignment", "A"), hours: a.estimate }))} x="name" y="hours" height={170} /></Panel>
               <Panel title="AI course insights"><div className="space-y-2">
                 <PredictionNote>Assignments in this course build on each other. Delays in the current one shift the next by ~3 days.</PredictionNote>
                 <PredictionNote>Your actual time ran <b>+11%</b> over estimates on average — plans now include that buffer.</PredictionNote>
@@ -62,7 +62,7 @@ function CourseDetails() {
                     <td className="px-4 py-2.5 font-medium"><Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="hover:text-primary">{a.title}</Link></td>
                     <td className="px-2 tabular-nums">{a.deadline}</td><td className="px-2"><StatusBadge status={a.status} /></td>
                     <td className="px-2 tabular-nums">{a.estimate}h</td><td className="px-2 tabular-nums text-muted-foreground">{a.actual ? `${a.actual}h` : "—"}</td>
-                    <td className="px-4 text-[12px] text-muted-foreground">{a.dependsOn ? <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{a.relation} {assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0]}</span> : "—"}</td>
+                    <td className="px-4 text-[12px] text-muted-foreground">{a.dependsOn ? <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{a.relation} {assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0]!}</span> : "—"}</td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -81,7 +81,7 @@ function CourseDetails() {
                         <div className="text-[12.5px] font-medium leading-snug">{a.title}</div>
                         <div className="mt-1.5"><StatusBadge status={a.status} /></div>
                       </Link>
-                      {i < chain.length - 1 && <div className="flex flex-col items-center text-[10px] text-muted-foreground"><span>{chain[i + 1].relation}</span><ArrowRight className="h-4 w-4" /></div>}
+                      {i < chain.length - 1 && <div className="flex flex-col items-center text-[10px] text-muted-foreground"><span>{chain[i + 1]?.relation}</span><ArrowRight className="h-4 w-4" /></div>}
                     </div>
                   ))}
                 </div>
@@ -93,7 +93,7 @@ function CourseDetails() {
           <p className="text-[12.5px] text-muted-foreground">CampusPulse has indexed {list.length} assignments, {docs.length} documents and {list.filter((a) => a.dependsOn).length} assignment dependencies.</p>
           <dl className="mt-3 space-y-2.5 text-[12.5px]">
             <div><dt className="text-[11.5px] text-muted-foreground">Known technologies</dt><dd className="mt-1 flex flex-wrap gap-1">{course.technologies.map((t) => <span key={t} className="rounded border bg-secondary px-1.5 py-0.5 text-[11px]">{t}</span>)}</dd></div>
-            <div><dt className="text-[11.5px] text-muted-foreground">Relationships</dt><dd>{list.filter((a) => a.dependsOn).map((a) => <div key={a.id}>{a.title.split(" — ")[0]} {a.relation} {assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0]}</div>)}{!list.some((a) => a.dependsOn) && "—"}</dd></div>
+            <div><dt className="text-[11.5px] text-muted-foreground">Relationships</dt><dd>{list.filter((a) => a.dependsOn).map((a) => <div key={a.id}>{a.title.split(" — ")[0]!} {a.relation} {assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0]!}</div>)}{!list.some((a) => a.dependsOn) && "—"}</dd></div>
             <div><dt className="text-[11.5px] text-muted-foreground">Last updated</dt><dd>Today, 09:44</dd></div>
           </dl>
           <Button asChild size="sm" variant="outline" className="mt-4 w-full"><Link to="/knowledge">Explore Course Knowledge</Link></Button>

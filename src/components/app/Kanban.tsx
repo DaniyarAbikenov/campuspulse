@@ -13,7 +13,7 @@ export const columns: { id: Task["column"]; label: string }[] = [
   { id: "backlog", label: "Backlog" }, { id: "todo", label: "To Do" }, { id: "progress", label: "In Progress" }, { id: "review", label: "Review" }, { id: "done", label: "Completed" },
 ];
 
-export function KanbanBoard({ courseId, filter }: { courseId?: string; filter?: (t: Task) => boolean }) {
+export function KanbanBoard({ courseId, filter }: { courseId?: string | undefined; filter?: ((t: Task) => boolean) | undefined }) {
   const { tasks, moveTask } = useStore();
   const [over, setOver] = useState<string | null>(null);
   const [open, setOpen] = useState<Task | null>(null);

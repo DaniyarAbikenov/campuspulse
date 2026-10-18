@@ -131,7 +131,7 @@ function RichAssignment() {
           <Panel title="AI Task Breakdown" subtitle={`${generatedTasks.length} tasks · ${total}h total`} bodyClass="p-0" action={<div className="flex gap-1.5">
             <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => setEditing(!editing)}><Pencil className="h-3 w-3" /> {editing ? "Done" : "Edit Estimates"}</Button>
             <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => toast("Breakdown regenerated", { description: "Same 6 tasks — the brief hasn't changed." })}><RefreshCw className="h-3 w-3" /> Regenerate</Button>
-            <Button size="sm" className="h-7 text-[12px]" onClick={() => { if (tasksGenerated) return navigate({ to: "/kanban" }); addGeneratedTasks(); toast.success("6 tasks added to Kanban", { action: { label: "Open", onClick: () => navigate({ to: "/kanban" }) } }); }}>{tasksGenerated ? "View on Kanban" : "Add All to Kanban"}</Button>
+            <Button size="sm" className="h-7 text-[12px]" onClick={() => { if (tasksGenerated) { void navigate({ to: "/kanban" }); return; } addGeneratedTasks(); toast.success("6 tasks added to Kanban", { action: { label: "Open", onClick: () => navigate({ to: "/kanban" }) } }); }}>{tasksGenerated ? "View on Kanban" : "Add All to Kanban"}</Button>
           </div>}>
             <table className="w-full text-[13px]">
               <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th className="px-4 py-2 font-medium">#</th><th className="font-medium">Task</th><th className="font-medium">Priority</th><th className="font-medium">Req.</th><th className="px-4 text-right font-medium">Estimate</th></tr></thead>

@@ -43,13 +43,13 @@ export function Topbar() {
             {i === parts.length - 1 || parts.length === 0 ? (
               <span className="truncate font-medium">{crumbName(p, i)}</span>
             ) : (
-              <Link to={`/${parts.slice(0, i + 1).join("/")}`} className="text-muted-foreground hover:text-foreground">{crumbName(p, i)}</Link>
+              <Link to={`/${parts.slice(0, i + 1).join("/")}` as "/"} className="text-muted-foreground hover:text-foreground">{crumbName(p, i)}</Link>
             )}
           </span>
         ))}
       </nav>
       <div className="ml-auto flex items-center gap-2">
-        <button onClick={() => setOpen(true)} className="hidden h-8 w-64 items-center gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 md:flex">
+        <button onClick={() => setOpen(true)} className="hidden h-8 w-72 items-center whitespace-nowrap gap-2 rounded-md border bg-card px-2.5 text-[12.5px] text-muted-foreground hover:border-primary/30 md:flex">
           <Search className="h-3.5 w-3.5" /> Search courses, assignments…
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">⌘K</kbd>
         </button>

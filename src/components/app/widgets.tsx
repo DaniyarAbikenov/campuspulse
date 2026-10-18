@@ -1,3 +1,4 @@
+import { cc } from "@/lib/chartColors";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, FileSearch, GraduationCap, Clock, CalendarX, CheckCircle2, Bot, ListChecks, Link2, TrendingUp, Database, CalendarClock } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, ComposedChart, Legend } from "recharts";
@@ -40,7 +41,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
       <div className="mt-auto flex items-center gap-2 pt-3">
         <Button size="sm" className="h-7 text-[12px]" onClick={() => { setInsightStatus(insight.id, "Accepted"); navigate({ to: insight.primary.to }); }}>{insight.primary.label}</Button>
         <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => {
-          if (insight.secondary === "Open Assignment") return navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } });
+          if (insight.secondary === "Open Assignment") { void navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } }); return; }
           const s = insight.secondary === "Remind Me Later" ? "Snoozed" : "Dismissed";
           setInsightStatus(insight.id, s);
           toast(s === "Snoozed" ? "We'll remind you tomorrow at 09:00" : "Insight dismissed", { action: { label: "Undo", onClick: () => setInsightStatus(insight.id, "New") } });
@@ -55,28 +56,28 @@ export function WorkloadChart({ height = 220 }: { height?: number }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={weeklyWorkload} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--border)" />
-        <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} stroke="var(--muted-foreground)" />
-        <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--muted-foreground)" unit="h" />
-        <Tooltip cursor={{ fill: "var(--secondary)" }} contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} />
+        <CartesianGrid vertical={false} stroke={cc.border} />
+        <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} stroke={cc.muted} />
+        <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} unit="h" />
+        <Tooltip cursor={{ fill: cc.secondary }} contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
         <Bar dataKey="required" name="Required" radius={[4, 4, 0, 0]} barSize={28}>
-          {weeklyWorkload.map((d) => <Cell key={d.day} fill={d.required > d.available ? "var(--destructive)" : "var(--primary)"} />)}
+          {weeklyWorkload.map((d) => <Cell key={d.day} fill={d.required > d.available ? cc.danger : cc.primary} />)}
         </Bar>
-        <Line dataKey="available" name="Available" type="stepAfter" stroke="var(--muted-foreground)" strokeDasharray="4 4" dot={false} strokeWidth={1.5} />
+        <Line dataKey="available" name="Available" type="stepAfter" stroke={cc.muted} strokeDasharray="4 4" dot={false} strokeWidth={1.5} />
       </ComposedChart>
     </ResponsiveContainer>
   );
 }
 
-export function SimpleBars({ data, x, y, height = 180, color = "var(--primary)" }: { data: Record<string, unknown>[]; x: string; y: string; height?: number; color?: string }) {
+export function SimpleBars({ data, x, y, height = 180, color = cc.primary }: { data: Record<string, unknown>[]; x: string; y: string; height?: number; color?: string }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--border)" />
-        <XAxis dataKey={x} tickLine={false} axisLine={false} fontSize={11} stroke="var(--muted-foreground)" />
-        <YAxis tickLine={false} axisLine={false} fontSize={11} stroke="var(--muted-foreground)" />
-        <Tooltip cursor={{ fill: "var(--secondary)" }} contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} />
+        <CartesianGrid vertical={false} stroke={cc.border} />
+        <XAxis dataKey={x} tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
+        <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
+        <Tooltip cursor={{ fill: cc.secondary }} contentStyle={{ borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 12 }} />
         <Bar dataKey={y} fill={color} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
