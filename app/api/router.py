@@ -395,8 +395,22 @@ def get_schedule_event(entity_id: UUID, session: SessionDep) -> models.ScheduleE
 
 @router.patch("/schedule-events/{entity_id}", response_model=schemas.ScheduleEventRead)
 def update_schedule_event(
-    entity_id: UUID, payload: schemas.ScheduleEventUpdate, session: SessionDep
+    entity_id: UUID,
+    payload: schemas.ScheduleEventUpdate,
+    session: SessionDep,
+    current: CurrentUserDep,
 ) -> models.ScheduleEvent:
+    event = get_entity(session, models.ScheduleEvent, entity_id)
+    changes = payload.model_dump(exclude_unset=True)
+    if event.kind == models.ScheduleEventKind.study_session and event.user_id == current.user.id:
+        scheduling.check_study_session(
+            session,
+            current,
+            starts_at=changes.get("starts_at") or event.starts_at,
+            ends_at=changes.get("ends_at") or event.ends_at,
+            task_id=changes.get("task_id", event.task_id),
+            exclude_event_id=event.id,
+        )
     return update_entity(session, models.ScheduleEvent, entity_id, payload)
 
 

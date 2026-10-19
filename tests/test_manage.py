@@ -610,3 +610,24 @@ def test_an_insight_that_no_longer_fits_becomes_advice(student: TestClient) -> N
     assert failed.status_code == 409 and "now advice only" in failed.json()["detail"]
     again = [i for i in student.get(f"{API}/insights").json() if i["id"] == insight["id"]][0]
     assert again["action_type"] == "none" and again["cta"]["label"] == "Review"
+
+
+def test_editing_a_study_session_obeys_the_same_limits(student: TestClient) -> None:
+    task = add_task(student, make_assignment(student))  # 1.5h
+    start = far_day(52)
+    created = study_event(student, task, start, 1.0).json()
+    longer = student.patch(
+        f"{API}/schedule-events/{created['id']}",
+        json={"ends_at": (start + timedelta(hours=2)).isoformat()},
+    )
+    assert longer.status_code == 409 and "of 1.5h" in longer.json()["detail"]
+    moved = student.patch(
+        f"{API}/schedule-events/{created['id']}",
+        json={
+            "starts_at": (start + timedelta(hours=1)).isoformat(),
+            "ends_at": (start + timedelta(hours=2)).isoformat(),
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    renamed = student.patch(f"{API}/schedule-events/{created['id']}", json={"title": "Renamed"})
+    assert renamed.status_code == 200
