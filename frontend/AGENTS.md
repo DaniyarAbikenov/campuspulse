@@ -1,0 +1,24 @@
+<!-- LOVABLE:BEGIN -->
+> [!IMPORTANT]
+> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
+> published git history — force pushing, or rebasing/amending/squashing commits
+> that are already pushed — as it rewrites history on Lovable's side and the
+> user will likely lose their project history.
+>
+> Commits you push to the connected branch sync back to Lovable and show up in
+> the editor, so keep the branch in a working state.
+<!-- LOVABLE:END -->
+
+## Architecture
+- Interface localization is applied at React render boundaries through the shared catalog and locale subscription; domain strings stay canonical so switching languages never changes workflow logic. Status aliases normalize external codes only for display.
+- Backend-connected workspace data is loaded through `src/lib/api.ts` into `src/lib/store.tsx`; `src/lib/data.ts` remains the canonical fallback and supplies sections that have not been migrated yet.
+- App shell (sidebar, topbar, chat drawer, upload dialog) is mounted in `src/routes/__root.tsx` — every page shares it.
+- Recharts colors come from `src/lib/chartColors.ts` — SVG attributes can't resolve CSS variables.
+- Workspace access uses per-route guards plus an outlet gate, with role carried in router context; this separates demo workspaces without implying production authorization.
+- Administrator views read cohort entities from the shared demo-data module, never personal student progress.
+- Mobile navigation uses the shared Sidebar inside a Sheet; wide tables and boards scroll inside constrained content containers.
+- Document and workload totals are derived in the shared data module; applying a workload plan redistributes daily hours without changing weekly capacity.
+- Preserve the store context identity in Vite hot data during development; mounted providers and refreshed consumers must never use different context objects.
+- Generated task proposals, approval, import and scheduling are separate context transitions; import and scheduling are idempotent and use the approved estimates.
+- Course counts and assignment state are derived from assignment/task entities; scheduled hours allocate work while task completion reduces remaining workload.
+- Knowledge fragments use explicit fixture provenance and page/requirement links; uploaded file names must never imply real PDF parsing.
