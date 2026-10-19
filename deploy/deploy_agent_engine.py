@@ -29,6 +29,10 @@ def main() -> None:
     parser.add_argument("--model", default="gemini-2.5-flash")
     parser.add_argument("--display-name", default="campuspulse-agent")
     parser.add_argument("--update", help="Resource name of an existing engine to update")
+    parser.add_argument("--min-instances", type=int, default=0, help="0 = scale to zero (cheapest)")
+    parser.add_argument("--max-instances", type=int, default=3)
+    parser.add_argument("--cpu", default="1")
+    parser.add_argument("--memory", default="2Gi")
     args = parser.parse_args()
 
     vertexai.init(project=args.project, location=args.location, staging_bucket=args.staging_bucket)
@@ -52,6 +56,10 @@ def main() -> None:
             "CAMPUSPULSE_MOODLE_MCP_URL": args.moodle_mcp_url,
         },
         "display_name": args.display_name,
+        # Keep the cost predictable: scale to zero and cap the size of each instance.
+        "min_instances": args.min_instances,
+        "max_instances": args.max_instances,
+        "resource_limits": {"cpu": args.cpu, "memory": args.memory},
     }
     remote = (
         agent_engines.update(resource_name=args.update, agent_engine=app, **options)
