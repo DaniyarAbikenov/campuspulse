@@ -191,6 +191,7 @@ export function AddToCalendarDialog({
         <Input
           id="cal-date"
           type="date"
+          min={today}
           value={date}
           onChange={(event) => setDate(event.target.value)}
         />
