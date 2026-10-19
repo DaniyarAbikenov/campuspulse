@@ -18,11 +18,19 @@ flowchart LR
 
 | Tool | Source | Purpose |
 |---|---|---|
-| `get_workload`, `list_assignments`, `get_free_time` | CampusPulse API | Planner facts |
+| `get_workload`, `list_assignments`, `get_free_time`, `get_schedule` | CampusPulse API | Planner facts: load, assignments, free study windows, what is already in the calendar |
+| `list_open_tasks`, `get_study_statistics` | CampusPulse API | Open subtasks; how the student's estimates compare with actual hours |
 | `list_campus_events` | CampusPulse API | Ranked events |
-| `search_knowledge` | CampusPulse API | Indexed excerpts with document and page |
+| `search_knowledge`, `get_assignment_text` | CampusPulse API | Indexed excerpts and the full brief, with document and page |
+| `propose_task_plan` | CampusPulse API | Task breakdown with exact quotes; quotes are verified server-side |
+| `propose_insights`, `list_insights` | CampusPulse API | Insights with reasoning and sources; earlier answers are respected |
+| `propose_actions` | CampusPulse API | Calendar sessions and activities, tasks, task status, assignment cancellation. Stored as pending: the student confirms each in an **Apply** window |
 | `propose_assignment_import` | CampusPulse API | Proposal only; the student approves in the app |
 | `moodle_*` (6 tools) | Moodle MCP server | What is on the course site (read-only) |
+
+Everything the agent writes is a *proposal*: the backend validates it against the student's real
+data and nothing changes until the student applies it. The agent also receives the current campus
+time at the start of each message.
 
 The agent holds no credentials: the backend puts a 60-minute student access token into the ADK
 session state, so API rules (roles, ownership) apply exactly as for the student. Moodle text is
@@ -65,6 +73,11 @@ python deploy/deploy_agent_engine.py --project PROJECT --location us-central1 \
 Put the printed resource name in the backend as `CAMPUSPULSE_AGENT_RESOURCE` together with
 `CAMPUSPULSE_AGENT_MODE=vertex` and the project and location. The backend and the Moodle MCP
 server must be reachable from Google Cloud (Cloud Run); see [`docs/deployment.md`](docs/deployment.md).
+
+Update an existing deployment by adding `--update projects/PROJECT_NUMBER/locations/REGION/reasoningEngines/ID`.
+The deploy script stages the package at the archive root, pins requirements, passes secrets as
+Secret Manager references and keeps `min_instances=0` (scale to zero; the first call after idle can
+take a minute or two).
 
 ## Checks
 
