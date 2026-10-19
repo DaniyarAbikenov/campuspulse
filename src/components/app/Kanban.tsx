@@ -24,11 +24,23 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
   const { tasks, moveTask, assignments } = useStore();
   const [over, setOver] = useState<string | null>(null);
   const [open, setOpen] = useState<Task | null>(null);
+  // On phones one column is shown at a time, chosen with tabs.
+  const [mobileColumn, setMobileColumn] = useState<Task["column"]>("todo");
   const list = tasks.filter((t) => (!courseId || t.courseId === courseId) && (!filter || filter(t)));
 
   return (
     <>
-      <div className="max-w-full overflow-x-auto"><div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
+      <div role="tablist" aria-label={localize("Board columns", locale)} className="mb-2 flex gap-1 overflow-x-auto md:hidden">
+        {columns.map((col) => {
+          const count = list.filter((t) => t.column === col.id).length;
+          return (
+            <Button key={col.id} role="tab" aria-selected={mobileColumn === col.id} variant="ghost" size="sm" onClick={() => setMobileColumn(col.id)} className={cn("shrink-0 rounded-md border px-2.5 text-[12.5px]", mobileColumn === col.id ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground")}>
+              {localize(col.label, locale)} <span className="ml-1 tabular-nums">{count}</span>
+            </Button>
+          );
+        })}
+      </div>
+      <div className="max-w-full md:overflow-x-auto"><div className="grid grid-cols-1 gap-2.5 md:min-w-[1000px] md:grid-cols-5">
         {localize(columns.map((col) => {
   
           const items = list.filter((t) => t.column === col.id);
@@ -38,7 +50,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
               onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
               onDragLeave={() => setOver(null)}
               onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(localize(`Moved to ${col.label}`, locale)); }}
-              className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", over === col.id && "bg-primary-soft ring-primary/40")}
+              className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", col.id !== mobileColumn && "hidden md:flex", over === col.id && "bg-primary-soft ring-primary/40")}
             >
               <div className="mb-1.5 flex h-7 items-center gap-1.5 px-1.5 text-[12px] font-semibold">
                 <span className={cn("h-2 w-2 rounded-full", dot[col.id])} />{localize(col.label, locale)}<span className="text-[11px] font-normal tabular-nums text-muted-foreground">{localize(items.length, locale)}</span>

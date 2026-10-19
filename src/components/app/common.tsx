@@ -55,7 +55,7 @@ export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "defau
           </span>
         ), locale)}
       </div>
-      <p className="mt-1.5 truncate text-[11.5px] text-muted-foreground">{localize(sub, locale)}</p>
+      <p className="mt-1.5 line-clamp-2 text-[11.5px] text-muted-foreground">{localize(sub, locale)}</p>
     </div>
   );
 }
@@ -122,13 +122,14 @@ export function ProgressBar({ value, className }: { value: number; className?: s
   );
 }
 
-export function EmptyState({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+export function EmptyState({ icon: Icon, title, text, action }: { icon: LucideIcon; title: string; text: string; action?: ReactNode }) {
   const { locale } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
       <div className="mb-3 rounded-lg border bg-secondary p-2.5"><Icon className="h-5 w-5 text-muted-foreground" /></div>
       <p className="text-[13px] font-medium">{localize(title, locale)}</p>
       <p className="mt-1 max-w-xs text-[12px] text-muted-foreground">{localize(text, locale)}</p>
+      {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }

@@ -36,6 +36,8 @@ function Schedule() {
   const todayIndex = daysBetween(weekStart, today);
   const [slot, setSlot] = useState<FreeSlot | null>(null);
   const [adding, setAdding] = useState(false);
+  // On phones one day is shown at a time.
+  const [mobileDay, setMobileDay] = useState(() => Math.min(6, Math.max(0, daysBetween(weekStart, today))));
   const [selected, setSelected] = useState<CalEvent | null>(null);
   const [series, setSeries] = useState<RepeatingActivity[]>([]);
   const addAt = (target: FreeSlot | null) => { setSlot(target); setAdding(true); };
@@ -69,12 +71,17 @@ function Schedule() {
       <p className="mb-3 text-[13px]" aria-live="polite">{localize(workload.scheduled, locale)}{localize("h study scheduled ·", locale)} {localize(workload.unscheduled, locale)}{localize("h not yet scheduled", locale)}</p>
       <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
         <div className="panel overflow-x-auto">
-          <div className="grid min-w-[760px] grid-cols-[52px_repeat(7,1fr)]">
+          <div role="tablist" aria-label={localize("Day", locale)} className="flex gap-1 overflow-x-auto border-b p-2 md:hidden">
+            {days.map((d, i) => (
+              <Button key={d} role="tab" aria-selected={mobileDay === i} variant="ghost" size="sm" onClick={() => setMobileDay(i)} className={cn("shrink-0 rounded-md border px-2.5 text-[12px]", mobileDay === i ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground", i === todayIndex && mobileDay !== i && "text-primary")}>{d}</Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-[52px_1fr] md:min-w-[760px] md:grid-cols-[52px_repeat(7,1fr)]">
             <div className="border-b" />
-            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === todayIndex && "text-primary")}>{localize(d, locale)}</div>), locale)}
+            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i !== mobileDay && "hidden md:block", i === todayIndex && "text-primary")}>{localize(d, locale)}</div>), locale)}
             <div className="relative">{localize(hours.map((h) => <div key={h} style={{ height: H }} className="pr-2 pt-0.5 text-right font-mono text-[10.5px] text-muted-foreground">{localize(h, locale)}{localize(":00", locale)}</div>), locale)}</div>
             {localize(days.map((_, di) => (
-              <div key={di} className="relative border-l" style={{ height: H * hours.length }}>
+              <div key={di} className={cn("relative border-l", di !== mobileDay && "hidden md:block")} style={{ height: H * hours.length }}>
                 {localize(hours.map((h) => <div key={h} style={{ height: H }} className="border-b border-dashed border-border/70" />), locale)}
                 {localize(freeSlots.filter((s) => s.day === di && !taken(s)).map((s) => (
                   <Button variant="ghost" aria-label={localize(`Plan study session ${s.label}`, locale)} key={s.id} onClick={() => addAt(s)} style={{ top: (s.start - 8) * H, height: (s.end - s.start) * H }}

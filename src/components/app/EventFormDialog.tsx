@@ -105,7 +105,7 @@ export function EventFormDialog({
             {localize(event ? "Edit event" : "Add a campus event", locale)}
           </DialogTitle>
           <DialogDescription>
-            {localize("Visible to everyone at your institution.", locale)}
+            {localize("Published at once for everyone at your institution, with no review step. You can edit or delete events you add; administrators can change any event.", locale)}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

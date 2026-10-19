@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { EventFormDialog } from "@/components/app/EventFormDialog";
 import { deleteRemoteCampusEvent } from "@/lib/api";
-import { PageHeader } from "@/components/app/common";
+import { EmptyState, PageHeader } from "@/components/app/common";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { CampusEvent } from "@/lib/data";
@@ -79,7 +79,7 @@ function Events() {
           </article>
         )), locale)}
       </div>
-      {!list.length ? <p className="text-[13px] text-muted-foreground">{localize("No events yet. Add the first one.", locale)}</p> : null}
+      {!list.length ? <div className="panel"><EmptyState icon={CalendarDays} title={localize("No campus events yet", locale)} text={localize("Add a meetup, lecture or club event so classmates can see it and save it to their calendar.", locale)} action={backendConnected ? <Button size="sm" onClick={() => setForm("new")}><Plus className="h-3.5 w-3.5" /> {localize("Add event", locale)}</Button> : undefined} /></div> : null}
       <EventFormDialog open={form !== null} onOpenChange={(o) => !o && setForm(null)} event={form === "new" ? null : form} />
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>

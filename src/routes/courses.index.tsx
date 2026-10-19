@@ -60,7 +60,7 @@ function Courses() {
               <tr key={c.id} className="border-b last:border-0 hover:bg-secondary/60">
                 <td className="px-4 py-2.5 font-medium"><Link to="/courses/$courseId" params={{ courseId: c.id }} className="hover:text-primary">{localize(c.name, locale)}</Link></td>
                 <td className="px-2 font-mono text-[12px] text-muted-foreground">{localize(c.code, locale)}</td><td className="px-2">{localize(c.instructor, locale)}</td><td className="px-2 tabular-nums">{localize(c.completed, locale)}{localize("/", locale)}{localize(c.assignments, locale)}</td>
-                <td className="px-2"><ProgressBar value={c.progress} /></td><td className="px-2 tabular-nums">{localize(c.remaining, locale)}{localize("h", locale)}</td><td className="px-4">{localize(c.nextDeadline, locale)}</td>
+                <td className="px-2"><div className="flex items-center gap-2"><ProgressBar value={c.progress} /><span className="w-9 text-right text-[11.5px] tabular-nums text-muted-foreground">{c.progress}%</span></div></td><td className="px-2 tabular-nums">{localize(c.remaining, locale)}{localize("h", locale)}</td><td className="px-4">{localize(c.nextDeadline, locale)}</td>
               </tr>
             )), locale)}</tbody>
           </table>

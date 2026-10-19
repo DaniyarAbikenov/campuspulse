@@ -324,7 +324,24 @@ export function AssignmentTable({ ids }: { ids?: string[] }) {
   const { assignments: liveAssignments } = useStore();
   const rows = ids ? liveAssignments.filter((a) => ids.includes(a.id)) : liveAssignments;
   return (
-    <div className="overflow-x-auto">
+    <>
+    <ul className="divide-y md:hidden">
+      {rows.map((a) => (
+        <li key={a.id} className="space-y-1.5 px-3.5 py-3 text-[12.5px]">
+          <div className="flex items-start justify-between gap-2">
+            <Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="font-medium hover:text-primary">{localize(a.title, locale)}</Link>
+            <StatusBadge status={a.status} />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+            <CourseTag id={a.courseId} />
+            <span>{localize("Due", locale)} {localize(a.deadline, locale)}</span>
+            <span className="tabular-nums">{a.estimate}{localize("h", locale)}</span>
+          </div>
+          <div className="flex items-center gap-2"><ProgressBar value={a.progress} /><span className="w-9 text-right text-[11.5px] tabular-nums text-muted-foreground">{a.progress}%</span></div>
+        </li>
+      ))}
+    </ul>
+    <div className="hidden overflow-x-auto md:block">
       <table className="min-w-[640px] w-full text-[12.5px]">
         <thead>
           <tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
@@ -391,6 +408,7 @@ export function AssignmentTable({ ids }: { ids?: string[] }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

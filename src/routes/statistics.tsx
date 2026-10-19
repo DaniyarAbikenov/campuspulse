@@ -1,10 +1,11 @@
 import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { cc } from "@/lib/chartColors";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Target, Timer, CheckCircle2, ListChecks } from "lucide-react";
-import { MetricCard, PageHeader, Panel } from "@/components/app/common";
+import { EmptyState, MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { SimpleBars } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
 import { courseOf, semesterTrend } from "@/lib/data";
@@ -55,6 +56,7 @@ function Stats() {
         </Panel>
         <Panel title={localize("Reported assignment hours by course", locale)}><SimpleBars data={courses.map((course) => ({ c: course.code.split(" ")[0], h: done.filter((a) => a.courseId === course.id).reduce((sum, a) => sum + (a.actual ?? 0), 0) }))} x="c" y="h" height={240} /></Panel>
       </div>
+      {done.length ? (
       <Panel title={localize("Estimate vs. actual", locale)} subtitle={localize("Completed assignments", locale)} className="mt-4" bodyClass="p-0">
         <table className="w-full text-[13px]">
           <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">{localize("Assignment", locale)}</th><th scope="col" className="font-medium">{localize("Course", locale)}</th><th scope="col" className="font-medium">{localize("Estimate", locale)}</th><th scope="col" className="font-medium">{localize("Actual", locale)}</th><th scope="col" className="px-4 font-medium">{localize("Δ", locale)}</th></tr></thead>
@@ -64,6 +66,9 @@ function Stats() {
           ); }), locale)}</tbody>
         </table>
       </Panel>
+      ) : (
+        <Panel title={localize("Estimate vs. actual", locale)} className="mt-4"><EmptyState icon={Target} title={localize("Nothing to compare yet", locale)} text={localize("Mark an assignment as completed with the hours it really took, and your estimates are compared with reality here.", locale)} action={<Link to="/assignments"><Button size="sm" variant="outline">{localize("Open assignments", locale)}</Button></Link>} /></Panel>
+      )}
     </>
   );
 }

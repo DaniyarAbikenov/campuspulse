@@ -1,7 +1,7 @@
 import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { FileText, Search, Upload, BookMarked, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,22 @@ export const Route = createFileRoute("/knowledge")({
 
 type Doc = KnowledgeDoc;
 
+/** The text with every occurrence of the search term marked. */
+function highlightMatch(text: string, term: string) {
+  const needle = term.trim();
+  if (!needle) return text;
+  const lower = text.toLowerCase();
+  const target = needle.toLowerCase();
+  const parts: ReactNode[] = [];
+  let from = 0;
+  for (let at = lower.indexOf(target); at >= 0; at = lower.indexOf(target, from)) {
+    parts.push(text.slice(from, at), <mark key={at} className="doc-highlight">{text.slice(at, at + needle.length)}</mark>);
+    from = at + needle.length;
+  }
+  parts.push(text.slice(from));
+  return <>{parts}</>;
+}
+
 function Knowledge() {
   const { locale } = useI18n();
   const { setUploadOpen, tasks, analysisSource, knowledgeDocs, documentFragments, courses, backendConnected, reloadWorkspace } = useStore();
@@ -44,11 +60,11 @@ function Knowledge() {
       setRemoving(null);
     }
   };
+  const [q, setQ] = useState("");
   const conceptMap = new Map<string, Set<string>>();
   for (const item of knowledgeDocs) for (const concept of item.concepts) conceptMap.set(concept, (conceptMap.get(concept) ?? new Set()).add(item.id));
-  const concepts = [...conceptMap.entries()].map(([concept, ids]) => [concept, ids.size] as const).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14);
+  const concepts = [...conceptMap.entries()].filter(([concept]) => !q.trim() || concept.toLowerCase().includes(q.trim().toLowerCase())).map(([concept, ids]) => [concept, ids.size] as const).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14);
   const documentTotals = { count: knowledgeDocs.length, pages: knowledgeDocs.reduce((sum, item) => sum + item.pages, 0) };
-  const [q, setQ] = useState("");
   const [course, setCourse] = useState("all");
   const [doc, setDoc] = useState<Doc | null>(null);
   const list = knowledgeDocs.filter((d) => (course === "all" || d.courseId === course) && (d.title + d.concepts.join(" ")).toLowerCase().includes(q.toLowerCase()));
@@ -62,10 +78,10 @@ function Knowledge() {
             <div className="flex flex-wrap gap-1">{localize(["all", ...courses.map((c) => c.id)].map((c) => <Button variant="outline" size="sm" aria-pressed={course === c} key={c} onClick={() => setCourse(c)} className={cn("rounded-md border px-2 text-[12px]", course === c ? "border-primary/40 bg-primary-soft text-primary" : "text-muted-foreground")}>{localize(c === "all" ? "All" : courses.find((x) => x.id === c)?.code.split(" ")[0], locale)}</Button>), locale)}</div>
           </div>
           {localize(list.length ? <div className="grid gap-3 md:grid-cols-2">{localize(list.map((d) => (
-            <Button variant="ghost" key={d.id} onClick={() => setDoc(d)} className="panel h-auto flex-col items-stretch whitespace-normal p-3 text-left transition-colors hover:border-primary/40">
+            <Button variant="ghost" key={d.id} onClick={() => setDoc(d)} aria-label={`${d.title}, ${d.type}, ${d.pages} ${locale === "en" ? "pages" : ""}`.trim()} className="panel h-auto flex-col items-stretch whitespace-normal p-3 text-left transition-colors hover:border-primary/40">
               <div className="flex items-start gap-2"><FileText className="mt-0.5 h-4 w-4 text-primary" /><div className="min-w-0 flex-1"><div className="truncate text-[13px] font-medium">{localize(d.title, locale)}</div><div className="text-[11.5px] text-muted-foreground">{localize(d.type, locale)} {localize("·", locale)} {localize(d.pages, locale)} {localize("pages · indexed", locale)} {localize(d.indexed, locale)}</div></div></div>
               <div className="mt-2"><CourseTag id={d.courseId} /></div>
-              <div className="mt-2 flex flex-wrap gap-1">{localize(d.concepts.map((c) => <span key={c} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{localize(c, locale)}</span>), locale)}</div>
+              <div className="mt-2 flex flex-wrap gap-1">{d.concepts.slice(0, 4).map((c) => <span key={c} className="max-w-full truncate rounded bg-secondary px-1.5 py-0.5 text-[11px]">{localize(c.length > 48 ? `${c.slice(0, 47)}…` : c, locale)}</span>)}{d.concepts.length > 4 ? <span className="px-1 py-0.5 text-[11px] text-muted-foreground">+{d.concepts.length - 4}</span> : null}</div>
             </Button>
           )), locale)}</div> : <div className="panel"><EmptyState icon={Search} title={localize("No matching documents", locale)} text={localize("Try a different concept or course.", locale)} /></div>, locale)}
         </div>
@@ -99,7 +115,7 @@ function Knowledge() {
               {backendConnected ? null : <PredictionNote>{localize("Summary: this document introduces", locale)} {localize(doc.concepts.join(", "), locale)} {localize("and is referenced by", locale)} {localize(doc.type === "Assignment" ? "the generated task breakdown" : "your study plan and related assignments", locale)}{localize(".", locale)}</PredictionNote>}
               <div className="text-[11.5px] text-muted-foreground">{localize("Indexed", locale)} {localize(doc.indexed, locale)} {localize("·", locale)} {localize(documentFragments.filter((fragment) => fragment.documentId === doc.id).length, locale)} {localize(backendConnected ? "indexed fragments" : "sourced demo fragments", locale)}</div>
               <section className="border-t pt-3"><h2 className="font-semibold">{localize("Source and page fragments", locale)}</h2><p className="my-2 text-[12px] text-muted-foreground">{localize(doc.title, locale)} {localize(backendConnected ? "· text extracted from the uploaded file" : "· fixture excerpts, not the uploaded PDF text", locale)}{backendConnected ? null : localize(doc.id === "d1" ? ` · analysis input: ${analysisSource}` : "", locale)}</p>
-                {localize(documentFragments.filter((fragment) => fragment.documentId === doc.id).map((fragment) => <article key={fragment.id} className="border-b py-3"><h3 className="font-medium">{localize("Page", locale)} {localize(fragment.page, locale)} {localize("·", locale)} {localize(fragment.requirementId ?? fragment.concept, locale)}</h3><blockquote className="my-2 border-l-2 border-ai pl-2 text-[12px] text-muted-foreground">{localize(fragment.text, locale)}</blockquote>{localize(fragment.assignmentId && <Link onClick={() => setDoc(null)} className="text-primary underline" to="/assignments/$assignmentId" params={{ assignmentId: fragment.assignmentId }} search={{ page: fragment.page }}>{localize("Open source assignment · p.", locale)} {localize(fragment.page, locale)}</Link>, locale)}{localize(tasks.filter((task) => task.req && task.req === fragment.requirementId).map((task) => <div key={task.id} className="mt-2"><Link onClick={() => setDoc(null)} to="/kanban" className="text-primary underline">{localize("Linked task:", locale)} {localize(task.title, locale)}</Link></div>), locale)}</article>), locale)}
+                {localize(documentFragments.filter((fragment) => fragment.documentId === doc.id).map((fragment) => <details key={fragment.id} open={!!q.trim() && fragment.text.toLowerCase().includes(q.trim().toLowerCase())} className="border-b py-2"><summary className="cursor-pointer font-medium">{localize("Page", locale)} {localize(fragment.page, locale)} {localize("·", locale)} {localize((fragment.requirementId ?? fragment.concept).slice(0, 80), locale)}</summary><blockquote className="my-2 max-h-72 overflow-y-auto whitespace-pre-wrap border-l-2 border-ai pl-2 text-[12px] text-muted-foreground">{highlightMatch(fragment.text, q)}</blockquote>{localize(fragment.assignmentId && <Link onClick={() => setDoc(null)} className="text-primary underline" to="/assignments/$assignmentId" params={{ assignmentId: fragment.assignmentId }} search={{ page: fragment.page }}>{localize("Open source assignment · p.", locale)} {localize(fragment.page, locale)}</Link>, locale)}{localize(tasks.filter((task) => task.req && task.req === fragment.requirementId).map((task) => <div key={task.id} className="mt-2"><Link onClick={() => setDoc(null)} to="/kanban" className="text-primary underline">{localize("Linked task:", locale)} {localize(task.title, locale)}</Link></div>), locale)}</details>), locale)}
               </section>
             </div>
           </>, locale)}
