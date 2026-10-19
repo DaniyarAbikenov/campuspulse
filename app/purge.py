@@ -34,6 +34,7 @@ ACADEMIC_TABLES: list[type[models.Base]] = [
     models.ScheduleSeries,
     models.CampusEventMatch,
     models.CampusEvent,
+    models.DocumentChunk,
     models.DocumentFragment,
     models.Document,
     models.AssignmentRelation,

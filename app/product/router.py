@@ -19,6 +19,7 @@ from app.auth.router import CurrentUserDep, get_jwt_secret
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
+from app.documents import embeddings, retrieval
 from app.documents import service as documents_service
 from app.product import (
     actions,
@@ -178,6 +179,7 @@ async def upload_assignment(
         raise
     finally:
         await file.close()
+    await asyncio.to_thread(retrieval.index_document, session, document)
     return schemas.AssignmentUploadRead(
         assignment=schemas.AssignmentRead.model_validate(assignment),
         document=schemas.DocumentRead.model_validate(document),
@@ -823,6 +825,29 @@ def _material_read(
     return next(item for item in knowledge.documents if item.id == document.id)
 
 
+@router.get("/knowledge/search", response_model=list[schemas.KnowledgeHitRead], tags=["knowledge"])
+def search_knowledge(
+    current: CurrentUserDep,
+    session: SessionDep,
+    q: Annotated[str, Query(min_length=2, max_length=500)],
+    limit: Annotated[int, Query(ge=1, le=10)] = 5,
+    course_id: UUID | None = None,
+) -> list[schemas.KnowledgeHitRead]:
+    """Passages of the student's materials that best match the question, by meaning."""
+    return retrieval.search(session, current, q, limit=limit, course_id=course_id)
+
+
+@router.post("/knowledge/reindex", response_model=schemas.ReindexRead, tags=["knowledge"])
+def reindex_knowledge(
+    current: CurrentUserDep, session: SessionDep, force: bool = False
+) -> schemas.ReindexRead:
+    """Build search chunks for documents that have none (all of them with `force=true`)."""
+    count = retrieval.reindex_all(session, current, force=force)
+    return schemas.ReindexRead(
+        indexed_documents=count, semantic=embeddings.get_embedder() is not None
+    )
+
+
 @router.post(
     "/materials",
     response_model=schemas.KnowledgeDocumentRead,
@@ -864,6 +889,7 @@ async def upload_material(
         raise
     finally:
         await file.close()
+    await asyncio.to_thread(retrieval.index_document, session, document)
     return _material_read(session, current, document)
 
 

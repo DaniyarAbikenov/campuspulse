@@ -403,6 +403,7 @@ class Task(TimestampMixin, Base):
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_ai_generated: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     source_requirement: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    resources: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
 
 
 class Document(TimestampMixin, Base):
@@ -571,6 +572,25 @@ class DocumentFragment(TimestampMixin, Base):
     concept: Mapped[str] = mapped_column(String(160))
     text: Mapped[str] = mapped_column(Text)
     requirement_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class DocumentChunk(TimestampMixin, Base):
+    """A passage of a document with its embedding; the unit semantic search retrieves."""
+
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        UniqueConstraint("document_id", "position", name="uq_document_chunk_position"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    page: Mapped[int] = mapped_column(Integer, default=1)
+    text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class CampusEvent(TimestampMixin, Base):
@@ -766,6 +786,8 @@ class TaskPlanItem(TimestampMixin, Base):
     task_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
+    # Passages from the student's own materials that help with this task.
+    resources: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
 
 
 class AgentAction(TimestampMixin, Base):
