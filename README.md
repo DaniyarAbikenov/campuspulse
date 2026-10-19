@@ -87,7 +87,6 @@ Frontend подключён к локальному FastAPI, но остаётс
 - Generated task proposal, approval, import и scheduling частично живут в Store.
 - Workload plan изменяет визуальную модель; server insight apply вызывается только из соответствующего insight flow.
 - Semester trend и admin cohort/activity — fixtures; offline-режим показывает явный баннер.
-- Requirements и historical hours на assignment detail — fixtures.
 - Если агент не настроен, Upload показывает симулированный analysis (явно помечен); при включённом агенте анализ настоящий.
 - Topbar search/chat остаются прототипными.
 
