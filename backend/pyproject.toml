@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "campuspulse-backend"
+version = "0.1.0"
+description = "Typed FastAPI backend for CampusPulse"
+requires-python = ">=3.11"
+dependencies = [
+  "alembic>=1.14,<2.0",
+  "fastapi>=0.115,<1.0",
+  "google-auth[requests]>=2.38,<3.0",
+  "httpx>=0.28,<1.0",
+  "pyjwt>=2.10,<3.0",
+  "pydantic[email]>=2.10,<3.0",
+  "pydantic-settings>=2.6,<3.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "pypdf>=5.0,<7.0",
+  "python-docx>=1.1,<2.0",
+  "python-multipart>=0.0.18,<1.0",
+  "sqlalchemy>=2.0.36,<3.0",
+  "uvicorn[standard]>=0.32,<1.0",
+]
+
+[project.optional-dependencies]
+agent = ["google-cloud-aiplatform[agent_engines]>=1.100"]
+dev = [
+  "reportlab>=4.2,<5.0",
+  "httpx>=0.28,<1.0",
+  "mypy>=1.13,<2.0",
+  "pytest>=8.3,<9.0",
+  "ruff>=0.8,<1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["vertexai", "vertexai.*"]
+ignore_missing_imports = true
+
