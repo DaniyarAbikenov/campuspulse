@@ -97,9 +97,11 @@ async def stream_chat(
     *,
     settings: Settings,
     secret: str,
+    title: str | None = None,
 ) -> AsyncIterator[schemas.AgentChatStepRead | schemas.AgentChatRead]:
-    """Yield each reasoning step live, then the recorded chat result."""
-    title = payload.message.strip().replace("\n", " ")[:120]
+    """Yield each reasoning step live, then the recorded chat result. `title` names the run in
+    the activity log; by default it is the student's message."""
+    title = title or payload.message.strip().replace("\n", " ")[:120]
     started: datetime = models.utc_now()
     reply: AgentReply | None = None
     try:
@@ -205,6 +207,7 @@ async def stream_analysis(
     plans.assignment_text(session, actor, assignment_id)  # 404 early when there is nothing to read
     started: datetime = models.utc_now()
     reply: schemas.AgentChatRead | None = None
+    named = session.get(models.Assignment, assignment_id)
     async for item in stream_chat(
         session,
         actor,
@@ -212,6 +215,7 @@ async def stream_analysis(
         schemas.AgentChatRequest(message=ANALYSIS_PROMPT.format(assignment_id=assignment_id)),
         settings=settings,
         secret=secret,
+        title=f"Analyzed “{named.title}”" if named else "Analyzed an assignment",
     ):
         if isinstance(item, schemas.AgentChatRead):
             reply = item
@@ -290,6 +294,7 @@ async def stream_insights(
         ),
         settings=settings,
         secret=secret,
+        title="Reviewed your week",
     ):
         if isinstance(item, schemas.AgentChatRead):
             reply = item

@@ -163,6 +163,8 @@ def test_refresh_runs_the_agent_and_returns_its_insights(student: TestClient) ->
     body = student.post("/api/v1/insights/refresh").json()
     assert len(body["created"]) == 1 and body["created"][0]["generated_by"] == "agent"
     assert [s["name"] for s in body["steps"]] == ["propose_insights"]
+    runs = student.get("/api/v1/agent/activity").json()["runs"]
+    assert runs[0]["title"] == "Reviewed your week"  # not the internal prompt
 
 
 def test_refresh_reports_when_the_agent_proposes_nothing(student: TestClient) -> None:
