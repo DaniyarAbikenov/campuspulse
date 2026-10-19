@@ -2,7 +2,7 @@
 agent or the planner): no overlap, the daily study limit and the task's own estimate."""
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -14,6 +14,7 @@ from app.db import models
 from app.product import service
 
 TOLERANCE_HOURS = 0.01
+PAST_GRACE = timedelta(minutes=2)
 
 
 def _hours(start: datetime, end: datetime) -> float:
@@ -67,8 +68,14 @@ def check_study_session(
     ends_at: datetime,
     task_id: UUID | None,
     exclude_event_id: UUID | None = None,
+    allow_past: bool = False,
 ) -> None:
     """Raise 409 with a plain explanation unless the session fits the student's limits."""
+    if not allow_past and service._aware(starts_at) < service.now_utc() - PAST_GRACE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That time has already passed. Pick a time from now on.",
+        )
     check_no_overlap(session, actor, starts_at, ends_at, exclude_event_id)
     settings = service.get_settings_model(session, actor.user.id)
     zone = service._user_timezone(session, actor.user)

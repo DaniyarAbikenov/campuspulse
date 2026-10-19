@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -648,18 +649,18 @@ def test_cancelling_removes_every_session_of_the_removed_tasks_even_past_ones(
     task = add_task(student, assignment)
     me = student.get(f"{API}/auth/me").json()
     past = datetime.now(UTC) - timedelta(days=2)
-    created = student.post(
-        f"{API}/schedule-events",
-        json={
-            "user_id": me["id"],
-            "title": "Study: earlier",
-            "kind": "study_session",
-            "task_id": task,
-            "starts_at": past.isoformat(),
-            "ends_at": (past + timedelta(hours=1)).isoformat(),
-        },
+    db = session_of(student)
+    db.add(
+        models.ScheduleEvent(
+            user_id=UUID(me["id"]),
+            title="Study: earlier",
+            kind=models.ScheduleEventKind.study_session,
+            task_id=UUID(task),
+            starts_at=past,
+            ends_at=past + timedelta(hours=1),
+        )
     )
-    assert created.status_code == 201, created.text
+    db.commit()
     student.post(f"{API}/assignments/{assignment}/cancel")
     left = student.get(f"{API}/schedule-events", params={"limit": 200}).json()
     assert not [e for e in left if e["title"] == "Study: earlier"]
@@ -750,3 +751,57 @@ def test_the_status_snapshot_speaks_in_campus_time(student: TestClient) -> None:
     snapshot = student.get(f"{API}/assignments/{assignment}/status").json()
     assert snapshot["study_sessions"][0]["starts_at"].endswith("+05:00")
     assert snapshot["due_at"].endswith("+05:00")
+
+
+# --- nothing in the past -----------------------------------------------------------------
+
+
+def at_local(hour: int, minute: int = 0) -> datetime:
+    """Today in the campus zone (UTC+5) at the given clock time, as an instant."""
+    now = datetime.now(UTC) + timedelta(hours=5)
+    return now.replace(hour=hour, minute=minute, second=0, microsecond=0) - timedelta(hours=5)
+
+
+def test_free_time_never_starts_in_the_past(
+    student: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.product import service
+
+    fixed = at_local(20, 50)
+    monkeypatch.setattr(service, "now_utc", lambda: fixed)
+    today = (fixed + timedelta(hours=5)).date()
+    monday = (today - timedelta(days=today.weekday())).isoformat()
+    slots = student.get(f"{API}/schedule/free-time", params={"week_start": monday}).json()
+    for slot in slots:
+        assert datetime.fromisoformat(slot["starts_at"]) >= fixed, slot
+    # earlier in the day the remaining part of the day is offered, from the next quarter hour
+    monkeypatch.setattr(service, "now_utc", lambda: at_local(11, 7))
+    slots = student.get(f"{API}/schedule/free-time", params={"week_start": monday}).json()
+    first_today = [s for s in slots if s["starts_at"][:10] == today.isoformat()]
+    assert first_today and first_today[0]["starts_at"][11:16] == "11:15"
+
+
+def test_a_study_session_cannot_start_in_the_past(
+    student: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.product import service
+
+    monkeypatch.setattr(service, "now_utc", lambda: at_local(20, 50))
+    task = add_task(student, make_assignment(student))
+    earlier = at_local(11, 0)
+    rejected = study_event(student, task, earlier, 0.5)
+    assert rejected.status_code == 409 and "already passed" in rejected.json()["detail"]
+    assert study_event(student, task, at_local(21, 30), 0.5).status_code == 201
+
+
+def test_the_planner_never_places_sessions_in_the_past(
+    student: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.product import service
+
+    fixed = at_local(15, 20)
+    monkeypatch.setattr(service, "now_utc", lambda: fixed)
+    add_task(student, make_assignment(student))
+    plan = student.get(f"{API}/schedule/plan").json()
+    assert plan["sessions"]
+    assert all(datetime.fromisoformat(s["starts_at"]) >= fixed for s in plan["sessions"])
