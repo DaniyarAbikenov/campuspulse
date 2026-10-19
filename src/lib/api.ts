@@ -16,6 +16,38 @@ const API_URL = import.meta.env["VITE_API_URL"] ?? "http://127.0.0.1:8000/api/v1
 const WEEK_START = "2026-10-19";
 let accessToken = "";
 let refreshToken = "";
+
+export const GOOGLE_CLIENT_ID: string | undefined =
+  (import.meta.env["VITE_GOOGLE_CLIENT_ID"] as string | undefined) || undefined;
+/** Local development shortcut; the backend only honours it while demo auth is enabled there. */
+export const DEMO_LOGIN_ENABLED = import.meta.env["VITE_ENABLE_DEMO_LOGIN"] !== "false";
+// Prototype storage: production should move the refresh token into a Secure HttpOnly cookie.
+const REFRESH_KEY = "campuspulse.refresh";
+const readRefresh = () => {
+  try {
+    return localStorage.getItem(REFRESH_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+const writeRefresh = (value: string) => {
+  try {
+    if (value) localStorage.setItem(REFRESH_KEY, value);
+    else localStorage.removeItem(REFRESH_KEY);
+  } catch {
+    /* Storage may be blocked; the session then lasts until reload. */
+  }
+};
+const setTokens = (tokens: { access_token: string; refresh_token: string }) => {
+  accessToken = tokens.access_token;
+  refreshToken = tokens.refresh_token;
+  writeRefresh(refreshToken);
+};
+const clearTokens = () => {
+  accessToken = "";
+  refreshToken = "";
+  writeRefresh("");
+};
 let currentUserId = "";
 
 interface ApiCourse {
@@ -159,11 +191,10 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
     if (refreshed.ok) {
-      const tokens = (await refreshed.json()) as { access_token: string; refresh_token: string };
-      accessToken = tokens.access_token;
-      refreshToken = tokens.refresh_token;
+      setTokens((await refreshed.json()) as { access_token: string; refresh_token: string });
       return request<T>(path, init, false);
     }
+    clearTokens();
   }
   if (!response.ok)
     throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
@@ -297,11 +328,6 @@ export interface WorkspaceData {
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
-  const tokens = await request<{ access_token: string; refresh_token: string }>("/auth/demo", {
-    method: "POST",
-  });
-  accessToken = tokens.access_token;
-  refreshToken = tokens.refresh_token;
   const [
     rawCourses,
     page,
@@ -720,3 +746,96 @@ export const sendAgentMessage = async (
   );
   return { sessionId: reply.session_id, reply: reply.reply, steps: reply.steps };
 };
+
+export type AuthState = "signed_out" | "needs_onboarding" | "signed_in";
+export interface OnboardingOptions {
+  institutions: {
+    id: string;
+    name: string;
+    shortName: string;
+    courses: { id: string; code: string; name: string }[];
+  }[];
+}
+
+const afterSignIn = async (): Promise<AuthState> => {
+  const me = await request<{ institution_id: string | null }>("/auth/me");
+  return me.institution_id ? "signed_in" : "needs_onboarding";
+};
+/** Resume a stored session; falls back to the demo account only when Google sign-in is off. */
+export async function restoreSession(): Promise<AuthState> {
+  const stored = readRefresh();
+  if (stored) {
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: stored }),
+    });
+    if (response.ok) {
+      setTokens((await response.json()) as { access_token: string; refresh_token: string });
+      return afterSignIn();
+    }
+    clearTokens();
+  }
+  if (!GOOGLE_CLIENT_ID && DEMO_LOGIN_ENABLED) return signInDemo();
+  return "signed_out";
+}
+export async function signInWithGoogle(credential: string): Promise<AuthState> {
+  setTokens(
+    await request<{ access_token: string; refresh_token: string }>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    }),
+  );
+  return afterSignIn();
+}
+export async function signInDemo(): Promise<AuthState> {
+  setTokens(
+    await request<{ access_token: string; refresh_token: string }>("/auth/demo", {
+      method: "POST",
+    }),
+  );
+  return afterSignIn();
+}
+export async function signOutRemote() {
+  const token = refreshToken;
+  clearTokens();
+  if (token)
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: token }),
+    }).catch(() => undefined);
+}
+export async function fetchOnboardingOptions(): Promise<OnboardingOptions> {
+  const raw = await request<{
+    institutions: {
+      id: string;
+      name: string;
+      short_name: string;
+      courses: { id: string; code: string; name: string }[];
+    }[];
+  }>("/auth/onboarding/options");
+  return {
+    institutions: raw.institutions.map((item) => ({
+      id: item.id,
+      name: item.name,
+      shortName: item.short_name,
+      courses: item.courses,
+    })),
+  };
+}
+export const completeOnboardingRemote = (values: {
+  institutionId: string;
+  studentNumber: string;
+  program: string;
+  courseIds: string[];
+}) =>
+  request("/auth/onboarding", {
+    method: "POST",
+    body: JSON.stringify({
+      institution_id: values.institutionId,
+      student_number: values.studentNumber,
+      program: values.program,
+      course_ids: values.courseIds,
+    }),
+  });

@@ -112,9 +112,13 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 ```dotenv
 VITE_API_URL=http://127.0.0.1:8000/api/v1
+VITE_GOOGLE_CLIENT_ID=<web client id>.apps.googleusercontent.com
+VITE_ENABLE_DEMO_LOGIN=true
 ```
 
-В текущем local flow frontend вызывает скрытый backend endpoint `/auth/demo`. Он включён Docker Compose backend только для разработки. Production frontend должен получать Google credential через официальный GIS button и обменивать его через `/auth/google`.
+Если задан `VITE_GOOGLE_CLIENT_ID`, при запуске показывается экран входа с официальной кнопкой Google (GIS): credential обменивается на токены через `/auth/google`, новый пользователь проходит onboarding (`/auth/onboarding/options`, `/auth/onboarding`), сессия восстанавливается по refresh-токену, а выход отзывает его. Без Client ID и при `VITE_ENABLE_DEMO_LOGIN` не равном `false` приложение входит в demo-аккаунт автоматически (старое поведение); с Client ID demo доступен кнопкой на экране входа.
+
+В local flow demo-вход использует скрытый backend endpoint `/auth/demo`. Он включён Docker Compose backend только для разработки. Production frontend должен получать Google credential через официальный GIS button и обменивать его через `/auth/google`.
 
 ## Архитектура frontend
 

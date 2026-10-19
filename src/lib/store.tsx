@@ -35,7 +35,14 @@ import {
   type Course,
 } from "./data";
 import { toast } from "sonner";
+import { signOutGoogle } from "./google-identity";
 import {
+  completeOnboardingRemote,
+  restoreSession,
+  signInDemo as signInDemoRemote,
+  signInWithGoogle as signInWithGoogleRemote,
+  signOutRemote,
+  type AuthState,
   applyRemoteInsight,
   connectWorkspace,
   createRemoteEvent,
@@ -53,10 +60,21 @@ import {
 type Role = "student" | "admin";
 
 export type ConnectionState = "connecting" | "online" | "offline";
+export type AuthStatus = "checking" | AuthState;
 
 interface Store {
   backendConnected: boolean;
   connection: ConnectionState;
+  auth: AuthStatus;
+  signInWithGoogle: (credential: string) => Promise<void>;
+  signInDemo: () => Promise<void>;
+  completeOnboarding: (values: {
+    institutionId: string;
+    studentNumber: string;
+    program: string;
+    courseIds: string[];
+  }) => Promise<void>;
+  signOut: () => Promise<void>;
   statistics: RemoteStatistics | null;
   role: Role;
   setRole: (r: Role) => void;
@@ -136,6 +154,7 @@ export function StoreProvider({
 }) {
   const [role, setRole] = useState<Role>("student");
   const [connection, setConnection] = useState<ConnectionState>("connecting");
+  const [auth, setAuth] = useState<AuthStatus>("checking");
   const backendConnected = connection === "online";
   const connectionRef = useRef<ConnectionState>("connecting");
   connectionRef.current = connection;
@@ -187,34 +206,48 @@ export function StoreProvider({
   const [workloadPlanApplied, setWorkloadPlanApplied] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  const hydrate = useCallback(async () => {
+    const workspace = await connectWorkspace();
+    setBaseCourses(workspace.courses);
+    setBaseAssignments(workspace.assignments);
+    setTasks(workspace.tasks);
+    setEvents(workspace.events);
+    setInsights(workspace.insights);
+    setBaseDistribution(workspace.distribution);
+    setRemoteWorkload(workspace.workload);
+    setSettings(workspace.settings);
+    setStatistics(workspace.statistics);
+    setKnowledgeDocs(workspace.knowledge.docs);
+    setDocumentFragments(workspace.knowledge.fragments);
+    setCampusEvents(workspace.campusEvents);
+    setActivity(workspace.activity);
+    setConnection("online");
+  }, []);
+
+  const enter = useCallback(
+    async (state: AuthState) => {
+      setAuth(state);
+      if (state === "signed_in") await hydrate();
+      else setConnection("online");
+    },
+    [hydrate],
+  );
+
   useEffect(() => {
     let active = true;
-    connectWorkspace()
-      .then((workspace) => {
-        if (!active) return;
-        setBaseCourses(workspace.courses);
-        setBaseAssignments(workspace.assignments);
-        setTasks(workspace.tasks);
-        setEvents(workspace.events);
-        setInsights(workspace.insights);
-        setBaseDistribution(workspace.distribution);
-        setRemoteWorkload(workspace.workload);
-        setSettings(workspace.settings);
-        setStatistics(workspace.statistics);
-        setKnowledgeDocs(workspace.knowledge.docs);
-        setDocumentFragments(workspace.knowledge.fragments);
-        setCampusEvents(workspace.campusEvents);
-        setActivity(workspace.activity);
-        setConnection("online");
-      })
+    restoreSession()
+      .then((state) => (active ? enter(state) : undefined))
       .catch((error: unknown) => {
         console.warn("CampusPulse API is unavailable; using local demo data.", error);
-        if (active) setConnection("offline");
+        if (!active) return;
+        // Offline prototype mode keeps the fixture workspace usable without an account.
+        setAuth("signed_in");
+        setConnection("offline");
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [enter]);
 
   const log = useCallback((a: Omit<Activity, "id" | "time">) => {
     setActivity((prev) => [{ ...a, id: crypto.randomUUID(), time: now() }, ...prev]);
@@ -328,6 +361,18 @@ export function StoreProvider({
   const value: Store = {
     backendConnected,
     connection,
+    auth,
+    signInWithGoogle: async (credential) => enter(await signInWithGoogleRemote(credential)),
+    signInDemo: async () => enter(await signInDemoRemote()),
+    completeOnboarding: async (values) => {
+      await completeOnboardingRemote(values);
+      await enter("signed_in");
+    },
+    signOut: async () => {
+      await signOutRemote();
+      signOutGoogle();
+      window.location.reload();
+    },
     statistics,
     role,
     setRole: (next) => {

@@ -18,6 +18,8 @@ import { StoreProvider, useStore } from "@/lib/store";
 import { workspaceDestination, type WorkspaceRole } from "@/lib/workspace-access";
 import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
+import { SignIn } from "@/components/app/SignIn";
+import { Onboarding } from "@/components/app/Onboarding";
 import { ChatDrawer } from "@/components/app/ChatDrawer";
 import { UploadDialog } from "@/components/app/UploadDialog";
 import { Toaster } from "@/components/ui/sonner";
@@ -103,6 +105,7 @@ function RootComponent() {
       <LanguageInitialization />
       <StoreProvider onRoleChange={(workspaceRole) => router.update({ context: { ...router.options.context, queryClient, workspaceRole } })}>
         <TooltipProvider delayDuration={200}>
+          <AuthGate>
           <div className="flex min-h-screen">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
@@ -115,11 +118,23 @@ function RootComponent() {
           </div>
           <ChatDrawer />
           <UploadDialog />
+          </AuthGate>
           <Toaster position="bottom-right" />
         </TooltipProvider>
       </StoreProvider>
     </QueryClientProvider>
   );
+}
+
+/** Shows sign-in or onboarding instead of the workspace until the student is ready. */
+function AuthGate({ children }: { children: ReactNode }) {
+  const { locale } = useI18n();
+  const { auth } = useStore();
+  if (auth === "checking")
+    return <p role="status" className="p-6 text-[13px] text-muted-foreground">{localize("Loading…", locale)}</p>;
+  if (auth === "signed_out") return <SignIn />;
+  if (auth === "needs_onboarding") return <Onboarding />;
+  return <>{children}</>;
 }
 
 function ConnectionBanner() {

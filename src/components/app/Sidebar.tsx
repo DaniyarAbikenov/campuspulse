@@ -2,7 +2,7 @@ import { localize, useI18n } from "@/lib/i18n";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, CalendarDays, Sparkles, BookOpen, ClipboardList, KanbanSquare, Library, PartyPopper,
-  Gauge, BarChart3, Activity, Settings, ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Shield, GraduationCap, Check, Users,
+  Gauge, BarChart3, Activity, Settings, ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Shield, GraduationCap, Check, Users, LogOut,
 } from "lucide-react";
 import { useEffect } from "react";
 import { useRouterState } from "@tanstack/react-router";
@@ -51,7 +51,8 @@ const adminNav = [
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const { locale } = useI18n();
-  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen } = useStore();
+  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected } = useStore();
+  const initials = settings.full_name.split(/\s+/).map((part) => part[0] ?? "").join("").slice(0, 2).toUpperCase();
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
   const newCount = insights.filter((i) => i.status === "New").length;
@@ -116,11 +117,11 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       <div className="border-t p-2">
         <DropdownMenu>
           <DropdownMenuTrigger aria-label={localize("Switch workspace", locale)} className={cn("flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-secondary", collapsed && "justify-center")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{localize(role === "admin" ? "AA" : "DS", locale)}</div>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{localize(role === "admin" ? "AA" : initials || "ST", locale)}</div>
             {localize(!collapsed && (
               <div className="min-w-0 flex-1 leading-tight">
-                <div className="truncate text-[12.5px] font-medium">{localize(role === "admin" ? "Academic Admin" : "Demo Student", locale)}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{localize(role === "admin" ? "Faculty of Computing" : "Software Engineering · SE-2429", locale)}</div>
+                <div className="truncate text-[12.5px] font-medium">{role === "admin" ? localize("Academic Admin", locale) : settings.full_name}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{role === "admin" ? localize("Faculty of Computing", locale) : [settings.program, settings.group_name].filter(Boolean).join(" · ")}</div>
               </div>
             ), locale)}
             {localize(!collapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />, locale)}
@@ -135,6 +136,7 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}><Settings className="h-4 w-4" /> {localize("Settings", locale)}</DropdownMenuItem>
+            {backendConnected ? <DropdownMenuItem onClick={() => void signOut()}><LogOut className="h-4 w-4" /> {localize("Sign out", locale)}</DropdownMenuItem> : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
