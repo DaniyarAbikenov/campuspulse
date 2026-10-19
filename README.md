@@ -35,13 +35,13 @@ Frontend подключён к локальному FastAPI, но остаётс
 |---|---|---|
 | `/` | Dashboard, deadlines, workload, tomorrow schedule, insights, activity | Смешанный: API Store + fixtures для activity |
 | `/courses` | Course cards, поиск и progress | API |
-| `/courses/:courseId` | Course overview, assignments и materials | Смешанный |
+| `/courses/:courseId` | Course overview, assignments и materials | API; insights и concepts выводятся из данных |
 | `/assignments` | Assignment table, status/search/course filters | API dataset, фильтрация в UI |
-| `/assignments/:assignmentId` | Requirements, relations, generated task proposal | Смешанный; analysis fixture |
+| `/assignments/:assignmentId` | Requirements с цитатами, документ, связи, tasks, точность оценок | API (план агента, текст документа, relations) |
 | `/kanban` | Пять колонок, filters и generated proposals | API для существующих задач; часть create/import flows локальная |
 | `/schedule` | Weekly calendar и study planning | API: события и свободные окна (`/schedule/free-time`) |
-| `/workload` | Required/available hours и recommendation | API расчёт + локальный apply visualization |
-| `/statistics` | Estimate/actual analytics | API summary; semester trend is a fixture |
+| `/workload` | Required/available hours и study plan | API: расчёт, превью и применение плана (`/schedule/plan`) |
+| `/statistics` | Estimate/actual analytics | API: сводка, график по неделям дедлайнов, точность по курсам |
 | `/insights` | Proactive recommendations и CTA | API |
 | `/knowledge` | Indexed materials and fragments | API |
 | `/events` | Campus activities | API |

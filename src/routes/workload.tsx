@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MetricCard, PageHeader, Panel, PredictionNote, CourseTag, ProgressBar } from "@/components/app/common";
 import { WorkloadChart } from "@/components/app/widgets";
+import { StudyPlanPanel } from "@/components/app/StudyPlanPanel";
 import { weeklyWorkload, workloadTotals } from "@/lib/data";
 
 export const Route = createFileRoute("/workload")({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/workload")({
 
 function Workload() {
   const { locale } = useI18n();
-  const { workloadPlanApplied: applied, applyWorkloadPlan, distribution, workload: workloadTotals, courses } = useStore();
+  const { workloadPlanApplied: applied, applyWorkloadPlan, distribution, workload: workloadTotals, courses, backendConnected } = useStore();
   const peak = distribution.reduce((highest, day) => day.required > highest.required ? day : highest);
   const max = Math.max(...courses.map((c) => c.remaining));
   return (
@@ -45,10 +46,12 @@ function Workload() {
             <div key={d.day} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b py-2 text-[13px] last:border-0"><span className="font-medium">{localize(d.day, locale)}</span><span className="text-muted-foreground">{localize(d.required, locale)}{localize("h required ·", locale)} {localize(d.available, locale)}{localize("h available", locale)}</span><span className="font-medium text-destructive tabular-nums">{localize("+", locale)}{localize(d.required - d.available, locale)}{localize("h", locale)}</span></div>
           )), locale)}
         </Panel>
+        {backendConnected ? <StudyPlanPanel /> : (
         <Panel title={localize("Rebalancing plan", locale)}>
           <PredictionNote>{localize("Move", locale)} <b>{localize("2h", locale)}</b> {localize("of Software Engineering work (JWT token generation) to Monday 13:00–15:00, and start the Aggregation pipeline on Tuesday evening. This redistributes work; it does not add study capacity. The weekly gap remains", locale)} <b>{localize(workloadTotals.required - workloadTotals.available, locale)}{localize("h", locale)}</b>{localize(".", locale)}</PredictionNote>
           <Button size="sm" className="mt-3" disabled={applied} onClick={() => { applyWorkloadPlan(); toast.success(localize("Plan applied", locale), { description: localize("Wednesday reduced from 7h to 5h", locale) }); }}>{localize(applied ? "Plan applied" : "Apply plan", locale)}</Button>
         </Panel>
+        )}
       </div>
     </>
   );

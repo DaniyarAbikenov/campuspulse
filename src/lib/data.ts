@@ -30,6 +30,7 @@ export interface Assignment {
   id: string;
   backendId?: string;
   title: string;
+  description?: string;
   courseId: string;
   deadline: string;
   estimate: number;

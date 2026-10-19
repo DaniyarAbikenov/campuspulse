@@ -3,7 +3,7 @@ import { guardWorkspace } from "@/lib/workspace-access";
 import { cc } from "@/lib/chartColors";
 import { createFileRoute } from "@tanstack/react-router";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Target, Timer, CheckCircle2, Flame } from "lucide-react";
+import { Target, Timer, CheckCircle2, ListChecks } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { SimpleBars } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
@@ -20,7 +20,9 @@ export const Route = createFileRoute("/statistics")({
 
 function Stats() {
   const { locale } = useI18n();
-  const { assignments, workload, statistics, courses } = useStore();
+  const { assignments, statistics, courses, tasks, backendConnected } = useStore();
+  const trend = backendConnected && statistics ? statistics.weekly.map((item) => ({ week: item.week, planned: item.planned, actual: item.actual })) : semesterTrend;
+  const doneTasks = tasks.filter((task) => task.column === "done").length;
   const done = assignments.filter((a) => a.actual !== undefined);
   const actual = done.reduce((sum, a) => sum + (a.actual ?? 0), 0);
   const estimate = done.reduce((sum, a) => sum + a.estimate, 0);
@@ -29,17 +31,17 @@ function Stats() {
   const completedCount = statistics?.completedAssignments ?? assignments.filter((a) => a.status === "Completed").length;
   return (
     <>
-      <PageHeader title={localize("Study Statistics", locale)} subtitle={localize("Fall Semester 2026 · Weeks 36–43", locale)} />
+      <PageHeader title={localize("Study Statistics", locale)} subtitle={trend.length ? `${trend[0]?.week} – ${trend[trend.length - 1]?.week}` : ""} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label={localize("Reported study time", locale)} value={`${reported}h`} sub={localize("Completed assignments", locale)} icon={Timer} />
-        <MetricCard label={localize("Estimate accuracy", locale)} value={`${accuracy}%`} sub={localize("Actual vs. AI estimate", locale)} icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
+        <MetricCard label={localize("Estimate accuracy", locale)} value={`${accuracy}%`} sub={localize("Actual vs. AI estimate", locale)} icon={Target} />
         <MetricCard label={localize("Completed", locale)} value={String(completedCount)} sub={localize("Assignments & labs", locale)} icon={CheckCircle2} />
-        <MetricCard label={localize("Study streak", locale)} value="6 days" sub={localize("Longest: 11 days", locale)} icon={Flame} />
+        <MetricCard label={localize("Tasks done", locale)} value={`${doneTasks}/${tasks.length}`} sub={localize("On your Kanban board", locale)} icon={ListChecks} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Panel title={localize("Planned vs. actual hours", locale)} subtitle={localize("Per week", locale)}>
+        <Panel title={localize("Planned vs. actual hours", locale)} subtitle={localize(backendConnected ? "By the week each assignment was due" : "Per week", locale)}>
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={semesterTrend.map((week) => week.week === "W43" ? { ...week, planned: workload.required } : week)} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <LineChart data={trend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={cc.border} />
               <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />
               <YAxis tickLine={false} axisLine={false} fontSize={11} stroke={cc.muted} />

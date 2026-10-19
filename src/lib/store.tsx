@@ -42,6 +42,7 @@ import {
   completeOnboardingRemote,
   fetchAgentEnabled,
   fetchFreeSlots,
+  type AssignmentRelation,
   restoreSession,
   signInDemo as signInDemoRemote,
   signInWithGoogle as signInWithGoogleRemote,
@@ -133,6 +134,7 @@ interface Store {
   reloadWorkspace: () => Promise<void>;
   agentEnabled: boolean;
   freeSlots: FreeSlot[];
+  relations: AssignmentRelation[];
   uploadAssignment: (input: {
     file: File;
     courseId: string;
@@ -163,6 +165,7 @@ export function StoreProvider({
   const [auth, setAuth] = useState<AuthStatus>("checking");
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [freeSlots, setFreeSlots] = useState<FreeSlot[]>(initialFreeSlots);
+  const [relations, setRelations] = useState<AssignmentRelation[]>([]);
   const backendConnected = connection === "online";
   const connectionRef = useRef<ConnectionState>("connecting");
   connectionRef.current = connection;
@@ -230,6 +233,7 @@ export function StoreProvider({
     setCampusEvents(workspace.campusEvents);
     setActivity(workspace.activity);
     setFreeSlots(workspace.freeSlots);
+    setRelations(workspace.relations);
     setConnection("online");
     fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
   }, []);
@@ -285,8 +289,11 @@ export function StoreProvider({
     return proposalTasks.length;
   }, [proposalTasks, log]);
 
+  // With a live backend its numbers are authoritative; the prototype adjustments below only
+  // keep the offline fixture workspace coherent.
+  const live = connection === "online";
   const liveAssignments = baseAssignments.map((assignment) => {
-    if (assignment.id !== "se-a3") return assignment;
+    if (live || assignment.id !== "se-a3") return assignment;
     const board = tasks.filter((task) => task.assignmentId === assignment.id);
     const done = board.filter((task) => task.column === "done").length;
     return {
@@ -312,7 +319,8 @@ export function StoreProvider({
           nextDeadline: summary.nextDeadline,
         }
       : summary;
-    return course.id === "se" &&
+    return !live &&
+      course.id === "se" &&
       liveAssignments.find((assignment) => assignment.id === "se-a3")?.status !== "Completed"
       ? {
           ...course,
@@ -349,7 +357,9 @@ export function StoreProvider({
   const completedHours = tasks
     .filter((task) => task.column === "done" && task.ai)
     .reduce((sum, task) => sum + task.estimate, 0);
-  const distribution = baseDistribution.map((day, index) => ({
+  const distribution = live
+    ? baseDistribution
+    : baseDistribution.map((day, index) => ({
     ...day,
     required: Math.max(
       0,
@@ -547,7 +557,7 @@ export function StoreProvider({
     },
     addGeneratedTasks,
     insights: insights.map((insight) =>
-      insight.id === "i2"
+      !live && insight.id === "i2"
         ? {
             ...insight,
             description: `${proposalTasks.length} tasks · ${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)}h · ${tasksGenerated ? (generatedScheduled ? "imported and scheduled" : "imported, not scheduled") : proposalApproved ? "approved, not imported" : "generated, not imported"}. Extends Assignment 2.`,
@@ -636,12 +646,15 @@ export function StoreProvider({
     },
     agentEnabled,
     freeSlots,
+    relations,
     reloadWorkspace: async () => {
       const workspace = await connectWorkspace();
       setBaseCourses(workspace.courses);
       setBaseAssignments(workspace.assignments);
       setTasks(workspace.tasks);
       setStatistics(workspace.statistics);
+      setRelations(workspace.relations);
+      setFreeSlots(workspace.freeSlots);
       setRemoteWorkload(workspace.workload);
       setBaseDistribution(workspace.distribution);
     },

@@ -29,7 +29,7 @@ export const Route = createFileRoute("/courses/$courseId")({
 function CourseDetails() {
   const { locale } = useI18n();
   const { course: loadedCourse, courseId } = Route.useLoaderData();
-  const { courses: liveCourses, assignments, knowledgeDocs, connection } = useStore();
+  const { courses: liveCourses, assignments, knowledgeDocs, connection, insights, statistics, tasks } = useStore();
   const course = liveCourses.find((item) => item.id === courseId) ?? loadedCourse;
   if (!course) {
     if (connection === "connecting") return <p role="status" className="text-[13px] text-muted-foreground">{localize("Loading course…", locale)}</p>;
@@ -39,10 +39,16 @@ function CourseDetails() {
   const docs = knowledgeDocs.filter((d) => d.courseId === course.id);
   const chain = list.filter((a) => a.dependsOn || list.some((b) => b.dependsOn === a.id)).sort((a, b) => a.title.localeCompare(b.title));
   const count = (s: string) => list.filter((a) => a.status === s).length;
+  const concepts = [...new Set(docs.flatMap((d) => d.concepts))].slice(0, 8);
+  const lastIndexed = docs[0]?.indexed ?? "—";
+  const courseInsights = insights.filter((item) => item.courses.includes(course.id) && item.status !== "Dismissed");
+  const accuracy = statistics?.byCourse.find((item) => item.courseId === course.id);
+  const openTasks = tasks.filter((task) => task.courseId === course.id && task.column !== "done");
+  const openHours = openTasks.reduce((sum, task) => sum + task.estimate, 0);
 
   return (
     <>
-      <PageHeader title={localize(course.name, locale)} subtitle={localize(`${course.code} · ${course.instructor} · Fall 2026`, locale)} />
+      <PageHeader title={localize(course.name, locale)} subtitle={localize([course.code, course.instructor, "Fall 2026"].filter(Boolean).join(" · "), locale)} />
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
         {localize([["Assignments", list.length], ["Completed", count("Completed")], ["In Progress", count("In Progress")], ["Upcoming", count("Upcoming") + count("To Do")], ["Remaining", `${course.remaining}h`]].map(([k, v]) => (
           <div key={k} className="panel px-4 py-3"><div className="text-[11.5px] text-muted-foreground">{localize(k, locale)}</div><div className="text-[20px] font-semibold tabular-nums">{localize(v, locale)}</div></div>
@@ -57,9 +63,11 @@ function CourseDetails() {
             <Panel title={localize("Course summary", locale)}><p className="text-[13px] leading-relaxed text-muted-foreground">{localize(course.summary, locale)}</p><div className="mt-3 flex items-center gap-2"><ProgressBar value={course.progress} /><span className="text-[12px] tabular-nums">{localize(course.progress, locale)}{localize("%", locale)}</span></div></Panel>
             <div className="grid gap-4 md:grid-cols-2">
               <Panel title={localize("Workload by assignment", locale)} subtitle={localize("Estimated hours", locale)}><SimpleBars data={list.map((a) => ({ name: (a.title.split(" — ")[0] ?? a.title).replace("Assignment", "A"), hours: a.estimate }))} x="name" y="hours" height={170} /></Panel>
-              <Panel title={localize("AI course insights", locale)}><div className="space-y-2">
-                <PredictionNote>{localize("Assignments in this course build on each other. Delays in the current one shift the next by ~3 days.", locale)}</PredictionNote>
-                <PredictionNote>{localize("Your actual time ran", locale)} <b>{localize("+11%", locale)}</b> {localize("over estimates on average — plans now include that buffer.", locale)}</PredictionNote>
+              <Panel title={localize("Course insights", locale)}><div className="space-y-2">
+                {courseInsights.map((item) => <PredictionNote key={item.id}><b>{item.title}.</b> {item.description}</PredictionNote>)}
+                {accuracy?.accuracy != null ? <PredictionNote>{localize("Your estimates in this course are", locale)} <b>{accuracy.accuracy}%</b> {localize("accurate across", locale)} {accuracy.completed} {localize("completed assignments.", locale)}</PredictionNote> : null}
+                {openTasks.length ? <PredictionNote><b>{openTasks.length}</b> {localize("open tasks", locale)} · <b>{Math.round(openHours * 100) / 100}{localize("h", locale)}</b> {localize("of planned work remain.", locale)}</PredictionNote> : null}
+                {!courseInsights.length && accuracy?.accuracy == null && !openTasks.length ? <p className="text-[12.5px] text-muted-foreground">{localize("Nothing notable yet. Insights appear as deadlines, tasks and completed work accumulate.", locale)}</p> : null}
               </div></Panel>
             </div>
             <Panel title={localize("Recent materials", locale)}>{localize(docs.map((d) => <div key={d.id} className="flex items-center gap-2 border-b py-2 text-[13px] last:border-0"><FileText className="h-4 w-4 text-muted-foreground" />{localize(d.title, locale)}<span className="ml-auto text-[11.5px] text-muted-foreground">{localize(d.indexed, locale)}</span></div>), locale)}</Panel>
@@ -103,9 +111,9 @@ function CourseDetails() {
         <Panel title={localize(<span className="flex items-center gap-1.5"><Brain className="h-4 w-4 text-ai" /> {localize("Course Memory", locale)}</span>, locale)} className="h-fit">
           <p className="text-[12.5px] text-muted-foreground">{localize("CampusPulse has indexed", locale)} {localize(list.length, locale)} {localize("assignments,", locale)} {localize(docs.length, locale)} {localize("documents and", locale)} {localize(list.filter((a) => a.dependsOn).length, locale)} {localize("assignment dependencies.", locale)}</p>
           <dl className="mt-3 space-y-2.5 text-[12.5px]">
-            <div><dt className="text-[11.5px] text-muted-foreground">{localize("Known technologies", locale)}</dt><dd className="mt-1 flex flex-wrap gap-1">{localize(course.technologies.map((t) => <span key={t} className="rounded border bg-secondary px-1.5 py-0.5 text-[11px]">{localize(t, locale)}</span>), locale)}</dd></div>
+            <div><dt className="text-[11.5px] text-muted-foreground">{localize("Key concepts", locale)}</dt><dd className="mt-1 flex flex-wrap gap-1">{localize(concepts.map((t) => <span key={t} className="rounded border bg-secondary px-1.5 py-0.5 text-[11px]">{localize(t, locale)}</span>), locale)}</dd></div>
             <div><dt className="text-[11.5px] text-muted-foreground">{localize("Relationships", locale)}</dt><dd>{localize(list.filter((a) => a.dependsOn).map((a) => <div key={a.id}>{localize((a.title.split(" — ")[0] ?? a.title), locale)} {localize(a.relation, locale)} {localize(assignments.find((b) => b.id === a.dependsOn)?.title.split(" — ")[0], locale)}</div>), locale)}{localize(!list.some((a) => a.dependsOn) && "—", locale)}</dd></div>
-            <div><dt className="text-[11.5px] text-muted-foreground">{localize("Last updated", locale)}</dt><dd>{localize("Today, 09:44", locale)}</dd></div>
+            <div><dt className="text-[11.5px] text-muted-foreground">{localize("Last updated", locale)}</dt><dd>{localize(lastIndexed, locale)}</dd></div>
           </dl>
           <Button asChild size="sm" variant="outline" className="mt-4 w-full"><Link to="/knowledge">{localize("Explore Course Knowledge", locale)}</Link></Button>
         </Panel>

@@ -1,5 +1,4 @@
 import {
-  assignments as fixtureAssignments,
   courses as fixtureCourses,
   type Assignment,
   type CalEvent,
@@ -67,6 +66,7 @@ interface ApiAssignment {
   id: string;
   course_id: string;
   title: string;
+  description?: string | null;
   due_at: string;
   estimated_hours: number;
   actual_hours?: number | null;
@@ -111,7 +111,21 @@ interface ApiWorkload {
   unscheduled_hours: number;
   by_day: { day: string; required_hours: number; available_hours: number }[];
 }
+interface ApiRelation {
+  source_assignment_id: string;
+  target_assignment_id: string;
+  relation_type: string;
+}
 interface ApiStatistics {
+  weekly: { week_start: string; planned_hours: number; actual_hours: number }[];
+  by_course: {
+    course_id: string;
+    course_name: string;
+    completed_assignments: number;
+    estimated_hours: number;
+    actual_hours: number;
+    estimate_accuracy_percent: number | null;
+  }[];
   reported_study_hours: number;
   estimate_accuracy_percent: number;
   completed_assignments: number;
@@ -244,6 +258,12 @@ const remoteEventKind = (kind: CalEvent["kind"]) =>
   ({ lecture: "class_session", study: "study_session", event: "campus_event", free: "personal" })[
     kind
   ];
+const isoWeek = (value: string) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  const thursday = new Date(date.getTime() + (3 - ((date.getUTCDay() + 6) % 7)) * 86_400_000);
+  const firstThursday = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((thursday.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+};
 const shortDate = (value?: string | null) =>
   value
     ? new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(
@@ -302,10 +322,25 @@ export interface RemoteSettings {
   daily_briefing: boolean;
   event_suggestions: boolean;
 }
+export interface AssignmentRelation {
+  /** Frontend assignment ids. */
+  sourceId: string;
+  targetId: string;
+  type: "extends" | "depends_on" | "related_to";
+}
 export interface RemoteStatistics {
   reportedHours: number;
   estimateAccuracy: number;
   completedAssignments: number;
+  weekly: { week: string; planned: number; actual: number }[];
+  byCourse: {
+    courseId: string;
+    courseName: string;
+    completed: number;
+    estimated: number;
+    actual: number;
+    accuracy: number | null;
+  }[];
 }
 export interface WorkspaceData {
   courses: Course[];
@@ -327,6 +362,7 @@ export interface WorkspaceData {
   campusEvents: CampusEvent[];
   activity: Activity[];
   freeSlots: FreeSlot[];
+  relations: AssignmentRelation[];
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
@@ -344,6 +380,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     rawEvents,
     agent,
     freeSlots,
+    rawRelations,
   ] = await Promise.all([
     request<ApiCourse[]>("/courses/overview"),
     request<ApiAssignmentPage>("/assignments/overview"),
@@ -358,6 +395,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     request<ApiCampusEvent[]>("/campus-events"),
     request<ApiAgentActivity>("/agent/activity?limit=50"),
     fetchFreeSlots(),
+    request<ApiRelation[]>("/assignment-relations"),
   ]);
   currentUserId = me.id;
   const courseByBackend = new Map<string, string>();
@@ -383,24 +421,40 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     };
   });
   const assignmentByBackend = new Map<string, string>();
+  const usedIds = new Set<string>();
   const assignments: Assignment[] = page.items.map((item) => {
-    const id = assignmentIdByTitle[item.title] ?? item.id;
-    const fixture = fixtureAssignments.find((assignment) => assignment.id === id);
+    // The prototype ids ("se-a3") stay for the first assignment with a known title only, so
+    // a second upload with the same title cannot collide with it.
+    const known = assignmentIdByTitle[item.title];
+    const id = known && !usedIds.has(known) ? known : item.id;
+    usedIds.add(id);
     assignmentByBackend.set(item.id, id);
     return {
       id,
       backendId: item.id,
       title: item.title,
+      ...(item.description ? { description: item.description } : {}),
       courseId: courseByBackend.get(item.course_id) ?? item.course_id,
       deadline: shortDate(item.due_at),
       estimate: item.estimated_hours,
       progress: item.progress,
       status: titleStatus(item.status),
-      ...(fixture?.dependsOn ? { dependsOn: fixture.dependsOn } : {}),
-      ...(fixture?.relation ? { relation: fixture.relation } : {}),
       ...(item.actual_hours == null ? {} : { actual: item.actual_hours }),
     };
   });
+  const relations: AssignmentRelation[] = rawRelations.flatMap((item) => {
+    const sourceId = assignmentByBackend.get(item.source_assignment_id);
+    const targetId = assignmentByBackend.get(item.target_assignment_id);
+    const type = item.relation_type as AssignmentRelation["type"];
+    return sourceId && targetId ? [{ sourceId, targetId, type }] : [];
+  });
+  for (const relation of relations) {
+    const source = assignments.find((item) => item.id === relation.sourceId);
+    if (source && !source.dependsOn && relation.type !== "related_to") {
+      source.dependsOn = relation.targetId;
+      source.relation = relation.type === "extends" ? "extends" : "depends on";
+    }
+  }
   const tasks: Task[] = board.columns.flatMap((column) =>
     column.tasks.map((item) => ({
       id: item.id,
@@ -550,10 +604,24 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     campusEvents,
     activity,
     freeSlots,
+    relations,
     statistics: {
       reportedHours: stats.reported_study_hours,
       estimateAccuracy: stats.estimate_accuracy_percent,
       completedAssignments: stats.completed_assignments,
+      weekly: stats.weekly.map((item) => ({
+        week: `W${isoWeek(item.week_start)}`,
+        planned: item.planned_hours,
+        actual: item.actual_hours,
+      })),
+      byCourse: stats.by_course.map((item) => ({
+        courseId: courseByBackend.get(item.course_id) ?? item.course_id,
+        courseName: item.course_name,
+        completed: item.completed_assignments,
+        estimated: item.estimated_hours,
+        actual: item.actual_hours,
+        accuracy: item.estimate_accuracy_percent,
+      })),
     },
   };
 }
@@ -619,6 +687,7 @@ export async function createRemoteEvent(event: Omit<CalEvent, "id">, courseBacke
       user_id: currentUserId,
       title: event.title,
       kind: remoteEventKind(event.kind),
+      ...(event.taskId && /^[0-9a-f-]{36}$/i.test(event.taskId) ? { task_id: event.taskId } : {}),
       starts_at: isoAt(event.day, event.start),
       ends_at: isoAt(event.day, event.end),
       ...(courseBackendId ? { course_id: courseBackendId } : {}),
@@ -961,3 +1030,58 @@ export async function fetchFreeSlots(): Promise<FreeSlot[]> {
       };
     });
 }
+
+export interface DocumentPage {
+  page: number;
+  text: string;
+}
+/** Extracted brief text of an assignment, or null when no document was uploaded. */
+export async function fetchAssignmentText(
+  backendId: string,
+): Promise<{ title: string; pages: DocumentPage[] } | null> {
+  try {
+    const data = await request<{ title: string; pages: DocumentPage[] }>(
+      `/assignments/${backendId}/text`,
+    );
+    return { title: data.title, pages: data.pages };
+  } catch (error) {
+    if (String(error).startsWith("Error: 404")) return null;
+    throw error;
+  }
+}
+/** The agent's latest non-dismissed plan for an assignment, or null. */
+export async function fetchTaskPlan(backendId: string): Promise<(TaskPlan & { status: string; createdAt: string; applied: boolean }) | null> {
+  try {
+    const raw = await request<ApiTaskPlan & { created_at: string }>(`/assignments/${backendId}/task-plan`);
+    return { ...taskPlan(raw), status: raw.status, createdAt: raw.created_at, applied: raw.status === "applied" };
+  } catch (error) {
+    if (String(error).startsWith("Error: 404")) return null;
+    throw error;
+  }
+}
+
+export interface StudyPlan {
+  sessions: { taskId: string; taskTitle: string; assignmentTitle: string; startsAt: string; endsAt: string; hours: number }[];
+  unplaced: { taskId: string; taskTitle: string; assignmentTitle: string; dueAt: string; hours: number }[];
+  placedHours: number;
+  unplacedHours: number;
+}
+interface ApiStudyPlan {
+  sessions: { task_id: string; task_title: string; assignment_title: string; starts_at: string; ends_at: string; hours: number }[];
+  unplaced: { task_id: string; task_title: string; assignment_title: string; due_at: string; hours: number }[];
+  placed_hours: number;
+  unplaced_hours: number;
+}
+const studyPlan = (raw: ApiStudyPlan): StudyPlan => ({
+  sessions: raw.sessions.map((item) => ({ taskId: item.task_id, taskTitle: item.task_title, assignmentTitle: item.assignment_title, startsAt: item.starts_at, endsAt: item.ends_at, hours: item.hours })),
+  unplaced: raw.unplaced.map((item) => ({ taskId: item.task_id, taskTitle: item.task_title, assignmentTitle: item.assignment_title, dueAt: item.due_at, hours: item.hours })),
+  placedHours: raw.placed_hours,
+  unplacedHours: raw.unplaced_hours,
+});
+/** Preview of where the unscheduled work would go this week; writes nothing. */
+export const fetchStudyPlan = async () => studyPlan(await request<ApiStudyPlan>(`/schedule/plan?week_start=${WEEK_START}`));
+export const applyStudyPlan = async () => {
+  const result = await request<{ created: number; plan: ApiStudyPlan }>(`/schedule/plan/apply?week_start=${WEEK_START}`, { method: "POST" });
+  return { created: result.created, plan: studyPlan(result.plan) };
+};
+export { campusClock as campusTime, clockText as campusClockText };
