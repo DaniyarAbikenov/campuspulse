@@ -1,0 +1,27 @@
+Lecture 6. Security in Web APIs (Software Engineering)
+
+1. Authentication vs authorization
+Authentication proves who the caller is. Authorization decides what that caller may do.
+A REST API should authenticate every protected request and authorize it per resource.
+
+2. Tokens
+- Access token: short-lived (about 15 minutes), sent as "Authorization: Bearer <token>".
+- Refresh token: long-lived, stored hashed on the server, rotated on every use.
+- JWT (JSON Web Token): header.payload.signature. The signature is checked with a server secret
+  (HS256) or a key pair (RS256). Never put secrets in the payload; it is only encoded, not encrypted.
+
+3. Role-based access control (RBAC)
+Map users to roles (STUDENT, ADMIN) and roles to permissions. Check the role on the server for
+every endpoint. Example: only ADMIN may delete users; a STUDENT may read only their own data.
+
+4. Common mistakes
+- Trusting the client to hide buttons instead of checking permissions on the server.
+- Long-lived access tokens with no revocation path.
+- Returning 403 for a resource the caller should not know exists (prefer 404).
+- Storing passwords without a slow hash such as BCrypt.
+
+5. CORS
+Browsers block cross-origin calls unless the server lists the allowed origin. Allow only the
+frontend origins you control, never "*" together with credentials.
+
+Key terms: JWT, refresh token rotation, RBAC, BCrypt, CORS, OAuth2.
