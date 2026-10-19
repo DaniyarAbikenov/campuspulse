@@ -377,6 +377,82 @@ async def propose_insights(
     }
 
 
+class ProposedAction(BaseModel):
+    """One change for the student to confirm. Fill only the fields its kind needs."""
+
+    kind: str = Field(
+        description="create_study_session (needs starts_at, ends_at; optional task_id), "
+        "create_calendar_activity (needs starts_at, ends_at), create_task (needs assignment_id, "
+        "title, estimated_hours), update_task_status (needs task_id, status) or "
+        "cancel_assignment (needs assignment_id)"
+    )
+    title: str = Field(description="Short label for the confirmation window, e.g. 'Study JWT'")
+    summary: str = Field(default="", description="One sentence on what will change and why")
+    starts_at: str | None = Field(default=None, description="ISO 8601 with offset, in the future")
+    ends_at: str | None = Field(default=None, description="ISO 8601 with offset")
+    location: str | None = None
+    task_id: str | None = None
+    course_id: str | None = None
+    assignment_id: str | None = None
+    description: str | None = None
+    estimated_hours: float | None = None
+    priority: str | None = Field(default=None, description="low, medium or high")
+    status: str | None = Field(
+        default=None, description="backlog, todo, in_progress, review or completed"
+    )
+
+
+_PAYLOAD_FIELDS = (
+    "starts_at",
+    "ends_at",
+    "location",
+    "task_id",
+    "course_id",
+    "assignment_id",
+    "description",
+    "estimated_hours",
+    "priority",
+    "status",
+)
+
+
+async def propose_actions(
+    tool_context: ToolContext, actions: list[ProposedAction]
+) -> dict[str, Any]:
+    """Ask the student to confirm changes. Nothing happens until they press Apply.
+
+    Use this whenever the student asks you to add, move, create, finish or cancel something.
+    Check free time first for calendar changes. Call it once with at most 5 actions, then tell
+    the student what you proposed and that they need to confirm it.
+
+    Args:
+        actions: The proposed changes.
+    """
+    body = [
+        {
+            "kind": item.kind,
+            "title": item.title,
+            "summary": item.summary,
+            "payload": {
+                name: getattr(item, name)
+                for name in _PAYLOAD_FIELDS
+                if getattr(item, name) is not None
+            }
+            | ({"title": item.title} if item.kind != "cancel_assignment" else {}),
+        }
+        for item in actions
+    ]
+    try:
+        result = await _call(tool_context, "POST", "/agent/actions", json={"actions": body})
+    except CampusPulseError as error:
+        return {"error": str(error), "hint": "Fix the problem described above and call again."}
+    return {
+        "proposed": len(result["created"]),
+        "rejected": result["rejected"],
+        "next_step": "The student sees an Apply window; do not say the change is already made.",
+    }
+
+
 CAMPUSPULSE_TOOLS = [
     get_workload,
     list_assignments,
@@ -390,4 +466,5 @@ CAMPUSPULSE_TOOLS = [
     list_insights,
     list_open_tasks,
     propose_insights,
+    propose_actions,
 ]

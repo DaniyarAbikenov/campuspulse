@@ -137,6 +137,11 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
                     "rejected": [{"title": "x", "reason": "No verifiable source"}],
                 },
             )
+        if path == "/api/v1/agent/actions":
+            return httpx.Response(
+                201,
+                json={"created": [{"id": "a1"}], "rejected": [{"title": "x", "reason": "no"}]},
+            )
         if path == "/api/v1/imports/proposals":
             return httpx.Response(
                 201, json={"proposal": {"id": "p1", "items": [{}, {}]}, "skipped_existing": 1}
@@ -187,7 +192,7 @@ def test_agent_exposes_tools_and_adds_moodle_only_when_configured() -> None:
     with_moodle = build_toolset(Settings(moodle_mcp_url="https://mcp.example/mcp"))
     assert len(with_moodle) == len(without) + 1
     agent = build_agent(Settings(moodle_mcp_url=None))
-    assert agent.name == "campuspulse" and "read-only" in agent.instruction
+    assert agent.name == "campuspulse" and "propose_actions" in agent.instruction
 
 
 def test_moodle_headers_come_from_the_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -290,3 +295,36 @@ async def test_propose_insights_posts_sources_and_reports_the_outcome(
     assert result["saved"] == 2 and result["with_calendar_action"] == 1
     assert result["rejected"][0]["reason"] == "No verifiable source"
     assert json.loads(backend[0].content)["insights"][0]["sources"][0]["ref_id"] == "a1"
+
+
+async def test_propose_actions_sends_only_the_filled_fields(
+    backend: list[httpx.Request],
+) -> None:
+    import json
+
+    result = await tools.propose_actions(
+        context(),
+        [
+            tools.ProposedAction(
+                kind="create_study_session",
+                title="Study JWT",
+                starts_at="2026-10-20T08:00:00+05:00",
+                ends_at="2026-10-20T09:00:00+05:00",
+                task_id="t1",
+            ),
+            tools.ProposedAction(kind="cancel_assignment", title="Drop", assignment_id="a1"),
+        ],
+    )
+    assert result["proposed"] == 1 and result["rejected"][0]["reason"] == "no"
+    sent = json.loads(backend[0].content)["actions"]
+    assert sent[0]["payload"] == {
+        "title": "Study JWT",
+        "starts_at": "2026-10-20T08:00:00+05:00",
+        "ends_at": "2026-10-20T09:00:00+05:00",
+        "task_id": "t1",
+    }
+    assert sent[1]["payload"] == {"assignment_id": "a1"}
+    from google.adk.tools import FunctionTool
+
+    declaration = FunctionTool(tools.propose_actions)._get_declaration()
+    assert declaration is not None and declaration.name == "propose_actions"
