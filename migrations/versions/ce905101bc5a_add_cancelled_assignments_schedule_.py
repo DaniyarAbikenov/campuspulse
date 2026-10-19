@@ -36,8 +36,6 @@ def upgrade() -> None:
     sa.Column('applied_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.CheckConstraint("kind IN ('create_study_session', 'create_calendar_activity', 'create_task', 'update_task_status', 'cancel_assignment')", name='agent_action_kind'),
-    sa.CheckConstraint("status IN ('pending', 'applied', 'dismissed')", name='agent_action_status'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -59,7 +57,6 @@ def upgrade() -> None:
     sa.Column('location', sa.String(length=240), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.CheckConstraint("kind IN ('class_session', 'study_session', 'deadline', 'campus_event', 'personal')", name='schedule_series_kind'),
     sa.CheckConstraint('end_minute > start_minute', name='ck_schedule_series_time'),
     sa.CheckConstraint('ends_on >= starts_on', name='ck_schedule_series_range'),
     sa.ForeignKeyConstraint(['course_id'], ['courses.id'], ondelete='SET NULL'),
