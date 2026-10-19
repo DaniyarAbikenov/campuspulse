@@ -814,10 +814,12 @@ def seed_demo_cohort(session: Session) -> int:
     institution_id = seed_id(1)
     role_id = seed_id(100)
     course_ids = [seed_id(200 + index) for index in range(5)]
-    entities: list[models.Base] = []
+    people: list[models.Base] = []
+    enrolments: list[models.Base] = []
+    work: list[models.Base] = []
     for index in range(COHORT_SIZE):
         user_id = seed_id(5_000 + index)
-        entities.append(
+        people.append(
             models.User(
                 id=user_id,
                 institution_id=institution_id,
@@ -827,16 +829,12 @@ def seed_demo_cohort(session: Session) -> int:
                 program="Software Engineering",
             )
         )
-        entities.append(
-            models.UserRole(id=seed_id(5_200 + index), user_id=user_id, role_id=role_id)
-        )
-        entities.append(
-            models.UserSettings(user_id=user_id, max_study_hours_per_day=2.5 + index % 3)
-        )
+        people.append(models.UserRole(id=seed_id(5_200 + index), user_id=user_id, role_id=role_id))
+        people.append(models.UserSettings(user_id=user_id, max_study_hours_per_day=2.5 + index % 3))
         for position, course_id in enumerate(course_ids):
             if (index + position) % 4 == 3:
                 continue  # not everyone takes every course
-            entities.append(
+            enrolments.append(
                 models.Enrollment(
                     id=seed_id(5_400 + index * 10 + position), user_id=user_id, course_id=course_id
                 )
@@ -846,14 +844,17 @@ def seed_demo_cohort(session: Session) -> int:
                 due = datetime.fromisoformat("2026-10-21T18:00:00+05:00") + timedelta(
                     weeks=week_shift
                 )
-                entities.append(
+                work.append(
                     models.Assignment(
                         id=seed_id(6_000 + index * 100 + position * 10 + offset),
                         course_id=course_id,
                         owner_user_id=user_id,
                         title=f"Demo cohort work {position + 1}.{offset + 1}",
                         due_at=due,
-                        estimated_hours=float(estimate),
+                        # Some students carry a heavier current week, so risk is not uniform.
+                        estimated_hours=float(
+                            estimate + (5 if not finished and index % 3 == 0 else 0)
+                        ),
                         actual_hours=float(estimate + (index + offset) % 3 - 1)
                         if finished
                         else None,
@@ -865,7 +866,9 @@ def seed_demo_cohort(session: Session) -> int:
                         ),
                     )
                 )
-    merge_all(session, entities)
+    # Users first: the rows reference each other through plain foreign keys, so flush in stages.
+    for group in (people, enrolments, work):
+        merge_all(session, group)
     session.commit()
     return COHORT_SIZE
 
