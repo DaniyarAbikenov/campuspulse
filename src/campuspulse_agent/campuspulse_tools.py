@@ -48,7 +48,8 @@ async def _call(
             headers={"Authorization": f"Bearer {token}"},
         )
     if response.status_code >= 400:
-        raise CampusPulseError(f"CampusPulse returned {response.status_code} for {path}")
+        detail = response.text[:600]
+        raise CampusPulseError(f"CampusPulse returned {response.status_code} for {path}: {detail}")
     return response.json()
 
 
@@ -228,7 +229,10 @@ class PlanItem(BaseModel):
 
     requirement_id: str = Field(description="Short id such as R1, R2 in document order")
     requirement_text: str = Field(description="The requirement in one sentence")
-    quote: str = Field(description="EXACT words copied from the document that state it")
+    quote: str = Field(
+        description="EXACT words copied from the document, the shortest sentence that states it "
+        "(at most 300 characters)"
+    )
     page: int = Field(ge=1, description="Page number where the quote appears")
     title: str = Field(description="Imperative task title")
     description: str = Field(default="", description="What to do, one or two sentences")
@@ -261,7 +265,11 @@ async def propose_task_plan(
     if related_assignment_id:
         body["related_assignment_id"] = related_assignment_id
         body["relation_type"] = relation_type or "related_to"
-    plan = await _call(tool_context, "POST", "/task-plans", json=body)
+    try:
+        plan = await _call(tool_context, "POST", "/task-plans", json=body)
+    except CampusPulseError as error:
+        # Hand the reason back so the model can correct its plan and try again.
+        return {"error": str(error), "hint": "Fix the problem described above and call again."}
     unverified = [item["requirement_id"] for item in plan["items"] if not item["quote_verified"]]
     return {
         "plan_id": plan["id"],

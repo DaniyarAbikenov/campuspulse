@@ -217,3 +217,22 @@ def test_plan_tool_schema_exposes_the_item_fields_to_gemini() -> None:
     schema = declaration.parameters_json_schema or declaration.parameters.model_dump()
     text = str(schema)
     assert "items" in text and "quote" in text and "requirement_id" in text
+
+
+async def test_plan_errors_are_returned_to_the_model_so_it_can_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, json={"detail": [{"loc": ["body", "items", 0, "quote"]}]})
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(
+        tools.httpx,
+        "AsyncClient",
+        lambda *a, **k: real(*a, **{**k, "transport": httpx.MockTransport(respond)}),
+    )
+    item = tools.PlanItem(
+        requirement_id="R1", requirement_text="x", quote="q", page=1, title="t", estimated_hours=1
+    )
+    result = await tools.propose_task_plan(context(), "a1", "s", [item])
+    assert "422" in result["error"] and "quote" in result["error"] and "again" in result["hint"]
