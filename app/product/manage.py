@@ -141,6 +141,7 @@ def delete_assignment(
     """Remove the assignment with its tasks, study sessions, plans and uploaded brief."""
     assignment = _owned_assignment(session, actor, assignment_id)
     tasks, sessions = _drop_tasks(session, assignment.id, only_open=False, sessions_from=None)
+    session.flush()  # remove the tasks first, so the database cascade does not race the ORM
     keys = []
     for document in session.scalars(
         select(models.Document).where(models.Document.assignment_id == assignment.id)
