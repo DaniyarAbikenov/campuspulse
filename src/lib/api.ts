@@ -363,6 +363,7 @@ export interface WorkspaceData {
   activity: Activity[];
   freeSlots: FreeSlot[];
   relations: AssignmentRelation[];
+  roles: string[];
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
@@ -390,7 +391,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     request<ApiInsight[]>("/insights"),
     request<RemoteSettings>("/settings"),
     request<ApiStatistics>("/statistics"),
-    request<{ id: string }>("/auth/me"),
+    request<{ id: string; roles: string[] }>("/auth/me"),
     request<ApiKnowledge>("/knowledge"),
     request<ApiCampusEvent[]>("/campus-events"),
     request<ApiAgentActivity>("/agent/activity?limit=50"),
@@ -605,6 +606,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     activity,
     freeSlots,
     relations,
+    roles: me.roles,
     statistics: {
       reportedHours: stats.reported_study_hours,
       estimateAccuracy: stats.estimate_accuracy_percent,
@@ -1085,3 +1087,89 @@ export const applyStudyPlan = async () => {
   return { created: result.created, plan: studyPlan(result.plan) };
 };
 export { campusClock as campusTime, clockText as campusClockText };
+
+interface ApiAdminOverview {
+  institution_name: string;
+  semester_name: string | null;
+  min_cohort_size: number;
+  totals: { students: number | null; enrolments: number | null; courses: number; open_assignments: number };
+  courses: {
+    course_id: string;
+    code: string;
+    name: string;
+    instructor_name: string | null;
+    suppressed: boolean;
+    enrolled_students: number | null;
+    open_assignments: number;
+    median_estimate_hours: number | null;
+    median_reported_hours: number | null;
+    estimate_accuracy_percent: number | null;
+    overload_risk_percent: number | null;
+  }[];
+  weekly: { week_start: string; estimated_hours_per_student: number | null; reported_hours_per_student: number | null }[];
+  peak_week: string | null;
+  peak_hours_per_student: number | null;
+  highest_risk_course: string | null;
+  highest_risk_percent: number | null;
+  activity: { kind: string; title: string; count: number | null }[];
+}
+/** Faculty aggregates. A null figure means the group was too small to show without risk. */
+export interface AdminOverview {
+  institution: string;
+  semester: string | null;
+  minCohort: number;
+  students: number | null;
+  enrolments: number | null;
+  courseCount: number;
+  openAssignments: number;
+  courses: {
+    id: string;
+    code: string;
+    name: string;
+    instructor: string;
+    suppressed: boolean;
+    students: number | null;
+    openAssignments: number;
+    medianEstimate: number | null;
+    medianReported: number | null;
+    accuracy: number | null;
+    risk: number | null;
+  }[];
+  weekly: { week: string; estimated: number | null; reported: number | null }[];
+  peakWeek: string | null;
+  peakHours: number | null;
+  highestRiskCourse: string | null;
+  highestRisk: number | null;
+  activity: { kind: string; title: string; count: number | null }[];
+}
+export async function fetchAdminOverview(): Promise<AdminOverview> {
+  const raw = await request<ApiAdminOverview>("/admin/overview");
+  return {
+    institution: raw.institution_name,
+    semester: raw.semester_name,
+    minCohort: raw.min_cohort_size,
+    students: raw.totals.students,
+    enrolments: raw.totals.enrolments,
+    courseCount: raw.totals.courses,
+    openAssignments: raw.totals.open_assignments,
+    courses: raw.courses.map((item) => ({
+      id: item.course_id,
+      code: item.code,
+      name: item.name,
+      instructor: item.instructor_name ?? "",
+      suppressed: item.suppressed,
+      students: item.enrolled_students,
+      openAssignments: item.open_assignments,
+      medianEstimate: item.median_estimate_hours,
+      medianReported: item.median_reported_hours,
+      accuracy: item.estimate_accuracy_percent,
+      risk: item.overload_risk_percent,
+    })),
+    weekly: raw.weekly.map((item) => ({ week: `W${isoWeek(item.week_start)}`, estimated: item.estimated_hours_per_student, reported: item.reported_hours_per_student })),
+    peakWeek: raw.peak_week ? `W${isoWeek(raw.peak_week)}` : null,
+    peakHours: raw.peak_hours_per_student,
+    highestRiskCourse: raw.highest_risk_course,
+    highestRisk: raw.highest_risk_percent,
+    activity: raw.activity,
+  };
+}

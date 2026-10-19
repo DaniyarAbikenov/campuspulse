@@ -51,7 +51,7 @@ const adminNav = [
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const { locale } = useI18n();
-  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected } = useStore();
+  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected, canAdminister } = useStore();
   const initials = settings.full_name.split(/\s+/).map((part) => part[0] ?? "").join("").slice(0, 2).toUpperCase();
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
@@ -131,9 +131,11 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             <DropdownMenuItem onClick={() => { setRole("student"); navigate({ to: "/" }); }}>
               <GraduationCap className="h-4 w-4" /> {localize("Student Workspace", locale)} {localize(role === "student" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setRole("admin"); navigate({ to: "/admin" }); }}>
-              <Users className="h-4 w-4" /> {localize("Academic Administrator Demo", locale)} {localize(role === "admin" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
-            </DropdownMenuItem>
+            {canAdminister ? (
+              <DropdownMenuItem onClick={() => { setRole("admin"); navigate({ to: "/admin" }); }}>
+                <Users className="h-4 w-4" /> {localize(backendConnected ? "Academic Administrator" : "Academic Administrator Demo", locale)} {localize(role === "admin" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}><Settings className="h-4 w-4" /> {localize("Settings", locale)}</DropdownMenuItem>
             {backendConnected ? <DropdownMenuItem onClick={() => void signOut()}><LogOut className="h-4 w-4" /> {localize("Sign out", locale)}</DropdownMenuItem> : null}

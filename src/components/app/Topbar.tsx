@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { courseOf, adminActivity, facultyCourseCatalog } from "@/lib/data";
+import { courseOf } from "@/lib/data";
 import { LanguageSelector } from "./LanguageSelector";
 
 const labels: Record<string, string> = {
@@ -18,7 +18,7 @@ const labels: Record<string, string> = {
 export function Topbar() {
   const { locale } = useI18n();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { openChat, activity, setUploadOpen, role, setMobileNavOpen, courses, assignments } = useStore();
+  const { openChat, activity, setUploadOpen, role, setMobileNavOpen, courses, assignments, adminFeed, adminCourseOptions } = useStore();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const parts = path.split("/").filter(Boolean);
@@ -69,7 +69,7 @@ export function Topbar() {
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="border-b px-3 py-2 text-[13px] font-semibold">{localize("Notifications", locale)}</div>
-            {localize((role === "admin" ? adminActivity : activity).slice(0, 5).map((a) => (
+            {localize((role === "admin" ? adminFeed : activity).slice(0, 5).map((a) => (
               <div key={a.id} className="border-b px-3 py-2 last:border-0">
                 <div className="text-[12.5px] font-medium">{localize(a.title, locale)}</div>
                 <div className="text-[11.5px] text-muted-foreground">{localize(a.time, locale)} {localize("·", locale)} {localize(a.detail, locale)}</div>
@@ -89,7 +89,7 @@ export function Topbar() {
         <CommandList>
           <CommandEmpty>{localize("No results found.", locale)}</CommandEmpty>
           <CommandGroup heading={localize("Courses", locale)}>
-            {localize((role === "admin" ? facultyCourseCatalog : courses).map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{localize(c.name, locale)} <span className="ml-auto text-[11px] text-muted-foreground">{localize(c.code, locale)}</span></CommandItem>), locale)}
+            {localize((role === "admin" ? adminCourseOptions : courses).map((c) => <CommandItem key={c.id} onSelect={() => { setOpen(false); if (role === "admin") navigate({ to: "/admin/courses" }); else navigate({ to: "/courses/$courseId", params: { courseId: c.id } }); }}>{localize(c.name, locale)} <span className="ml-auto text-[11px] text-muted-foreground">{localize(c.code, locale)}</span></CommandItem>), locale)}
           </CommandGroup>
           {localize(role === "student" && <CommandGroup heading={localize("Assignments", locale)}>
             {localize(assignments.map((a) => <CommandItem key={a.id} onSelect={() => { setOpen(false); navigate({ to: "/assignments/$assignmentId", params: { assignmentId: a.id } }); }}>{localize(a.title, locale)} <span className="ml-auto text-[11px] text-muted-foreground">{localize(courseOf(a.courseId).code, locale)}</span></CommandItem>), locale)}

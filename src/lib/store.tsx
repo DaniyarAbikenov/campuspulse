@@ -21,6 +21,8 @@ import {
   type DocumentFragment,
   type FreeSlot,
   freeSlots as initialFreeSlots,
+  adminActivity as adminActivityFixture,
+  facultyCourseCatalog,
   type KnowledgeDoc,
   campusEvents as initialCampusEvents,
   knowledgeDocs as initialKnowledgeDocs,
@@ -42,6 +44,8 @@ import {
   completeOnboardingRemote,
   fetchAgentEnabled,
   fetchFreeSlots,
+  fetchAdminOverview,
+  type AdminOverview,
   type AssignmentRelation,
   restoreSession,
   signInDemo as signInDemoRemote,
@@ -133,6 +137,15 @@ interface Store {
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
   reloadWorkspace: () => Promise<void>;
   agentEnabled: boolean;
+  /** Backend roles of the signed-in user; the admin workspace needs an administrator role. */
+  roles: string[];
+  canAdminister: boolean;
+  adminOverview: AdminOverview | null;
+  adminError: string | null;
+  /** Anonymised faculty activity (counts only) or the offline demo feed. */
+  adminFeed: Activity[];
+  adminCourseOptions: { id: string; name: string; code: string }[];
+  loadAdminOverview: () => Promise<void>;
   freeSlots: FreeSlot[];
   relations: AssignmentRelation[];
   uploadAssignment: (input: {
@@ -166,6 +179,9 @@ export function StoreProvider({
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [freeSlots, setFreeSlots] = useState<FreeSlot[]>(initialFreeSlots);
   const [relations, setRelations] = useState<AssignmentRelation[]>([]);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
   const backendConnected = connection === "online";
   const connectionRef = useRef<ConnectionState>("connecting");
   connectionRef.current = connection;
@@ -234,6 +250,7 @@ export function StoreProvider({
     setActivity(workspace.activity);
     setFreeSlots(workspace.freeSlots);
     setRelations(workspace.relations);
+    setRoles(workspace.roles);
     setConnection("online");
     fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
   }, []);
@@ -645,6 +662,36 @@ export function StoreProvider({
       setSettings(updated);
     },
     agentEnabled,
+    roles,
+    // The fixture demo (offline) keeps the admin switch; a live backend needs a real role.
+    canAdminister: connection !== "online" || roles.some((r) => r === "academic_admin" || r === "platform_admin"),
+    adminOverview,
+    adminError,
+    adminFeed:
+      connection === "online" && adminOverview
+        ? adminOverview.activity.map((item) => ({
+            id: item.kind,
+            time: "7 days",
+            title: item.title,
+            detail: item.count === null ? `Fewer than ${adminOverview.minCohort} students: withheld` : `${item.count} in the last 7 days`,
+            kind: item.kind as Activity["kind"],
+            status: "success" as const,
+          }))
+        : connection === "online"
+          ? []
+          : adminActivityFixture,
+    adminCourseOptions:
+      connection === "online" && adminOverview
+        ? adminOverview.courses.map((course) => ({ id: course.id, name: course.name, code: course.code }))
+        : facultyCourseCatalog.map((course) => ({ id: course.id, name: course.name, code: course.code ?? "" })),
+    loadAdminOverview: async () => {
+      try {
+        setAdminOverview(await fetchAdminOverview());
+        setAdminError(null);
+      } catch (error) {
+        setAdminError(String(error));
+      }
+    },
     freeSlots,
     relations,
     reloadWorkspace: async () => {

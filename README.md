@@ -45,9 +45,9 @@ Frontend подключён к локальному FastAPI, но остаётс
 | `/insights` | Proactive recommendations и CTA | API |
 | `/knowledge` | Indexed materials and fragments | API |
 | `/events` | Campus activities | API |
-| `/activity` | Agent activity feed with tool calls | API (student); admin feed is a fixture |
+| `/activity` | Agent activity feed with tool calls | API (student); admin: анонимные счётчики за 7 дней |
 | `/settings` | Profile, availability, AI и notifications | API |
-| `/admin*` | Faculty dashboard, courses и cohort statistics | Fixtures |
+| `/admin*` | Faculty dashboard, courses и cohort statistics | API: анонимные агрегаты (`/admin/overview`), доступны только роли academic_admin |
 
 Интерфейс доступен на английском, русском и казахском. Перевод применяется только на render boundary: canonical statuses и IDs остаются неизменными.
 
@@ -86,7 +86,7 @@ Frontend подключён к локальному FastAPI, но остаётс
 
 - Generated task proposal, approval, import и scheduling частично живут в Store.
 - Workload plan изменяет визуальную модель; server insight apply вызывается только из соответствующего insight flow.
-- Semester trend и admin cohort/activity — fixtures; offline-режим показывает явный баннер.
+- Offline-режим показывает явный баннер и работает на фикстурах.
 - Если агент не настроен, Upload показывает симулированный analysis (явно помечен); при включённом агенте анализ настоящий.
 - Topbar search/chat остаются прототипными.
 
