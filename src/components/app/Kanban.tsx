@@ -1,6 +1,7 @@
 import { localize, useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 import { Clock, Sparkles, Plus } from "lucide-react";
+import { StudyMaterial } from "@/components/app/StudyMaterial";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Trash2 } from "lucide-react";
@@ -165,6 +166,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
                     </Select>
                   </dd>
                 </dl>
+                <StudyMaterial resources={open.resources} />
                 <Button size="sm" className="w-full" onClick={() => { moveTask(open.id, "done"); setOpen(null); toast.success(localize("Task completed", locale)); }}>{localize("Mark as Completed", locale)}</Button>
               </div>
             </>

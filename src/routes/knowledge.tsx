@@ -1,13 +1,13 @@
 import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
-import { FileText, Search, Upload, BookMarked, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { FileText, Search, Sparkles, Upload, BookMarked, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MaterialFormDialog } from "@/components/app/MaterialFormDialog";
-import { deleteRemoteMaterial, errorText } from "@/lib/api";
+import { deleteRemoteMaterial, errorText, searchKnowledge, type KnowledgeHit } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CourseTag, EmptyState, PageHeader, Panel, PredictionNote } from "@/components/app/common";
@@ -61,6 +61,17 @@ function Knowledge() {
     }
   };
   const [q, setQ] = useState("");
+  const [hits, setHits] = useState<KnowledgeHit[] | null>(null);
+  // Search by meaning: a question in plain words finds the lecture passage even without shared words.
+  useEffect(() => {
+    const term = q.trim();
+    if (!backendConnected || term.length < 3) { setHits(null); return; }
+    let current = true;
+    const timer = setTimeout(() => {
+      searchKnowledge(term).then((found) => { if (current) setHits(found); }).catch(() => { if (current) setHits(null); });
+    }, 450);
+    return () => { current = false; clearTimeout(timer); };
+  }, [q, backendConnected]);
   const conceptMap = new Map<string, Set<string>>();
   for (const item of knowledgeDocs) for (const concept of item.concepts) conceptMap.set(concept, (conceptMap.get(concept) ?? new Set()).add(item.id));
   const concepts = [...conceptMap.entries()].filter(([concept]) => !q.trim() || concept.toLowerCase().includes(q.trim().toLowerCase())).map(([concept, ids]) => [concept, ids.size] as const).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14);
@@ -77,6 +88,19 @@ function Knowledge() {
             <div className="relative min-w-0 basis-full sm:flex-1"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input aria-label={localize("Search document concepts", locale)} value={q} onChange={(e) => setQ(e.target.value)} placeholder={localize("Search concepts, e.g. JWT, $group, indexes", locale)} className="h-9 pl-8" /></div>
             <div className="flex flex-wrap gap-1">{localize(["all", ...courses.map((c) => c.id)].map((c) => <Button variant="outline" size="sm" aria-pressed={course === c} key={c} onClick={() => setCourse(c)} className={cn("rounded-md border px-2 text-[12px]", course === c ? "border-primary/40 bg-primary-soft text-primary" : "text-muted-foreground")}>{localize(c === "all" ? "All" : courses.find((x) => x.id === c)?.code.split(" ")[0], locale)}</Button>), locale)}</div>
           </div>
+          {hits && hits.length ? (
+            <section aria-label={localize("Matches by meaning", locale)} className="mb-3 rounded-lg border border-ai/30 bg-ai-soft/40 p-3">
+              <h2 className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold"><Sparkles className="h-3.5 w-3.5 text-ai" aria-hidden /> {localize("Matches by meaning", locale)}</h2>
+              <ul className="space-y-2">
+                {hits.map((hit) => (
+                  <li key={`${hit.documentId}-${hit.page}`} className="text-[12.5px]">
+                    <button type="button" className="font-medium text-primary hover:underline" onClick={() => { const found = knowledgeDocs.find((item) => item.id === hit.documentId); if (found) setDoc(found); }}>{hit.documentName} · {localize("p.", locale)} {hit.page}</button>
+                    <p className="text-muted-foreground">{highlightMatch(hit.excerpt, q)}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : hits && !hits.length ? <p role="status" className="mb-3 text-[12.5px] text-muted-foreground">{localize("No passage in your materials answers that.", locale)}</p> : null}
           {localize(list.length ? <div className="grid gap-3 md:grid-cols-2">{localize(list.map((d) => (
             <Button variant="ghost" key={d.id} onClick={() => setDoc(d)} aria-label={`${d.title}, ${d.type}, ${d.pages} ${locale === "en" ? "pages" : ""}`.trim()} className="panel h-auto flex-col items-stretch whitespace-normal p-3 text-left transition-colors hover:border-primary/40">
               <div className="flex items-start gap-2"><FileText className="mt-0.5 h-4 w-4 text-primary" /><div className="min-w-0 flex-1"><div className="truncate text-[13px] font-medium">{localize(d.title, locale)}</div><div className="text-[11.5px] text-muted-foreground">{localize(d.type, locale)} {localize("·", locale)} {localize(d.pages, locale)} {localize("pages · indexed", locale)} {localize(d.indexed, locale)}</div></div></div>
@@ -86,7 +110,7 @@ function Knowledge() {
           )), locale)}</div> : <div className="panel"><EmptyState icon={Search} title={localize("No matching documents", locale)} text={localize("Try a different concept or course.", locale)} /></div>, locale)}
         </div>
         {backendConnected ? (
-          <Panel title={localize(<span className="flex items-center gap-1.5"><BookMarked className="h-4 w-4 text-ai" /> {localize("Concepts in your materials", locale)}</span>, locale)} subtitle={`${knowledgeDocs.length} ${localize("indexed documents", locale)}`} className="h-fit">
+          <Panel title={localize(<span className="flex items-center gap-1.5"><BookMarked className="h-4 w-4 text-ai" /> {localize("Page headings in your materials", locale)}</span>, locale)} subtitle={`${knowledgeDocs.length} ${localize("indexed documents", locale)}`} className="h-fit">
             {concepts.length ? (
               <ul className="flex flex-wrap gap-1.5">
                 {concepts.map(([concept, count]) => (
