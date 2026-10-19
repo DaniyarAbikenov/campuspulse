@@ -923,3 +923,50 @@ class StudyPlanRead(StrictSchema):
 class StudyPlanApplyRead(StrictSchema):
     created: StrictInt
     plan: StudyPlanRead
+
+
+class AdminCourseRead(StrictSchema):
+    course_id: UUID
+    code: str
+    name: str
+    instructor_name: str | None
+    suppressed: StrictBool
+    enrolled_students: StrictInt | None
+    open_assignments: StrictInt
+    median_estimate_hours: StrictFloat | None
+    median_reported_hours: StrictFloat | None
+    estimate_accuracy_percent: StrictInt | None
+    overload_risk_percent: StrictInt | None
+
+
+class AdminWeekRead(StrictSchema):
+    week_start: date
+    estimated_hours_per_student: StrictFloat | None
+    reported_hours_per_student: StrictFloat | None
+
+
+class AdminActivityRead(StrictSchema):
+    kind: str
+    title: str
+    count: StrictInt | None
+
+
+class AdminTotalsRead(StrictSchema):
+    students: StrictInt | None
+    enrolments: StrictInt | None
+    courses: StrictInt
+    open_assignments: StrictInt
+
+
+class AdminOverviewRead(StrictSchema):
+    institution_name: str
+    semester_name: str | None
+    min_cohort_size: StrictInt
+    totals: AdminTotalsRead
+    courses: list[AdminCourseRead]
+    weekly: list[AdminWeekRead]
+    peak_week: date | None
+    peak_hours_per_student: StrictFloat | None
+    highest_risk_course: str | None
+    highest_risk_percent: StrictInt | None
+    activity: list[AdminActivityRead]

@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     agent_adk_app: str = "campuspulse"
     agent_token_ttl_minutes: int = 60
     agent_timeout_seconds: float = 120.0
+    # Administrators only see aggregates over at least this many distinct students.
+    admin_min_cohort_size: int = 5
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

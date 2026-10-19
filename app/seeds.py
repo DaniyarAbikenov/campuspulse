@@ -1,6 +1,7 @@
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -802,7 +803,78 @@ def seed_database(session: Session) -> SeedSummary:
     )
 
 
+COHORT_SIZE = 14
+
+
+def seed_demo_cohort(session: Session) -> int:
+    """Add anonymous demo students so faculty aggregates have a cohort above the privacy minimum.
+
+    Not part of the default seed: run ``python -m app.seeds --cohort`` for demos.
+    """
+    institution_id = seed_id(1)
+    role_id = seed_id(100)
+    course_ids = [seed_id(200 + index) for index in range(5)]
+    entities: list[models.Base] = []
+    for index in range(COHORT_SIZE):
+        user_id = seed_id(5_000 + index)
+        entities.append(
+            models.User(
+                id=user_id,
+                institution_id=institution_id,
+                email=f"cohort.{index + 1:02d}@campuspulse.example",
+                full_name=f"Demo cohort student {index + 1:02d}",
+                student_number=f"DEMO{index + 1:04d}",
+                program="Software Engineering",
+            )
+        )
+        entities.append(
+            models.UserRole(id=seed_id(5_200 + index), user_id=user_id, role_id=role_id)
+        )
+        entities.append(
+            models.UserSettings(user_id=user_id, max_study_hours_per_day=2.5 + index % 3)
+        )
+        for position, course_id in enumerate(course_ids):
+            if (index + position) % 4 == 3:
+                continue  # not everyone takes every course
+            entities.append(
+                models.Enrollment(
+                    id=seed_id(5_400 + index * 10 + position), user_id=user_id, course_id=course_id
+                )
+            )
+            estimate = 3 + (index * 7 + position * 3) % 6
+            for offset, (week_shift, finished) in enumerate(((-3, True), (-1, True), (0, False))):
+                due = datetime.fromisoformat("2026-10-21T18:00:00+05:00") + timedelta(
+                    weeks=week_shift
+                )
+                entities.append(
+                    models.Assignment(
+                        id=seed_id(6_000 + index * 100 + position * 10 + offset),
+                        course_id=course_id,
+                        owner_user_id=user_id,
+                        title=f"Demo cohort work {position + 1}.{offset + 1}",
+                        due_at=due,
+                        estimated_hours=float(estimate),
+                        actual_hours=float(estimate + (index + offset) % 3 - 1)
+                        if finished
+                        else None,
+                        progress=100 if finished else 20,
+                        status=(
+                            models.AssignmentStatus.completed
+                            if finished
+                            else models.AssignmentStatus.in_progress
+                        ),
+                    )
+                )
+    merge_all(session, entities)
+    session.commit()
+    return COHORT_SIZE
+
+
 def main() -> None:
+    if "--cohort" in sys.argv[1:]:
+        with SessionLocal() as session:
+            print(f"Demo cohort ready: {seed_demo_cohort(session)} anonymous students.")
+        return
     with SessionLocal() as session:
         summary = seed_database(session)
     print(

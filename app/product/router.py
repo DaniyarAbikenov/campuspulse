@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
 from app.documents import service as documents_service
-from app.product import campus, imports, planner, plans, service
+from app.product import admin, campus, imports, planner, plans, service
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -540,3 +540,11 @@ def apply_study_plan(
     current: CurrentUserDep, session: SessionDep, week_start: date | None = None
 ) -> schemas.StudyPlanApplyRead:
     return planner.apply_plan(session, current, week_start)
+
+
+@router.get("/admin/overview", response_model=schemas.AdminOverviewRead, tags=["admin"])
+def admin_overview(
+    current: CurrentUserDep, session: SessionDep, institution_id: UUID | None = None
+) -> schemas.AdminOverviewRead:
+    """Anonymised faculty aggregates; groups below the minimum cohort size are withheld."""
+    return admin.overview(session, current, institution_id)
