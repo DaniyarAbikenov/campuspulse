@@ -11,7 +11,7 @@ COPY app ./app
 COPY alembic.ini ./
 COPY migrations ./migrations
 
-RUN pip install --no-cache-dir ".[agent]" psycopg[binary]
+RUN pip install --no-cache-dir ".[agent]"
 
 # Cloud Run provides $PORT; migrations run before the server starts.
 CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
