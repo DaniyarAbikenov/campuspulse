@@ -84,3 +84,33 @@ OAuth client's authorised JavaScript origins.
 2. Ask "What is due this week?" — the chat shows tool calls (`list_assignments`, …) and an answer.
 3. Ask "Import my Moodle assignments" — a proposal appears under Assignments; nothing is created
    until you approve.
+
+## Lessons from the first deployment
+
+- **Package layout.** `extra_packages` archives are extracted as-is, so the deploy script stages
+  `campuspulse_agent/` at the archive root; passing `src/campuspulse_agent` makes the import fail
+  and Agent Engine only reports "failed to deploy" with no logs.
+- **Pin versions.** The script pins the runtime requirements to the versions installed locally.
+- **No empty env vars.** Agent Engine rejects `""`; optional variables are omitted instead.
+- **Secrets.** Pass `--mcp-key-secret mcp-api-key`. The Reasoning Engine service agent
+  (`service-PROJECT_NUMBER@gcp-sa-aiplatform-re.iam.gserviceaccount.com`) needs
+  `roles/secretmanager.secretAccessor` on that secret, and it only exists after the first
+  deployment attempt, so a first run may fail with PERMISSION_DENIED.
+- **MCP auth at runtime.** The MCP key is read from the environment on every call
+  (`header_provider`), never baked into the pickled agent.
+- **zsh.** Write `${PROJECT}:us-central1:db`, not `$PROJECT:us-central1:db` (`:u` upper-cases).
+
+## Current deployment (project-474b28ac-4d07-464f-a44, us-central1)
+
+| Component | Identifier |
+|---|---|
+| Backend | Cloud Run `campuspulse-api` |
+| Moodle MCP | Cloud Run `campuspulse-moodle-mcp` (API key required) |
+| Database | Cloud SQL `campuspulse-db` (Postgres 17, db-f1-micro, no backups) |
+| Agent | Agent Engine `projects/694651486934/locations/us-central1/reasoningEngines/2986893980475588608` |
+| Seed | Cloud Run job `campuspulse-seed` |
+| Secrets | `campuspulse-jwt-secret`, `campuspulse-database-url`, `campuspulse-db-password`, `moodle-token`, `mcp-api-key` |
+
+Tear down when finished: `gcloud run services delete campuspulse-api campuspulse-moodle-mcp`,
+`gcloud run jobs delete campuspulse-seed`, `gcloud sql instances delete campuspulse-db`, and delete
+the Agent Engine from the console or REST API.

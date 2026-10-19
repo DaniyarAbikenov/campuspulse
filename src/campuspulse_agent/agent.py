@@ -25,19 +25,20 @@ How you work:
 """
 
 
+def mcp_headers(_context: object) -> dict[str, str]:
+    """Resolved per call from the runtime environment, so the key is never baked into the
+    pickled agent (Agent Engine injects it from Secret Manager at start-up)."""
+    token = get_settings().moodle_mcp_token
+    return {"Authorization": f"Bearer {token.get_secret_value()}"} if token else {}
+
+
 def build_toolset(settings: Settings) -> list[object]:
     tools: list[object] = list(CAMPUSPULSE_TOOLS)
     if settings.moodle_mcp_url:
-        headers = (
-            {"Authorization": f"Bearer {settings.moodle_mcp_token.get_secret_value()}"}
-            if settings.moodle_mcp_token
-            else None
-        )
         tools.append(
             McpToolset(
-                connection_params=StreamableHTTPConnectionParams(
-                    url=settings.moodle_mcp_url, headers=headers
-                ),
+                connection_params=StreamableHTTPConnectionParams(url=settings.moodle_mcp_url),
+                header_provider=mcp_headers,
                 tool_filter=[
                     "moodle_list_courses",
                     "moodle_list_assignments",

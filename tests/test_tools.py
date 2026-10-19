@@ -129,3 +129,12 @@ def test_agent_exposes_tools_and_adds_moodle_only_when_configured() -> None:
     assert len(with_moodle) == len(without) + 1
     agent = build_agent(Settings(moodle_mcp_url=None))
     assert agent.name == "campuspulse" and "read-only" in agent.instruction
+
+
+def test_moodle_headers_come_from_the_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    from campuspulse_agent.agent import mcp_headers
+
+    monkeypatch.delenv("CAMPUSPULSE_MOODLE_MCP_TOKEN", raising=False)
+    assert mcp_headers(None) == {}
+    monkeypatch.setenv("CAMPUSPULSE_MOODLE_MCP_TOKEN", "runtime-key")
+    assert mcp_headers(None) == {"Authorization": "Bearer runtime-key"}
