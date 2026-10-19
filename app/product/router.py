@@ -198,7 +198,9 @@ def kanban(
     )
 
 
-@router.patch("/kanban/tasks/{task_id}/move", response_model=schemas.TaskRead, tags=["kanban"])
+@router.patch(
+    "/kanban/tasks/{task_id}/move", response_model=schemas.TaskRead, tags=["kanban"]
+)
 def move_kanban_task(
     task_id: UUID,
     payload: schemas.KanbanMoveRequest,

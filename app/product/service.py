@@ -204,6 +204,7 @@ def kanban_board(
 ) -> schemas.KanbanBoardRead:
     normalized_query = query.casefold().strip() if query else None
     tasks: list[models.Task] = []
+    course_by_task: dict[UUID, UUID] = {}
     for task in session.scalars(select(models.Task).order_by(models.Task.created_at)).all():
         if not can_read(session, actor, task):
             continue
@@ -224,6 +225,7 @@ def kanban_board(
         ):
             continue
         tasks.append(task)
+        course_by_task[task.id] = assignment.course_id
     columns: list[schemas.KanbanColumnRead] = []
     for column_status in models.TaskStatus:
         column_tasks = [task for task in tasks if task.status == column_status]
@@ -232,7 +234,15 @@ def kanban_board(
                 status=column_status,
                 task_count=len(column_tasks),
                 estimated_hours=float(round(sum(task.estimated_hours for task in column_tasks), 2)),
-                tasks=[schemas.TaskRead.model_validate(task) for task in column_tasks],
+                tasks=[
+                    schemas.KanbanTaskRead.model_validate(
+                        {
+                            **schemas.TaskRead.model_validate(task).model_dump(),
+                            "course_id": course_by_task[task.id],
+                        }
+                    )
+                    for task in column_tasks
+                ],
             )
         )
     open_tasks = [task for task in tasks if task.status != models.TaskStatus.completed]

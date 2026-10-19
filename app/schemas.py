@@ -246,6 +246,8 @@ class TaskCreate(StrictSchema):
     priority: Priority = Priority.medium
     estimated_hours: Hours = 0
     due_at: datetime | None = None
+    is_ai_generated: bool = False
+    source_requirement: Annotated[str, Field(max_length=40)] | None = None
 
 
 class TaskUpdate(StrictSchema):
@@ -256,10 +258,16 @@ class TaskUpdate(StrictSchema):
     priority: Priority | None = None
     estimated_hours: Hours | None = None
     due_at: datetime | None = None
+    is_ai_generated: bool | None = None
+    source_requirement: Annotated[str, Field(max_length=40)] | None = None
 
 
 class TaskRead(TaskCreate, EntityRead):
     pass
+
+
+class KanbanTaskRead(TaskRead):
+    course_id: UUID
 
 
 class DocumentCreate(StrictSchema):
@@ -412,7 +420,7 @@ class KanbanColumnRead(StrictSchema):
     status: TaskStatus
     task_count: StrictInt
     estimated_hours: StrictFloat
-    tasks: list[TaskRead]
+    tasks: list[KanbanTaskRead]
 
 
 class KanbanBoardRead(StrictSchema):

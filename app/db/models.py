@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    false,
 )
 from sqlalchemy import (
     Enum as SqlEnum,
@@ -345,6 +346,8 @@ class Task(TimestampMixin, Base):
     )
     estimated_hours: Mapped[float] = mapped_column(Float, default=0)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_ai_generated: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    source_requirement: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
 
 class Document(TimestampMixin, Base):
