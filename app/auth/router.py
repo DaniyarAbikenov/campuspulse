@@ -146,14 +146,8 @@ def logout(payload: schemas.RefreshTokenRequest, session: SessionDep) -> Respons
 
 
 @router.get("/me", response_model=schemas.AuthUserRead)
-def me(current: CurrentUserDep) -> schemas.AuthUserRead:
-    return schemas.AuthUserRead(
-        id=current.user.id,
-        email=current.user.email,
-        full_name=current.user.full_name,
-        institution_id=current.user.institution_id,
-        roles=current.roles,
-    )
+def me(current: CurrentUserDep, session: SessionDep) -> schemas.AuthUserRead:
+    return _profile(session, current.user, current.roles)
 
 
 @router.get("/onboarding/options", response_model=schemas.OnboardingOptionsRead)
@@ -219,12 +213,31 @@ def onboarding(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
         ) from error
+    return _profile(session, completed.user, completed.roles)
+
+
+def _profile(session: Session, user: models.User, roles: list[str]) -> schemas.AuthUserRead:
+    """The signed-in user with the names the interface shows (university and current semester)."""
+    institution = (
+        session.get(models.Institution, user.institution_id) if user.institution_id else None
+    )
+    semester = (
+        session.scalars(
+            select(models.Semester)
+            .where(models.Semester.institution_id == user.institution_id)
+            .order_by(models.Semester.starts_on.desc())
+        ).first()
+        if institution
+        else None
+    )
     return schemas.AuthUserRead(
-        id=completed.user.id,
-        email=completed.user.email,
-        full_name=completed.user.full_name,
-        institution_id=completed.user.institution_id,
-        roles=completed.roles,
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        institution_id=user.institution_id,
+        roles=roles,
+        institution_name=institution.name if institution else None,
+        semester_name=semester.name if semester else None,
     )
 
 

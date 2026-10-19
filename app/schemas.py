@@ -377,6 +377,8 @@ class AuthUserRead(StrictSchema):
     full_name: str
     institution_id: UUID | None
     roles: list[str]
+    institution_name: str | None = None
+    semester_name: str | None = None
 
 
 class OnboardingRequest(StrictSchema):

@@ -44,3 +44,9 @@ def test_new_user_picks_an_institution_and_courses_then_options_close(
 def test_options_require_authentication(student: TestClient) -> None:
     student.headers.pop("Authorization")
     assert student.get("/api/v1/auth/onboarding/options").status_code == 401
+
+
+def test_me_includes_the_university_and_semester_names(student: TestClient) -> None:
+    me = student.get("/api/v1/auth/me").json()
+    assert me["institution_name"] == "Astana IT University"
+    assert me["semester_name"]
