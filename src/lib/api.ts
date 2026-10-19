@@ -3,6 +3,10 @@ import {
   courses as fixtureCourses,
   type Assignment,
   type CalEvent,
+  type Activity,
+  type CampusEvent,
+  type DocumentFragment,
+  type KnowledgeDoc,
   type Course,
   type Insight,
   type Task,
@@ -85,6 +89,48 @@ interface ApiStatistics {
     estimated_hours: number;
     actual_hours: number;
     delta_hours: number;
+  }[];
+}
+interface ApiKnowledge {
+  documents: {
+    id: string;
+    course_id: string;
+    name: string;
+    kind: string;
+    page_count: number;
+    indexed_at: string;
+    concepts: string[];
+  }[];
+  fragments: {
+    id: string;
+    document_id: string;
+    assignment_id: string | null;
+    page: number;
+    concept: string;
+    text: string;
+    requirement_id: string | null;
+  }[];
+}
+interface ApiCampusEvent {
+  id: string;
+  title: string;
+  category: string;
+  place: string;
+  starts_at: string;
+  ends_at: string;
+  match_percent: number | null;
+  reason: string | null;
+  is_saved: boolean;
+}
+interface ApiAgentActivity {
+  runs: {
+    id: string;
+    kind: string;
+    title: string;
+    detail: string;
+    status: string;
+    started_at: string;
+    tool_calls: { tool_name: string; result_summary: string | null }[];
   }[];
 }
 interface ApiInsight {
@@ -172,15 +218,21 @@ const shortDate = (value?: string | null) =>
         new Date(value),
       )
     : "—";
+// The institution runs on Asia/Almaty (UTC+5, no DST); the API returns UTC instants.
+const CAMPUS_OFFSET_MS = 5 * 3_600_000;
+const campusClock = (value: string) => new Date(Date.parse(value) + CAMPUS_OFFSET_MS);
 const hours = (value: string) => {
-  const date = new Date(value);
+  const date = campusClock(value);
   return date.getUTCHours() + date.getUTCMinutes() / 60;
 };
-const dayIndex = (value: string) =>
-  Math.max(
-    0,
-    Math.min(6, Math.round((Date.parse(value.slice(0, 10)) - Date.parse(WEEK_START)) / 86_400_000)),
-  );
+const rawDayIndex = (value: string) =>
+  Math.round((Date.parse(campusClock(value).toISOString().slice(0, 10)) - Date.parse(WEEK_START)) / 86_400_000);
+const dayIndex = (value: string) => Math.max(0, Math.min(6, rawDayIndex(value)));
+const clockText = (value: string) => {
+  const date = campusClock(value);
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`;
+};
+const capitalized = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 const titleStatus = (status: string): Assignment["status"] =>
   (
     ({
@@ -239,6 +291,9 @@ export interface WorkspaceData {
   };
   settings: RemoteSettings;
   statistics: RemoteStatistics;
+  knowledge: { docs: KnowledgeDoc[]; fragments: DocumentFragment[] };
+  campusEvents: CampusEvent[];
+  activity: Activity[];
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
@@ -247,8 +302,20 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
   });
   accessToken = tokens.access_token;
   refreshToken = tokens.refresh_token;
-  const [rawCourses, page, board, schedule, workload, rawInsights, settings, stats, me] =
-    await Promise.all([
+  const [
+    rawCourses,
+    page,
+    board,
+    schedule,
+    workload,
+    rawInsights,
+    settings,
+    stats,
+    me,
+    knowledge,
+    rawEvents,
+    agent,
+  ] = await Promise.all([
     request<ApiCourse[]>("/courses/overview"),
     request<ApiAssignmentPage>("/assignments/overview"),
     request<ApiKanban>("/kanban"),
@@ -258,6 +325,9 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     request<RemoteSettings>("/settings"),
     request<ApiStatistics>("/statistics"),
     request<{ id: string }>("/auth/me"),
+    request<ApiKnowledge>("/knowledge"),
+    request<ApiCampusEvent[]>("/campus-events"),
+    request<ApiAgentActivity>("/agent/activity?limit=50"),
   ]);
   currentUserId = me.id;
   const courseByBackend = new Map<string, string>();
@@ -376,6 +446,55 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       sources: [],
     };
   });
+  const weekday = new Intl.DateTimeFormat("en", { weekday: "short", timeZone: "UTC" });
+  const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" });
+  const campusEvents: CampusEvent[] = rawEvents.map((item) => {
+    const local = campusClock(item.starts_at);
+    const day = rawDayIndex(item.starts_at);
+    return {
+      id: item.id,
+      backendId: item.id,
+      title: item.title,
+      date: `${weekday.format(local)}, ${monthDay.format(local)}`,
+      time: `${clockText(item.starts_at)}–${clockText(item.ends_at)}`,
+      place: item.place,
+      category: capitalized(item.category),
+      match: item.match_percent ?? 0,
+      reason: item.reason ?? "",
+      saved: item.is_saved,
+      slot:
+        day >= 0 && day <= 6
+          ? { day, start: hours(item.starts_at), end: hours(item.ends_at) }
+          : null,
+    };
+  });
+  const docs: KnowledgeDoc[] = knowledge.documents.map((item) => ({
+    id: item.id,
+    title: item.name,
+    courseId: courseByBackend.get(item.course_id) ?? item.course_id,
+    type: capitalized(item.kind),
+    pages: item.page_count,
+    indexed: `${monthDay.format(campusClock(item.indexed_at))} ${clockText(item.indexed_at)}`,
+    concepts: item.concepts,
+  }));
+  const fragments: DocumentFragment[] = knowledge.fragments.map((item) => ({
+    id: item.id,
+    documentId: item.document_id,
+    page: item.page,
+    text: item.text,
+    concept: item.concept,
+    assignmentId: item.assignment_id ? assignmentByBackend.get(item.assignment_id) : undefined,
+    requirementId: item.requirement_id ?? undefined,
+  }));
+  const activity: Activity[] = agent.runs.map((run) => ({
+    id: run.id,
+    time: clockText(run.started_at),
+    title: run.title,
+    detail: run.detail,
+    kind: (({ indexed: "index", chat: "insight" }) as Record<string, Activity["kind"]>)[run.kind] ?? (run.kind as Activity["kind"]),
+    status: run.status === "failed" ? "warning" : (run.status as Activity["status"]),
+    tools: run.tool_calls.map((call) => ({ name: call.tool_name, summary: call.result_summary ?? "" })),
+  }));
   return {
     courses,
     assignments,
@@ -397,6 +516,9 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       unscheduled: workload.unscheduled_hours,
     },
     settings,
+    knowledge: { docs, fragments },
+    campusEvents,
+    activity,
     statistics: {
       reportedHours: stats.reported_study_hours,
       estimateAccuracy: stats.estimate_accuracy_percent,
@@ -437,10 +559,10 @@ export async function uploadRemoteAssignment(input: {
   return request<Record<string, unknown>>("/assignments/upload", { method: "POST", body: form });
 }
 
-const isoAt = (day: number, hour: number) => {
-  const date = new Date(Date.parse(WEEK_START) + day * 86_400_000 + Math.round(hour * 3_600_000));
-  return date.toISOString();
-};
+const isoAt = (day: number, hour: number) =>
+  new Date(
+    Date.parse(WEEK_START) + day * 86_400_000 + Math.round(hour * 3_600_000) - CAMPUS_OFFSET_MS,
+  ).toISOString();
 export async function createRemoteTask(task: Omit<Task, "id">, assignmentId: string) {
   const created = await request<{ id: string }>("/tasks", {
     method: "POST",
@@ -469,3 +591,19 @@ export async function createRemoteEvent(event: Omit<CalEvent, "id">, courseBacke
   });
   return created.id;
 }
+export const saveRemoteEvent = (id: string, saved: boolean) =>
+  request(`/campus-events/${id}/save`, { method: "PATCH", body: JSON.stringify({ saved }) });
+export const recordRemoteRun = (run: Omit<Activity, "id" | "time">) =>
+  request("/agent/runs", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: run.kind === "index" ? "indexed" : run.kind,
+      title: run.title,
+      detail: run.detail,
+      status: run.status,
+      tool_calls: (run.tools ?? []).map((tool) => ({
+        tool_name: tool.name,
+        result_summary: tool.summary,
+      })),
+    }),
+  });

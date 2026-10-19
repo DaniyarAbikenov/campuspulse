@@ -156,7 +156,8 @@ export const freeSlots = [
   { id: "f3", day: 4, start: 13, end: 17, label: "Fri 13:00–17:00" },
 ];
 
-export interface Activity { id: string; time: string; title: string; detail: string; kind: "analysis" | "task" | "dependency" | "forecast" | "insight" | "index" | "schedule"; status: "success" | "running" | "warning"; }
+export interface AgentTool { name: string; summary: string; }
+export interface Activity { id: string; time: string; title: string; detail: string; kind: "analysis" | "task" | "dependency" | "forecast" | "insight" | "index" | "schedule"; status: "success" | "running" | "warning"; tools?: AgentTool[]; }
 export const initialActivity: Activity[] = [
   { id: "a1", time: "09:46", title: "New recommendation created", detail: "Workload warning for Oct 22–24", kind: "insight", status: "success" },
   { id: "a2", time: "09:45", title: "Workload forecast updated", detail: "Week 43 total: 21.5h required vs 12h available", kind: "forecast", status: "warning" },
@@ -176,7 +177,9 @@ export const requirements = [
   { id: "R6", text: "Document authentication workflow.", detail: "Add a README section with a sequence diagram of login and refresh.", page: 4, done: false },
 ];
 
-export const knowledgeDocs = [
+export interface KnowledgeDoc { id: string; title: string; courseId: string; type: string; pages: number; indexed: string; concepts: string[]; }
+export interface CampusEvent { id: string; backendId?: string; title: string; date: string; time: string; place: string; category: string; match: number; reason: string; saved?: boolean; slot?: { day: number; start: number; end: number } | null; }
+export const knowledgeDocs: KnowledgeDoc[] = [
   { id: "d1", title: "Assignment_3.pdf", courseId: "se", type: "Assignment", pages: 4, indexed: "Today 09:42", concepts: ["JWT", "Spring Security", "RBAC"] },
   { id: "d2", title: "Assignment_2.pdf", courseId: "se", type: "Assignment", pages: 3, indexed: "Oct 2", concepts: ["JPA", "PostgreSQL", "Repositories"] },
   { id: "d3", title: "Lecture 6 — Security in Web APIs.pdf", courseId: "se", type: "Lecture", pages: 38, indexed: "Oct 14", concepts: ["OAuth2", "Tokens", "CORS"] },
@@ -187,7 +190,7 @@ export const knowledgeDocs = [
   { id: "d8", title: "Week 6 — Linear Regression.pdf", courseId: "stat", type: "Lecture", pages: 28, indexed: "Oct 12", concepts: ["OLS", "Residuals", "R²"] },
 ];
 
-export const campusEvents = [
+export const campusEvents: CampusEvent[] = [
   { id: "e1", title: "AI Society Meetup: LLM Agents", date: "Thu, Oct 22", time: "16:00–18:00", place: "Main Hall C1", category: "Tech", match: 94, reason: "Matches your SE coursework and fits Thursday after OS Lab." },
   { id: "e2", title: "Career Fair — Software Roles", date: "Fri, Oct 23", time: "13:00–17:00", place: "Expo Center", category: "Career", match: 82, reason: "Falls inside your Friday free slot." },
   { id: "e3", title: "Hackathon Info Session", date: "Mon, Oct 19", time: "13:15–14:00", place: "Room B2.204", category: "Tech", match: 76, reason: "Short session during your Monday free block." },

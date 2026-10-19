@@ -41,11 +41,11 @@ Frontend подключён к локальному FastAPI, но остаётс
 | `/kanban` | Пять колонок, filters и generated proposals | API для существующих задач; часть create/import flows локальная |
 | `/schedule` | Weekly calendar и study planning | API events; некоторые free-slot helpers остаются fixture |
 | `/workload` | Required/available hours и recommendation | API расчёт + локальный apply visualization |
-| `/statistics` | Estimate/actual analytics | Пока в основном fixtures |
+| `/statistics` | Estimate/actual analytics | API summary; semester trend is a fixture |
 | `/insights` | Proactive recommendations и CTA | API |
-| `/knowledge` | Indexed materials and fragments | Fixtures |
-| `/events` | Campus activities | Fixtures |
-| `/activity` | Agent activity feed | Fixtures |
+| `/knowledge` | Indexed materials and fragments | API |
+| `/events` | Campus activities | API |
+| `/activity` | Agent activity feed with tool calls | API (student); admin feed is a fixture |
 | `/settings` | Profile, availability, AI и notifications | API |
 | `/admin*` | Faculty dashboard, courses и cohort statistics | Fixtures |
 
@@ -64,6 +64,11 @@ Frontend подключён к локальному FastAPI, но остаётс
 - `GET /schedule`
 - `GET /workload`
 - `GET /insights`
+- `GET /statistics`, `GET /auth/me`
+- `GET /knowledge`
+- `GET /campus-events`, `PATCH /campus-events/{id}/save`
+- `GET /agent/activity`, `POST /agent/runs`
+- `POST /tasks`, `POST /schedule-events`
 - `PATCH /insights/{id}`
 - `POST /insights/{id}/apply`
 - `GET/PATCH /settings`
@@ -75,11 +80,9 @@ Frontend подключён к локальному FastAPI, но остаётс
 
 ## Что пока остаётся локальным
 
-- Create Task из интерфейса не сохраняется через generic task CRUD.
-- Ручное создание schedule event не сохраняется.
 - Generated task proposal, approval, import и scheduling частично живут в Store.
 - Workload plan изменяет визуальную модель; server insight apply вызывается только из соответствующего insight flow.
-- Knowledge documents/fragments, campus events, agent activity, semester trend и admin cohort — fixtures.
+- Semester trend и admin cohort/activity — fixtures; offline-режим показывает явный баннер.
 - Requirements и historical hours на assignment detail — fixtures.
 - Upload сохраняет файл и assignment, но показанный analysis result не основан на содержимом файла.
 - Topbar search/chat остаются прототипными.

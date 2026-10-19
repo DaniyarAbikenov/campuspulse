@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/common";
 import { useStore } from "@/lib/store";
-import { campusEvents } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import type { CampusEvent } from "@/lib/data";
 
 export const Route = createFileRoute("/events")({
   beforeLoad: guardWorkspace,
@@ -19,13 +19,20 @@ export const Route = createFileRoute("/events")({
   component: Events,
 });
 
+// Fixture events carry only display strings; only those inside the visible week can be placed.
+const fixtureSlot = (e: CampusEvent) => {
+  if (!["e1", "e2", "e3", "e5", "e6"].includes(e.id)) return null;
+  const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].findIndex((d) => e.date.startsWith(d));
+  const start = Number(e.time.split("–")[0]?.split(":")[0] ?? 0);
+  return { day, start, end: Number(e.time.split("–")[1]?.split(":")[0] ?? start + 1) };
+};
+
 const cats = ["All", "Tech", "Academic", "Career", "Sports"];
 
 function Events() {
   const { locale } = useI18n();
-  const { events, addEvent } = useStore();
+  const { events, addEvent, campusEvents, saveCampusEvent } = useStore();
   const [cat, setCat] = useState("All");
-  const [saved, setSaved] = useState<string[]>([]);
   const list = campusEvents.filter((e) => cat === "All" || e.category === cat).sort((a, b) => b.match - a.match);
   return (
     <>
@@ -42,8 +49,8 @@ function Events() {
               <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{localize(e.place, locale)}</div>
             </div>
             <p className="mt-3 rounded-md bg-ai-soft/60 px-2.5 py-1.5 text-[12px]">{localize(e.reason, locale)}</p>
-            <Button size="sm" variant={saved.includes(e.id) ? "secondary" : "outline"} className="mt-3 h-7 text-[12px]" onClick={() => { setSaved((s) => s.includes(e.id) ? s.filter((x) => x !== e.id) : [...s, e.id]); if (!saved.includes(e.id)) { const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].findIndex((day) => e.date.startsWith(day)); const start = Number(e.time.split("–")[0]?.split(":")[0] ?? 0); const end = Number(e.time.split("–")[1]?.split(":")[0] ?? start + 1); if (["e1", "e2", "e3", "e5", "e6"].includes(e.id) && !events.some((event) => event.title === e.title)) addEvent({ day, start, end, title: e.title, kind: "event" }); toast.success(localize("Event saved", locale), { description: localize(`${e.date} · ${e.time}`, locale) }); } }}>
-              {localize(saved.includes(e.id) ? <><Check className="h-3.5 w-3.5" /> {localize("Added", locale)}</> : "Save event", locale)}
+            <Button size="sm" variant={e.saved ? "secondary" : "outline"} className="mt-3 h-7 text-[12px]" onClick={() => { const next = !e.saved; void saveCampusEvent(e.id, next); if (next) { const slot = e.slot !== undefined ? e.slot : fixtureSlot(e); if (slot && !events.some((event) => event.title === e.title)) void addEvent({ ...slot, title: e.title, kind: "event" }); toast.success(localize("Event saved", locale), { description: localize(`${e.date} · ${e.time}`, locale) }); } }}>
+              {localize(e.saved ? <><Check className="h-3.5 w-3.5" /> {localize("Added", locale)}</> : "Save event", locale)}
             </Button>
           </article>
         )), locale)}

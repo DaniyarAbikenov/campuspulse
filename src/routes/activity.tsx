@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Bot, Cpu, Database, ShieldCheck } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { ActivityFeed } from "@/components/app/widgets";
-import { documentTotals, adminActivity, facultySummary } from "@/lib/data";
+import { adminActivity, facultySummary } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/activity")({
@@ -18,7 +18,8 @@ export const Route = createFileRoute("/activity")({
 
 function ActivityPage() {
   const { locale } = useI18n();
-  const { activity: studentActivity, role } = useStore();
+  const { activity: studentActivity, role, knowledgeDocs } = useStore();
+  const documentTotals = { count: knowledgeDocs.length, pages: knowledgeDocs.reduce((sum, item) => sum + item.pages, 0) };
   const activity = role === "admin" ? adminActivity : studentActivity;
   return (
     <>

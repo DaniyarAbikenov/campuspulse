@@ -406,6 +406,16 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
                 <div className="truncate text-[11.5px] text-muted-foreground">
                   {localize(a.detail, locale)}
             </div>
+                {a.tools?.length ? (
+                  <ul aria-label={localize("Tool calls", locale)} className="mt-1 space-y-0.5">
+                    {a.tools.map((tool, index) => (
+                      <li key={`${tool.name}-${index}`} className="truncate font-mono text-[10.5px] text-muted-foreground">
+                        {tool.name}
+                        {tool.summary ? ` → ${tool.summary}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
               <span className="font-mono text-[11px] text-muted-foreground">
                 {localize(a.time, locale)}

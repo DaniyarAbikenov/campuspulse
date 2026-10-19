@@ -17,6 +17,12 @@ import {
   type Insight,
   type Activity,
   type CalEvent,
+  type CampusEvent,
+  type DocumentFragment,
+  type KnowledgeDoc,
+  campusEvents as initialCampusEvents,
+  knowledgeDocs as initialKnowledgeDocs,
+  documentFragments as initialFragments,
   weekEvents,
   assignments as initialAssignments,
   courses as initialCourses,
@@ -33,6 +39,8 @@ import {
   connectWorkspace,
   createRemoteEvent,
   createRemoteTask,
+  recordRemoteRun,
+  saveRemoteEvent,
   moveRemoteTask,
   updateRemoteInsight,
   updateRemoteSettings,
@@ -78,6 +86,10 @@ interface Store {
   setInsightStatus: (id: string, s: Insight["status"]) => void;
   applyInsight: (id: string) => void;
   activity: Activity[];
+  knowledgeDocs: KnowledgeDoc[];
+  documentFragments: DocumentFragment[];
+  campusEvents: CampusEvent[];
+  saveCampusEvent: (id: string, saved: boolean) => Promise<void>;
   log: (a: Omit<Activity, "id" | "time">) => void;
   events: CalEvent[];
   addEvent: (e: Omit<CalEvent, "id">) => Promise<void>;
@@ -123,6 +135,8 @@ export function StoreProvider({
   const [role, setRole] = useState<Role>("student");
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const backendConnected = connection === "online";
+  const connectionRef = useRef<ConnectionState>("connecting");
+  connectionRef.current = connection;
   const [statistics, setStatistics] = useState<RemoteStatistics | null>(null);
   const [baseAssignments, setBaseAssignments] = useState<Assignment[]>(initialAssignments);
   const [baseCourses, setBaseCourses] = useState<Course[]>(initialCourses);
@@ -160,6 +174,9 @@ export function StoreProvider({
   const [generatedScheduled, setGeneratedScheduled] = useState(false);
   const [insights, setInsights] = useState<Insight[]>(initialInsights);
   const [activity, setActivity] = useState<Activity[]>(initialActivity);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(initialKnowledgeDocs);
+  const [documentFragments, setDocumentFragments] = useState<DocumentFragment[]>(initialFragments);
+  const [campusEvents, setCampusEvents] = useState<CampusEvent[]>(initialCampusEvents);
   const [events, setEvents] = useState<CalEvent[]>(weekEvents);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState("Overview");
@@ -182,6 +199,10 @@ export function StoreProvider({
         setRemoteWorkload(workspace.workload);
         setSettings(workspace.settings);
         setStatistics(workspace.statistics);
+        setKnowledgeDocs(workspace.knowledge.docs);
+        setDocumentFragments(workspace.knowledge.fragments);
+        setCampusEvents(workspace.campusEvents);
+        setActivity(workspace.activity);
         setConnection("online");
       })
       .catch((error: unknown) => {
@@ -195,6 +216,8 @@ export function StoreProvider({
 
   const log = useCallback((a: Omit<Activity, "id" | "time">) => {
     setActivity((prev) => [{ ...a, id: crypto.randomUUID(), time: now() }, ...prev]);
+    if (connectionRef.current === "online")
+      void recordRemoteRun(a).catch((error) => console.warn("Activity sync failed", error));
   }, []);
 
   const addGeneratedTasks = useCallback(() => {
@@ -484,6 +507,22 @@ export function StoreProvider({
         );
     },
     activity,
+    knowledgeDocs,
+    documentFragments,
+    campusEvents,
+    saveCampusEvent: async (id, saved) => {
+      const event = campusEvents.find((item) => item.id === id);
+      setCampusEvents((items) => items.map((item) => (item.id === id ? { ...item, saved } : item)));
+      if (!event?.backendId || !backendConnected) return;
+      try {
+        await saveRemoteEvent(event.backendId, saved);
+      } catch (error) {
+        setCampusEvents((items) =>
+          items.map((item) => (item.id === id ? { ...item, saved: !saved } : item)),
+        );
+        toast.error("Event was not saved", { description: String(error) });
+      }
+    },
     log,
     events,
     addEvent: async (e) => {

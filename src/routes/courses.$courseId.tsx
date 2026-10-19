@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Panel, PredictionNote, ProgressBar, StatusBadge } from "@/components/app/common";
 import { AssignmentTable, SimpleBars } from "@/components/app/widgets";
 import { KanbanBoard } from "@/components/app/Kanban";
-import { assignments, courses, knowledgeDocs } from "@/lib/data";
+import { assignments, courses } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/courses/$courseId")({
 function CourseDetails() {
   const { locale } = useI18n();
   const { course: loadedCourse } = Route.useLoaderData();
-  const { courses: liveCourses, assignments } = useStore();
+  const { courses: liveCourses, assignments, knowledgeDocs } = useStore();
   const course = liveCourses.find((item) => item.id === loadedCourse.id) ?? loadedCourse;
   const list = assignments.filter((a) => a.courseId === course.id);
   const docs = knowledgeDocs.filter((d) => d.courseId === course.id);
