@@ -7,20 +7,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Panel, PredictionNote, ProgressBar, StatusBadge } from "@/components/app/common";
 import { AssignmentTable, SimpleBars } from "@/components/app/widgets";
 import { KanbanBoard } from "@/components/app/Kanban";
-import { assignments, courses } from "@/lib/data";
+import { assignments, findCourse } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/courses/$courseId")({
   beforeLoad: guardWorkspace,
   loader: ({ params }) => {
-    const course = courses.find((c) => c.id === params.courseId);
-    if (!course) throw notFound();
-    return { course };
+    // Courses created from the backend are only known after the workspace loads, so an unknown id
+    // is resolved by the component instead of failing the route.
+    return { courseId: params.courseId, course: findCourse(params.courseId) ?? null };
   },
   head: ({ loaderData }) => {
-    const t = loaderData ? `${loaderData.course.name} — CampusPulse AI` : "Course — CampusPulse AI";
-    const d = loaderData?.course.summary ?? "Course workspace";
+    const t = loaderData?.course ? `${loaderData.course.name} — CampusPulse AI` : "Course — CampusPulse AI";
+    const d = loaderData?.course?.summary ?? "Course workspace";
     return { meta: [{ property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }, { title: t }, { name: "description", content: d }, { property: "og:title", content: t }, { property: "og:description", content: d }] };
   },
   component: CourseDetails,
@@ -28,9 +28,13 @@ export const Route = createFileRoute("/courses/$courseId")({
 
 function CourseDetails() {
   const { locale } = useI18n();
-  const { course: loadedCourse } = Route.useLoaderData();
-  const { courses: liveCourses, assignments, knowledgeDocs } = useStore();
-  const course = liveCourses.find((item) => item.id === loadedCourse.id) ?? loadedCourse;
+  const { course: loadedCourse, courseId } = Route.useLoaderData();
+  const { courses: liveCourses, assignments, knowledgeDocs, connection } = useStore();
+  const course = liveCourses.find((item) => item.id === courseId) ?? loadedCourse;
+  if (!course) {
+    if (connection === "connecting") return <p role="status" className="text-[13px] text-muted-foreground">{localize("Loading course…", locale)}</p>;
+    throw notFound();
+  }
   const list = assignments.filter((a) => a.courseId === course.id);
   const docs = knowledgeDocs.filter((d) => d.courseId === course.id);
   const chain = list.filter((a) => a.dependsOn || list.some((b) => b.dependsOn === a.id)).sort((a, b) => a.title.localeCompare(b.title));

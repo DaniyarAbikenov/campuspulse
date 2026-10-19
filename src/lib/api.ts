@@ -37,7 +37,7 @@ interface ApiAssignment {
   due_at: string;
   estimated_hours: number;
   actual_hours?: number | null;
-  progress_percent: number;
+  progress: number;
   status: string;
 }
 interface ApiAssignmentPage {
@@ -364,7 +364,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       courseId: courseByBackend.get(item.course_id) ?? item.course_id,
       deadline: shortDate(item.due_at),
       estimate: item.estimated_hours,
-      progress: item.progress_percent,
+      progress: item.progress,
       status: titleStatus(item.status),
       ...(fixture?.dependsOn ? { dependsOn: fixture.dependsOn } : {}),
       ...(fixture?.relation ? { relation: fixture.relation } : {}),
@@ -617,6 +617,7 @@ interface ApiImportItem {
   external_course_code: string;
   external_course_name: string;
   course_id: string | null;
+  create_course: boolean;
   estimated_hours: number;
   selected: boolean;
   attachment_names: string[];
@@ -636,6 +637,8 @@ export interface ImportItem {
   courseName: string;
   /** Backend course id the assignment will be created in; null until the student chooses. */
   courseId: string | null;
+  /** The student asked to create the Moodle course in CampusPulse. */
+  createCourse: boolean;
   estimatedHours: number;
   selected: boolean;
   attachments: string[];
@@ -656,6 +659,7 @@ const importProposal = (raw: ApiImportProposal): ImportProposal => ({
     courseCode: item.external_course_code,
     courseName: item.external_course_name,
     courseId: item.course_id,
+    createCourse: item.create_course,
     estimatedHours: item.estimated_hours,
     selected: item.selected,
     attachments: item.attachment_names,
@@ -668,13 +672,19 @@ export const fetchImportProposals = async () =>
 export const updateImportItem = (
   proposalId: string,
   itemId: string,
-  values: { selected?: boolean; courseId?: string; estimatedHours?: number },
+  values: {
+    selected?: boolean;
+    courseId?: string;
+    createCourse?: boolean;
+    estimatedHours?: number;
+  },
 ) =>
   request(`/imports/proposals/${proposalId}/items/${itemId}`, {
     method: "PATCH",
     body: JSON.stringify({
       ...(values.selected === undefined ? {} : { selected: values.selected }),
       ...(values.courseId === undefined ? {} : { course_id: values.courseId }),
+      ...(values.createCourse === undefined ? {} : { create_course: values.createCourse }),
       ...(values.estimatedHours === undefined ? {} : { estimated_hours: values.estimatedHours }),
     }),
   });

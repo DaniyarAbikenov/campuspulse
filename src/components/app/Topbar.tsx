@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { assignments, courses, courseOf, adminActivity, facultyCourseCatalog } from "@/lib/data";
+import { courseOf, adminActivity, facultyCourseCatalog } from "@/lib/data";
 import { LanguageSelector } from "./LanguageSelector";
 
 const labels: Record<string, string> = {
@@ -18,7 +18,7 @@ const labels: Record<string, string> = {
 export function Topbar() {
   const { locale } = useI18n();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { openChat, activity, setUploadOpen, role, setMobileNavOpen } = useStore();
+  const { openChat, activity, setUploadOpen, role, setMobileNavOpen, courses, assignments } = useStore();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const parts = path.split("/").filter(Boolean);

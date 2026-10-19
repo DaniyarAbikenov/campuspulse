@@ -30,6 +30,7 @@ import {
   demoClock,
   generatedStudySlots,
   summarizeCourses,
+  registerCourses,
   type Assignment,
   type Course,
 } from "./data";
@@ -256,7 +257,7 @@ export function StoreProvider({
           : "To Do") as Assignment["status"],
     };
   });
-  const liveCourses = summarizeCourses(liveAssignments).map((summary) => {
+  const catalogCourses = summarizeCourses(liveAssignments).map((summary) => {
     const remote = baseCourses.find((course) => course.id === summary.id);
     const course = remote
       ? {
@@ -280,6 +281,27 @@ export function StoreProvider({
         }
       : course;
   });
+  const catalogIds = new Set(catalogCourses.map((course) => course.id));
+  const extraCourses = baseCourses
+    .filter((course) => !catalogIds.has(course.id) && course.backendId)
+    .map((course) => {
+      const rows = liveAssignments.filter((assignment) => assignment.courseId === course.id);
+      const open = rows.filter((assignment) => assignment.status !== "Completed");
+      const upcoming = open.map((assignment) => assignment.deadline)[0];
+      return {
+        ...course,
+        assignments: rows.length,
+        completed: rows.length - open.length,
+        progress: rows.length
+          ? Math.round(rows.reduce((sum, assignment) => sum + assignment.progress, 0) / rows.length)
+          : 0,
+        remaining: open.reduce((sum, assignment) => sum + assignment.estimate, 0),
+        nextDeadline: upcoming ?? "—",
+      };
+    });
+  const liveCourses = [...catalogCourses, ...extraCourses];
+  // Idempotent lookup table so course tags resolve backend-only courses during this render.
+  registerCourses(liveCourses);
   const proposalDelta = proposalTasks.reduce((sum, task) => sum + task.estimate, 0) - 8.5;
   const completedHours = tasks
     .filter((task) => task.column === "done" && task.ai)

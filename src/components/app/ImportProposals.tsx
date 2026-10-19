@@ -21,6 +21,7 @@ import {
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 
+const NEW_COURSE = "__new__";
 const dueLabel = (value: string) =>
   new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "Asia/Almaty" }).format(
     new Date(value),
@@ -56,6 +57,7 @@ export function ImportProposals() {
     const patch = {
       selected: next.selected,
       ...(next.courseId ? { courseId: next.courseId } : {}),
+      ...(next.createCourse ? { createCourse: true } : {}),
       estimatedHours: next.estimatedHours,
     };
     const update = (current: ImportProposal) => ({
@@ -106,7 +108,7 @@ export function ImportProposals() {
   };
 
   const chosen = open?.items.filter((item) => item.selected) ?? [];
-  const blocked = chosen.some((item) => !item.courseId);
+  const blocked = chosen.some((item) => !item.courseId && !item.createCourse);
 
   return (
     <>
@@ -160,11 +162,22 @@ export function ImportProposals() {
                     {localize("Course", locale)}
                     <select
                       className="rounded-md border bg-background px-2 py-1"
-                      value={item.courseId ?? ""}
+                      value={item.createCourse ? NEW_COURSE : (item.courseId ?? "")}
                       disabled={!item.selected}
-                      onChange={(event) => edit(open, item, { courseId: event.target.value || null })}
+                      onChange={(event) =>
+                        edit(
+                          open,
+                          item,
+                          event.target.value === NEW_COURSE
+                            ? { courseId: null, createCourse: true }
+                            : { courseId: event.target.value || null, createCourse: false },
+                        )
+                      }
                     >
                       <option value="">{localize("Choose…", locale)}</option>
+                      <option value={NEW_COURSE}>
+                        {localize("Create course", locale)} “{item.courseName}” ({item.courseCode})
+                      </option>
                       {linkable.map((course) => (
                         <option key={course.id} value={course.backendId}>
                           {course.code} · {course.name}

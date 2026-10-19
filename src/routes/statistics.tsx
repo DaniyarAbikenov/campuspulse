@@ -7,7 +7,7 @@ import { Target, Timer, CheckCircle2, Flame } from "lucide-react";
 import { MetricCard, PageHeader, Panel } from "@/components/app/common";
 import { SimpleBars } from "@/components/app/widgets";
 import { useStore } from "@/lib/store";
-import { courses, courseOf, semesterTrend } from "@/lib/data";
+import { courseOf, semesterTrend } from "@/lib/data";
 
 export const Route = createFileRoute("/statistics")({
   beforeLoad: guardWorkspace,
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/statistics")({
 
 function Stats() {
   const { locale } = useI18n();
-  const { assignments, workload, statistics } = useStore();
+  const { assignments, workload, statistics, courses } = useStore();
   const done = assignments.filter((a) => a.actual !== undefined);
   const actual = done.reduce((sum, a) => sum + (a.actual ?? 0), 0);
   const estimate = done.reduce((sum, a) => sum + a.estimate, 0);

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CourseTag, EmptyState, PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { useStore } from "@/lib/store";
-import { courses, type KnowledgeDoc } from "@/lib/data";
+import { type KnowledgeDoc } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/knowledge")({
@@ -24,7 +24,7 @@ type Doc = KnowledgeDoc;
 
 function Knowledge() {
   const { locale } = useI18n();
-  const { setUploadOpen, tasks, analysisSource, knowledgeDocs, documentFragments } = useStore();
+  const { setUploadOpen, tasks, analysisSource, knowledgeDocs, documentFragments, courses } = useStore();
   const documentTotals = { count: knowledgeDocs.length, pages: knowledgeDocs.reduce((sum, item) => sum + item.pages, 0) };
   const [q, setQ] = useState("");
   const [course, setCourse] = useState("all");

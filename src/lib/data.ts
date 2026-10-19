@@ -52,7 +52,11 @@ export const assignments: Assignment[] = [
   { id: "adb-a3", title: "Assignment 3 — Indexing", courseId: "adb", deadline: "Oct 8", estimate: 5, actual: 4.5, progress: 100, status: "Completed" },
 ];
 
-export const courseOf = (id: string) => (() => { const course = courses.find((c) => c.id === id); if (!course) throw new Error(`Unknown course: ${id}`); return course; })();
+// Courses created from the backend (for example imported from Moodle) are not in the fixture catalog.
+const runtimeCourses = new Map<string, Course>();
+export const registerCourses = (items: Course[]) => { runtimeCourses.clear(); items.forEach((course) => runtimeCourses.set(course.id, course)); };
+export const findCourse = (id: string) => courses.find((c) => c.id === id) ?? runtimeCourses.get(id);
+export const courseOf = (id: string) => (() => { const course = findCourse(id); if (!course) throw new Error(`Unknown course: ${id}`); return course; })();
 export const assignmentOf = (id: string) => assignments.find((a) => a.id === id);
 
 export interface Task {

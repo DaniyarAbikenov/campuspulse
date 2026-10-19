@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MetricCard, PageHeader, Panel, PredictionNote, CourseTag, ProgressBar } from "@/components/app/common";
 import { WorkloadChart } from "@/components/app/widgets";
-import { courses, weeklyWorkload, workloadTotals } from "@/lib/data";
+import { weeklyWorkload, workloadTotals } from "@/lib/data";
 
 export const Route = createFileRoute("/workload")({
   beforeLoad: guardWorkspace,
