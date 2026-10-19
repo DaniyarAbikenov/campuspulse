@@ -13,7 +13,7 @@ const dayLabel = (value: string) =>
 /** Preview and apply: study sessions the backend would place into free time, earliest deadline first. */
 export function StudyPlanPanel() {
   const { locale } = useI18n();
-  const { reloadWorkspace } = useStore();
+  const { reloadWorkspace, weekStart } = useStore();
   const [plan, setPlan] = useState<StudyPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,8 @@ export function StudyPlanPanel() {
       setError(String(cause));
     }
   }, []);
-  useEffect(() => { void refresh(); }, [refresh]);
+  // Re-plan whenever the selected week changes.
+  useEffect(() => { void refresh(); }, [refresh, weekStart]);
 
   const apply = async () => {
     setBusy(true);

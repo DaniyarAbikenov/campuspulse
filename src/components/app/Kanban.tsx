@@ -3,10 +3,13 @@ import { useState } from "react";
 import { Clock, Sparkles, Plus } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
-import { assignments, type Task } from "@/lib/data";
+import { type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { CourseTag, PriorityIndicator } from "./common";
 
@@ -18,7 +21,7 @@ const dot: Record<Task["column"], string> = { backlog: "bg-muted-foreground/40",
 
 export function KanbanBoard({ courseId, filter }: { courseId?: string | undefined; filter?: ((t: Task) => boolean) | undefined }) {
   const { locale } = useI18n();
-  const { tasks, moveTask } = useStore();
+  const { tasks, moveTask, assignments } = useStore();
   const [over, setOver] = useState<string | null>(null);
   const [open, setOpen] = useState<Task | null>(null);
   const list = tasks.filter((t) => (!courseId || t.courseId === courseId) && (!filter || filter(t)));
@@ -101,6 +104,59 @@ const tasksColumn = (t: Task) => t.column;
 
 export function NewTaskButton() {
   const { locale } = useI18n();
-  const { addTask } = useStore();
-  return <Button size="sm" variant="outline" onClick={() => { addTask({ title: "New task", description: "Describe the work.", courseId: "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog", locale)); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>;
+  const { addTask, backendConnected, courses, assignments } = useStore();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assignmentId, setAssignmentId] = useState("");
+  const [estimate, setEstimate] = useState("1");
+  const [priority, setPriority] = useState<Task["priority"]>("Medium");
+  const openAssignments = assignments.filter((item) => item.status !== "Completed");
+
+  const reset = () => { setTitle(""); setDescription(""); setAssignmentId(""); setEstimate("1"); setPriority("Medium"); };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    const hours = Number(estimate);
+    if (!assignment || !title.trim() || !Number.isFinite(hours) || hours < 0) return;
+    await addTask({ title: title.trim(), description: description.trim(), courseId: assignment.courseId, assignmentId: assignment.id, estimate: hours, priority, due: assignment.deadline, column: "backlog" });
+    toast(localize("Task added to Backlog", locale));
+    reset();
+    setOpen(false);
+  };
+
+  // The offline demo keeps its one-click placeholder; a live workspace asks for real details.
+  if (!backendConnected)
+    return <Button size="sm" variant="outline" onClick={() => { void addTask({ title: "New task", description: "Describe the work.", courseId: courses[0]?.id ?? "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog", locale)); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>;
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>
+      <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-[16px]">{localize("New task", locale)}</DialogTitle><DialogDescription className="text-[12.5px]">{localize("Tasks belong to an assignment so their hours count toward its workload.", locale)}</DialogDescription></DialogHeader>
+          <form onSubmit={(event) => void submit(event)} className="space-y-3">
+            <div className="space-y-1.5"><Label htmlFor="task-title" className="text-[12px]">{localize("Title", locale)}</Label><Input id="task-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={240} required /></div>
+            <div className="space-y-1.5"><Label htmlFor="task-description" className="text-[12px]">{localize("Description", locale)}</Label><Input id="task-description" value={description} onChange={(event) => setDescription(event.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignment" className="text-[12px]">{localize("Assignment", locale)}</Label>
+              <select id="task-assignment" className="w-full rounded-md border bg-background px-2 py-2 text-[13px]" value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)} required>
+                <option value="">{localize("Choose…", locale)}</option>
+                {openAssignments.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label htmlFor="task-estimate" className="text-[12px]">{localize("Estimate (h)", locale)}</Label><Input id="task-estimate" type="number" min={0} step={0.25} value={estimate} onChange={(event) => setEstimate(event.target.value)} required /></div>
+              <div className="space-y-1.5">
+                <Label htmlFor="task-priority" className="text-[12px]">{localize("Priority", locale)}</Label>
+                <select id="task-priority" className="w-full rounded-md border bg-background px-2 py-2 text-[13px]" value={priority} onChange={(event) => setPriority(event.target.value as Task["priority"])}>
+                  {(["High", "Medium", "Low"] as const).map((value) => <option key={value} value={value}>{localize(value, locale)}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>{localize("Cancel", locale)}</Button><Button type="submit" size="sm" disabled={!assignmentId || !title.trim()}>{localize("Add task", locale)}</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

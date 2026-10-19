@@ -1,5 +1,4 @@
 import {
-  courses as fixtureCourses,
   type Assignment,
   type CalEvent,
   type Activity,
@@ -11,9 +10,15 @@ import {
   type Insight,
   type Task,
 } from "./data";
+import { CAMPUS_OFFSET_MS, daysBetween, isoWeekNumber, mondayOf, todayCampus } from "./week";
 
 const API_URL = import.meta.env["VITE_API_URL"] ?? "http://127.0.0.1:8000/api/v1";
-const WEEK_START = "2026-10-19";
+// The week every schedule/workload request is about; the store moves it with the week switcher.
+let currentWeek = mondayOf(todayCampus());
+export const getApiWeek = () => currentWeek;
+export const setApiWeek = (isoMonday: string) => {
+  currentWeek = isoMonday;
+};
 let accessToken = "";
 let refreshToken = "";
 
@@ -216,38 +221,10 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>);
 }
 
-const courseIdByCode: Record<string, string> = {
-  "SE 3204": "se",
-  "CS 3112": "adb",
-  "CS 2207": "os",
-  "RM 2010": "rm",
-  "MATH 2301": "stat",
-};
-const colors: Record<string, string> = {
-  se: "bg-primary",
-  adb: "bg-info",
-  os: "bg-warning",
-  rm: "bg-success",
-  stat: "bg-destructive",
-};
-const assignmentIdByTitle: Record<string, string> = {
-  "Assignment 3 — Authentication": "se-a3",
-  "Assignment 4 — Aggregation": "adb-a4",
-  "Lab 5 — Process Scheduling": "os-l5",
-  "Research Methods Report": "rm-r1",
-  "Problem Set 2 — Regression": "stat-p2",
-  "Assignment 1 — REST API Basics": "se-a1",
-  "Assignment 2 — Database Integration": "se-a2",
-  "Assignment 4 — Testing": "se-a4",
-  "Assignment 3 — Indexing": "adb-a3",
-};
-const insightIdByCategory: Record<string, string> = {
-  workload_warning: "i1",
-  assignment_analysis: "i2",
-  study_preparation: "i3",
-  schedule_opportunity: "i4",
-  deadline_conflict: "i5",
-};
+const COURSE_COLORS = ["bg-primary", "bg-info", "bg-warning", "bg-success", "bg-destructive"];
+/** A stable colour per course, derived from its id so it never depends on a fixed catalog. */
+const courseColor = (id: string) => COURSE_COLORS[[...id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % COURSE_COLORS.length] ?? "bg-primary";
+
 const eventKind: Record<string, CalEvent["kind"]> = {
   class_session: "lecture",
   study_session: "study",
@@ -258,12 +235,6 @@ const remoteEventKind = (kind: CalEvent["kind"]) =>
   ({ lecture: "class_session", study: "study_session", event: "campus_event", free: "personal" })[
     kind
   ];
-const isoWeek = (value: string) => {
-  const date = new Date(`${value}T00:00:00Z`);
-  const thursday = new Date(date.getTime() + (3 - ((date.getUTCDay() + 6) % 7)) * 86_400_000);
-  const firstThursday = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4));
-  return 1 + Math.round(((thursday.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
-};
 const shortDate = (value?: string | null) =>
   value
     ? new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(
@@ -271,14 +242,13 @@ const shortDate = (value?: string | null) =>
       )
     : "—";
 // The institution runs on Asia/Almaty (UTC+5, no DST); the API returns UTC instants.
-const CAMPUS_OFFSET_MS = 5 * 3_600_000;
 const campusClock = (value: string) => new Date(Date.parse(value) + CAMPUS_OFFSET_MS);
 const hours = (value: string) => {
   const date = campusClock(value);
   return date.getUTCHours() + date.getUTCMinutes() / 60;
 };
 const rawDayIndex = (value: string) =>
-  Math.round((Date.parse(campusClock(value).toISOString().slice(0, 10)) - Date.parse(WEEK_START)) / 86_400_000);
+  daysBetween(currentWeek, campusClock(value).toISOString().slice(0, 10));
 const dayIndex = (value: string) => Math.max(0, Math.min(6, rawDayIndex(value)));
 const clockText = (value: string) => {
   const date = campusClock(value);
@@ -364,6 +334,50 @@ export interface WorkspaceData {
   freeSlots: FreeSlot[];
   relations: AssignmentRelation[];
   roles: string[];
+  profile: { institution: string | null; semester: string | null };
+}
+
+function mapEvents(items: ApiEvent[], courseByBackend: Map<string, string>): CalEvent[] {
+  return items.map((item) => ({
+    id: item.id,
+    backendId: item.id,
+    day: dayIndex(item.starts_at),
+    start: hours(item.starts_at),
+    end: hours(item.ends_at),
+    title: item.title,
+    kind: eventKind[item.kind] ?? "event",
+    ...(item.course_id ? { courseId: courseByBackend.get(item.course_id) ?? item.course_id } : {}),
+    ...(item.task_id ? { taskId: item.task_id } : {}),
+  }));
+}
+const mapDistribution = (workload: ApiWorkload) =>
+  workload.by_day.map((item) => ({
+    day: new Intl.DateTimeFormat("en", { weekday: "short", timeZone: "UTC" }).format(new Date(item.day)),
+    required: item.required_hours,
+    available: item.available_hours,
+  }));
+const mapWorkload = (workload: ApiWorkload, allRemaining: number) => ({
+  required: workload.required_hours,
+  available: workload.available_hours,
+  allRemaining,
+  scheduled: workload.scheduled_study_hours,
+  unscheduled: workload.unscheduled_hours,
+});
+
+/** Everything that depends on the selected week: events, daily workload and free time. */
+export async function fetchWeekData(courses: Course[]) {
+  const [schedule, workload, freeSlots] = await Promise.all([
+    request<ApiSchedule>(`/schedule?week_start=${currentWeek}`),
+    request<ApiWorkload>(`/workload?week_start=${currentWeek}`),
+    fetchFreeSlots(),
+  ]);
+  const byBackend = new Map(courses.flatMap((course) => (course.backendId ? [[course.backendId, course.id] as const] : [])));
+  return {
+    events: mapEvents(schedule.events, byBackend),
+    distribution: mapDistribution(workload),
+    workload: mapWorkload(workload, courses.reduce((sum, course) => sum + course.remaining, 0)),
+    freeSlots,
+  };
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
@@ -386,12 +400,12 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     request<ApiCourse[]>("/courses/overview"),
     request<ApiAssignmentPage>("/assignments/overview"),
     request<ApiKanban>("/kanban"),
-    request<ApiSchedule>(`/schedule?week_start=${WEEK_START}`),
-    request<ApiWorkload>(`/workload?week_start=${WEEK_START}`),
+    request<ApiSchedule>(`/schedule?week_start=${currentWeek}`),
+    request<ApiWorkload>(`/workload?week_start=${currentWeek}`),
     request<ApiInsight[]>("/insights"),
     request<RemoteSettings>("/settings"),
     request<ApiStatistics>("/statistics"),
-    request<{ id: string; roles: string[] }>("/auth/me"),
+    request<{ id: string; roles: string[]; institution_name?: string | null; semester_name?: string | null }>("/auth/me"),
     request<ApiKnowledge>("/knowledge"),
     request<ApiCampusEvent[]>("/campus-events"),
     request<ApiAgentActivity>("/agent/activity?limit=50"),
@@ -401,8 +415,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
   currentUserId = me.id;
   const courseByBackend = new Map<string, string>();
   const courses: Course[] = rawCourses.map((item) => {
-    const id = courseIdByCode[item.code] ?? item.id;
-    const fixture = fixtureCourses.find((course) => course.id === id);
+    const id = item.id;
     courseByBackend.set(item.id, id);
     return {
       id,
@@ -415,20 +428,15 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       progress: item.completion_percent,
       remaining: item.remaining_hours,
       nextDeadline: shortDate(item.next_due_at),
-      color: colors[id] ?? "bg-primary",
-      docs: fixture?.docs ?? 0,
-      technologies: fixture?.technologies ?? [],
-      summary: item.description ?? fixture?.summary ?? "",
+      color: courseColor(id),
+      docs: 0,
+      technologies: [],
+      summary: item.description ?? "",
     };
   });
   const assignmentByBackend = new Map<string, string>();
-  const usedIds = new Set<string>();
   const assignments: Assignment[] = page.items.map((item) => {
-    // The prototype ids ("se-a3") stay for the first assignment with a known title only, so
-    // a second upload with the same title cannot collide with it.
-    const known = assignmentIdByTitle[item.title];
-    const id = known && !usedIds.has(known) ? known : item.id;
-    usedIds.add(id);
+    const id = item.id;
     assignmentByBackend.set(item.id, id);
     return {
       id,
@@ -437,6 +445,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       ...(item.description ? { description: item.description } : {}),
       courseId: courseByBackend.get(item.course_id) ?? item.course_id,
       deadline: shortDate(item.due_at),
+      dueAt: item.due_at,
       estimate: item.estimated_hours,
       progress: item.progress,
       status: titleStatus(item.status),
@@ -477,21 +486,11 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       ...(item.source_requirement ? { req: item.source_requirement } : {}),
     })),
   );
-  const events: CalEvent[] = schedule.events.map((item) => ({
-    id: item.id,
-    backendId: item.id,
-    day: dayIndex(item.starts_at),
-    start: hours(item.starts_at),
-    end: hours(item.ends_at),
-    title: item.title,
-    kind: eventKind[item.kind] ?? "event",
-    ...(item.course_id ? { courseId: courseByBackend.get(item.course_id) ?? item.course_id } : {}),
-    ...(item.task_id ? { taskId: item.task_id } : {}),
-  }));
+  const events = mapEvents(schedule.events, courseByBackend);
   const insights: Insight[] = rawInsights.map((item) => {
     const courseId = item.course_id ? courseByBackend.get(item.course_id) : undefined;
     return {
-      id: insightIdByCategory[item.category] ?? item.id,
+      id: item.id,
       backendId: item.id,
       type:
         (
@@ -586,20 +585,8 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     tasks,
     events,
     insights,
-    distribution: workload.by_day.map((item) => ({
-      day: new Intl.DateTimeFormat("en", { weekday: "short", timeZone: "UTC" }).format(
-        new Date(item.day),
-      ),
-      required: item.required_hours,
-      available: item.available_hours,
-    })),
-    workload: {
-      required: workload.required_hours,
-      available: workload.available_hours,
-      allRemaining: courses.reduce((sum, course) => sum + course.remaining, 0),
-      scheduled: workload.scheduled_study_hours,
-      unscheduled: workload.unscheduled_hours,
-    },
+    distribution: mapDistribution(workload),
+    workload: mapWorkload(workload, courses.reduce((sum, course) => sum + course.remaining, 0)),
     settings,
     knowledge: { docs, fragments },
     campusEvents,
@@ -607,12 +594,13 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     freeSlots,
     relations,
     roles: me.roles,
+    profile: { institution: me.institution_name ?? null, semester: me.semester_name ?? null },
     statistics: {
       reportedHours: stats.reported_study_hours,
       estimateAccuracy: stats.estimate_accuracy_percent,
       completedAssignments: stats.completed_assignments,
       weekly: stats.weekly.map((item) => ({
-        week: `W${isoWeek(item.week_start)}`,
+        week: `W${isoWeekNumber(item.week_start)}`,
         planned: item.planned_hours,
         actual: item.actual_hours,
       })),
@@ -666,7 +654,7 @@ export async function uploadRemoteAssignment(input: {
 
 const isoAt = (day: number, hour: number) =>
   new Date(
-    Date.parse(WEEK_START) + day * 86_400_000 + Math.round(hour * 3_600_000) - CAMPUS_OFFSET_MS,
+    Date.parse(currentWeek) + day * 86_400_000 + Math.round(hour * 3_600_000) - CAMPUS_OFFSET_MS,
   ).toISOString();
 export async function createRemoteTask(task: Omit<Task, "id">, assignmentId: string) {
   const created = await request<{ id: string }>("/tasks", {
@@ -1016,7 +1004,7 @@ interface ApiFreeSlot {
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** Study windows computed by the backend from classes, study sessions and the student's availability. */
 export async function fetchFreeSlots(): Promise<FreeSlot[]> {
-  const raw = await request<ApiFreeSlot[]>(`/schedule/free-time?week_start=${WEEK_START}`);
+  const raw = await request<ApiFreeSlot[]>(`/schedule/free-time?week_start=${currentWeek}`);
   return raw
     .filter((item) => item.duration_hours >= 0.5 && rawDayIndex(item.starts_at) >= 0 && rawDayIndex(item.starts_at) <= 6)
     .map((item) => {
@@ -1081,9 +1069,9 @@ const studyPlan = (raw: ApiStudyPlan): StudyPlan => ({
   unplacedHours: raw.unplaced_hours,
 });
 /** Preview of where the unscheduled work would go this week; writes nothing. */
-export const fetchStudyPlan = async () => studyPlan(await request<ApiStudyPlan>(`/schedule/plan?week_start=${WEEK_START}`));
+export const fetchStudyPlan = async () => studyPlan(await request<ApiStudyPlan>(`/schedule/plan?week_start=${currentWeek}`));
 export const applyStudyPlan = async () => {
-  const result = await request<{ created: number; plan: ApiStudyPlan }>(`/schedule/plan/apply?week_start=${WEEK_START}`, { method: "POST" });
+  const result = await request<{ created: number; plan: ApiStudyPlan }>(`/schedule/plan/apply?week_start=${currentWeek}`, { method: "POST" });
   return { created: result.created, plan: studyPlan(result.plan) };
 };
 export { campusClock as campusTime, clockText as campusClockText };
@@ -1165,8 +1153,8 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
       accuracy: item.estimate_accuracy_percent,
       risk: item.overload_risk_percent,
     })),
-    weekly: raw.weekly.map((item) => ({ week: `W${isoWeek(item.week_start)}`, estimated: item.estimated_hours_per_student, reported: item.reported_hours_per_student })),
-    peakWeek: raw.peak_week ? `W${isoWeek(raw.peak_week)}` : null,
+    weekly: raw.weekly.map((item) => ({ week: `W${isoWeekNumber(item.week_start)}`, estimated: item.estimated_hours_per_student, reported: item.reported_hours_per_student })),
+    peakWeek: raw.peak_week ? `W${isoWeekNumber(raw.peak_week)}` : null,
     peakHours: raw.peak_hours_per_student,
     highestRiskCourse: raw.highest_risk_course,
     highestRisk: raw.highest_risk_percent,

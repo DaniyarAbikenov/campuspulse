@@ -24,7 +24,7 @@ export const Route = createFileRoute("/kanban")({
 
 function Kanban() {
   const { locale } = useI18n();
-  const { tasks, addGeneratedTasks, tasksGenerated, proposalApproved, approveProposal, proposalTasks, courses, assignments, scheduleGeneratedTasks, generatedScheduled } = useStore();
+  const { backendConnected, tasks, addGeneratedTasks, tasksGenerated, proposalApproved, approveProposal, proposalTasks, courses, assignments, scheduleGeneratedTasks, generatedScheduled } = useStore();
   const [course, setCourse] = useState("all");
   const [assignment, setAssignment] = useState("all");
   const [priority, setPriority] = useState("all");
@@ -55,7 +55,7 @@ function Kanban() {
         {localize(selector("Due date filter", due, setDue, [{ value: "all", label: "All dates" }, { value: "week", label: "This week" }, { value: "overdue", label: "Overdue" }]), locale)}
         <Button variant="ghost" onClick={() => { setQuery(""); setCourse("all"); setAssignment("all"); setPriority("all"); setStatus("all"); setSource("all"); setDue("all"); }}>{localize("Clear filters", locale)}</Button>
       </div>
-      {localize(!tasksGenerated ? <section className="mb-3 border-l-2 border-ai bg-ai-soft p-3" aria-live="polite">
+      {backendConnected ? null : localize(!tasksGenerated ? <section className="mb-3 border-l-2 border-ai bg-ai-soft p-3" aria-live="polite">
         <h2 className="text-[13px] font-semibold">{localize(proposalApproved ? "Approved, not imported" : "Generated, not imported", locale)}</h2>
         <p className="mt-1 text-[12px] text-muted-foreground">{localize(proposalTasks.length, locale)} {localize("Assignment 3 proposals ·", locale)} {localize(proposalTasks.reduce((sum, task) => sum + task.estimate, 0), locale)}{localize("h. No board tasks or calendar sessions exist for these proposals yet.", locale)}</p>
         <div className="mt-2 flex flex-wrap gap-2"><Button asChild size="sm" variant="outline"><Link to="/assignments/$assignmentId" params={{ assignmentId: "se-a3" }}>{localize("Review proposals", locale)}</Link></Button><Button size="sm" onClick={() => { if (!proposalApproved) approveProposal(); else { addGeneratedTasks(); toast.success(localize("Approved tasks imported", locale)); } }}>{localize(proposalApproved ? "Import approved tasks" : "Approve task plan", locale)}</Button></div>

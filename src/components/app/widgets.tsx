@@ -111,7 +111,8 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
           size="sm"
           className="h-7 px-2.5 text-[12px]"
           onClick={() => {
-            if (insight.id === "i2")
+            // Fixture insight "i2" (offline demo only) points at the prototype assignment.
+            if (insight.id === "i2" && !insight.backendId)
               navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } });
             else navigate({ to: insight.primary.to });
           }}

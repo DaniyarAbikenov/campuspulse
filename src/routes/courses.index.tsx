@@ -22,19 +22,19 @@ export const Route = createFileRoute("/courses/")({
 
 function Courses() {
   const { locale } = useI18n();
-  const { courses } = useStore();
+  const { courses, backendConnected, profile } = useStore();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const list = courses.filter((c) => (c.name + c.code + c.instructor).toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <PageHeader title={localize("My Courses", locale)} subtitle={localize("Manage your courses and academic materials.", locale)} actions={<>
-        <Select defaultValue="fall"><SelectTrigger aria-label={localize("Semester", locale)} className="h-8 w-40 text-[12.5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fall">{localize("Fall Semester 2026", locale)}</SelectItem><SelectItem value="spring">{localize("Spring Semester 2026", locale)}</SelectItem></SelectContent></Select>
+        {backendConnected ? (profile.semester ? <span className="rounded-md border bg-card px-2 py-1 text-[12.5px] text-muted-foreground">{profile.semester}</span> : null) :         <Select defaultValue="fall"><SelectTrigger aria-label={localize("Semester", locale)} className="h-8 w-40 text-[12.5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fall">{localize("Fall Semester 2026", locale)}</SelectItem><SelectItem value="spring">{localize("Spring Semester 2026", locale)}</SelectItem></SelectContent></Select>}
         <div className="relative"><Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" /><Input aria-label={localize("Search courses", locale)} value={q} onChange={(e) => setQ(e.target.value)} placeholder={localize("Search courses", locale)} className="h-8 w-52 pl-8 text-[12.5px]" /></div>
         <div className="flex rounded-md border p-0.5">
           {localize((["grid", "table"] as const).map((v) => <Button variant="ghost" size="icon" aria-label={localize(`${v} view`, locale)} aria-pressed={view === v} key={v} onClick={() => setView(v)} className={cn("rounded px-1.5 py-1", view === v ? "bg-secondary text-foreground" : "text-muted-foreground")}>{localize(v === "grid" ? <LayoutGrid className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />, locale)}</Button>), locale)}
         </div>
-        <Button size="sm" onClick={() => toast(localize("Course import is connected to your university timetable", locale), { description: localize("Demo: all 5 courses are already synced.", locale) })}><Plus className="h-3.5 w-3.5" /> {localize("Add Course", locale)}</Button>
+        {backendConnected ? null : <Button size="sm" onClick={() => toast(localize("Course import is connected to your university timetable", locale), { description: localize("Demo: all 5 courses are already synced.", locale) })}><Plus className="h-3.5 w-3.5" /> {localize("Add Course", locale)}</Button>}
       </>} />
       {localize(view === "grid" ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

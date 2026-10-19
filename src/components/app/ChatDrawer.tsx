@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { generatedTasks, workloadTotals, adminCourses } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { weekTitle } from "@/lib/week";
 import { sendAgentMessage, type AgentStep } from "@/lib/api";
 
 interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[]; steps?: AgentStep[]; error?: boolean }
@@ -14,14 +15,21 @@ interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: st
 const stepLabel = (step: AgentStep) =>
   step.kind === "tool_call" ? `→ ${step.name}(${step.detail})` : step.kind === "tool_result" ? `← ${step.name}: ${step.detail}` : `… ${step.detail}`;
 
-const contextFor = (path: string) => {
-  if (path.startsWith("/assignments")) return "Assignment 3 — JWT Authentication";
-  if (path.startsWith("/kanban")) return "Kanban Board";
-  if (path.startsWith("/courses/se")) return "Software Engineering";
-  if (path.startsWith("/courses")) return "Courses";
-  if (path.startsWith("/schedule")) return "Week 43 schedule";
-  if (path.startsWith("/workload")) return "Workload forecast";
-  return "Overview · Week 43";
+const contextFor = (path: string, names: { assignments: { id: string; title: string }[]; courses: { id: string; name: string }[]; week: string }, live: boolean) => {
+  if (!live) {
+    if (path.startsWith("/assignments")) return "Assignment 3 — JWT Authentication";
+    if (path.startsWith("/kanban")) return "Kanban Board";
+    if (path.startsWith("/courses/se")) return "Software Engineering";
+    if (path.startsWith("/courses")) return "Courses";
+    if (path.startsWith("/schedule")) return "Week 43 schedule";
+    if (path.startsWith("/workload")) return "Workload forecast";
+    return "Overview · Week 43";
+  }
+  const [section, id] = path.split("/").filter(Boolean);
+  if (section === "assignments" && id) return names.assignments.find((item) => item.id === id)?.title ?? "Assignment";
+  if (section === "courses" && id) return names.courses.find((item) => item.id === id)?.name ?? "Course";
+  const labels: Record<string, string> = { assignments: "Assignments", courses: "Courses", kanban: "Kanban Board", schedule: `Schedule · ${names.week}`, workload: `Workload · ${names.week}`, knowledge: "Knowledge Base", events: "Campus Events", statistics: "Study Statistics", insights: "AI Insights" };
+  return section ? (labels[section] ?? "Overview") : `Overview · ${names.week}`;
 };
 
 function answer(q: string, tasksGenerated: boolean): Msg {
@@ -46,11 +54,13 @@ function answer(q: string, tasksGenerated: boolean): Msg {
   return { role: "ai", text: `Based on your current workspace: 3 deadlines through Oct 25, ${workloadTotals.required}h estimated work and ${workloadTotals.available}h available. I can explain a recommendation, plan a study session, or summarise a course.`, sources: ["Workspace snapshot"] };
 }
 
-const prompts = ["Why did you create these tasks?", "Why is this week overloaded?", "What should I work on first?", "Summarise the Databases midterm"];
+const demoPrompts = ["Why did you create these tasks?", "Why is this week overloaded?", "What should I work on first?", "Summarise the Databases midterm"];
+const livePrompts = ["What is due soon?", "Is my week overloaded?", "What should I work on first?", "What is new in Moodle?"];
 
 export function ChatDrawer() {
   const { locale } = useI18n();
-  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload, agentEnabled } = useStore();
+  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload, agentEnabled, backendConnected, assignments, courses, weekStart, profile } = useStore();
+  const prompts = backendConnected ? livePrompts : demoPrompts;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -67,7 +77,7 @@ export function ChatDrawer() {
     setInput("");
     setTyping(true);
     if (useAgent) {
-      sendAgentMessage(q, sessionId)
+      sendAgentMessage(`${q}\n\n(Context: the student is currently viewing "${contextFor(path, { assignments, courses, week: weekTitle(weekStart, "en") }, true)}".)`, sessionId)
         .then((reply) => {
           setSessionId(reply.sessionId);
           setMsgs((m) => [...m, { role: "ai", text: reply.reply || "The agent returned no answer.", steps: reply.steps }]);
@@ -86,7 +96,7 @@ export function ChatDrawer() {
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ai-soft"><Sparkles className="h-4 w-4 text-ai" /></div>
           <div className="flex-1">
             <SheetTitle className="text-[14px]">{localize("CampusPulse Assistant", locale)}</SheetTitle><SheetDescription className="sr-only">{localize(useAgent ? "AI academic assistant" : "Simulated academic assistant", locale)}</SheetDescription>
-            <p className="text-[11.5px] text-muted-foreground">{localize("Context:", locale)} {localize(role === "admin" ? "Faculty of Computing" : contextFor(path), locale)}</p>
+            <p className="text-[11.5px] text-muted-foreground">{localize("Context:", locale)} {localize(role === "admin" ? (profile.institution ?? "Faculty of Computing") : contextFor(path, { assignments, courses, week: weekTitle(weekStart, "en") }, backendConnected), locale)}</p>
           </div>
           <Button variant="ghost" size="icon" aria-label={localize("Close assistant", locale)} onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></Button>
         </div>

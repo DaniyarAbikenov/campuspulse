@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { courseOf } from "@/lib/data";
+import { weekTitle } from "@/lib/week";
+import { intlLocale } from "@/lib/i18n";
 import { LanguageSelector } from "./LanguageSelector";
 
 const labels: Record<string, string> = {
@@ -18,7 +20,7 @@ const labels: Record<string, string> = {
 export function Topbar() {
   const { locale } = useI18n();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { openChat, activity, setUploadOpen, role, setMobileNavOpen, courses, assignments, adminFeed, adminCourseOptions } = useStore();
+  const { openChat, activity, setUploadOpen, role, setMobileNavOpen, courses, assignments, adminFeed, adminCourseOptions, backendConnected, weekStart, profile } = useStore();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const parts = path.split("/").filter(Boolean);
@@ -58,7 +60,7 @@ export function Topbar() {
           <Search className="h-3.5 w-3.5" /> {localize("Search courses, assignments…", locale)}
           <kbd className="ml-auto rounded border bg-secondary px-1 text-[10px]">{localize("⌘K", locale)}</kbd>
         </Button>
-        <span className="hidden items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[12px] text-muted-foreground lg:flex"><CalendarRange className="h-3.5 w-3.5" /> {localize("Fall 2026 · Week 43", locale)}</span>
+        <span className="hidden items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[12px] text-muted-foreground lg:flex"><CalendarRange className="h-3.5 w-3.5" /> {backendConnected ? [profile.semester, weekTitle(weekStart, intlLocale(locale), localize("Week", locale))].filter(Boolean).join(" · ") : localize("Fall 2026 · Week 43", locale)}</span>
         <Button variant="ghost" size="icon" className="h-8 w-8 xl:hidden" aria-label={localize("Search workspace", locale)} onClick={() => setOpen(true)}><Search /></Button>
         <Popover>
           <PopoverTrigger asChild>

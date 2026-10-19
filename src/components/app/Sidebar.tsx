@@ -51,7 +51,7 @@ const adminNav = [
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const { locale } = useI18n();
-  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected, canAdminister } = useStore();
+  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected, canAdminister, profile } = useStore();
   const initials = settings.full_name.split(/\s+/).map((part) => part[0] ?? "").join("").slice(0, 2).toUpperCase();
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
@@ -76,10 +76,10 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       {localize(!collapsed && (
         <div className="px-3 pb-2">
           <div className="flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">{localize("AITU", locale)}</div>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">{backendConnected && profile.institution ? profile.institution.split(/\s+/).map((word) => word[0]).join("").slice(0, 4).toUpperCase() : localize("AITU", locale)}</div>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-[12.5px] font-medium">{localize("Astana IT University", locale)}</div>
-              <div className="text-[11px] text-muted-foreground">{localize("Fall Semester 2026", locale)}</div>
+              <div className="truncate text-[12.5px] font-medium">{backendConnected && profile.institution ? profile.institution : localize("Astana IT University", locale)}</div>
+              <div className="text-[11px] text-muted-foreground">{backendConnected ? (profile.semester ?? "") : localize("Fall Semester 2026", locale)}</div>
             </div>
             </div>
         </div>

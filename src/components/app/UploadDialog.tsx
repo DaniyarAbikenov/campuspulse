@@ -1,5 +1,5 @@
 import { localize, useI18n } from "@/lib/i18n";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { UploadCloud, FileText, Sparkles, CheckCircle2, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useStore } from "@/lib/store";
 import { requirements } from "@/lib/data";
+import { addDays, todayCampus } from "@/lib/week";
 import { AnalysisProgress } from "./AnalysisProgress";
 import { TaskPlanReview } from "./TaskPlanReview";
 import { analyzeRemoteAssignment, type AgentStep, type TaskPlan } from "@/lib/api";
@@ -59,11 +60,16 @@ export function UploadDialog() {
   const [plan, setPlan] = useState<TaskPlan | null>(null);
   const [planSteps, setPlanSteps] = useState<AgentStep[]>([]);
   const [failure, setFailure] = useState("");
-  const [course, setCourse] = useState("se");
-  const [title, setTitle] = useState("Assignment 3 — Authentication");
+  // Live workspace: start empty with the student's first course; the offline demo keeps its sample.
+  const [course, setCourse] = useState(backendConnected ? (courses[0]?.id ?? "") : "se");
+  const [title, setTitle] = useState(backendConnected ? "" : "Assignment 3 — Authentication");
   const [file, setFile] = useState<File | null>(null);
-  const [deadline, setDeadline] = useState("2026-10-23");
+  const [deadline, setDeadline] = useState(backendConnected ? addDays(todayCampus(), 7) : "2026-10-23");
   const [drag, setDrag] = useState(false);
+
+  useEffect(() => {
+    if (backendConnected && !courses.some((item) => item.id === course) && courses[0]) setCourse(courses[0].id);
+  }, [backendConnected, courses, course]);
 
   const reset = () => {
     setPhase("form");
@@ -99,8 +105,9 @@ export function UploadDialog() {
           file,
           courseId: course,
           title,
-          dueAt: `${deadline}T23:59:00Z`,
-          estimatedHours: 8.5,
+          // End of the due day in the campus time zone; the estimate comes from the analysis.
+          dueAt: `${deadline}T23:59:00+05:00`,
+          estimatedHours: 0,
         });
         toast.success(localize("Assignment and file saved", locale));
       } catch (error) {
@@ -280,10 +287,12 @@ export function UploadDialog() {
                 )}
             </label>
             <div className="flex items-center justify-between pt-1">
-                <Button variant="ghost" size="sm" onClick={useDemo}>
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />{" "}
-                  {localize("Use Demo Assignment", locale)}
-                </Button>
+                {backendConnected ? <span /> : (
+                  <Button variant="ghost" size="sm" onClick={useDemo}>
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />{" "}
+                    {localize("Use Demo Assignment", locale)}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   disabled={!file || !title || !deadline}

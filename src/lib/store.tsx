@@ -40,11 +40,15 @@ import {
 } from "./data";
 import { toast } from "sonner";
 import { signOutGoogle } from "./google-identity";
+import { FIXTURE_WEEK, todayCampus } from "./week";
 import {
   completeOnboardingRemote,
   fetchAgentEnabled,
   fetchFreeSlots,
   fetchAdminOverview,
+  fetchWeekData,
+  getApiWeek,
+  setApiWeek,
   type AdminOverview,
   type AssignmentRelation,
   restoreSession,
@@ -137,6 +141,12 @@ interface Store {
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
   reloadWorkspace: () => Promise<void>;
   agentEnabled: boolean;
+  /** Monday (YYYY-MM-DD) of the week shown on the schedule, workload and overview pages. */
+  weekStart: string;
+  /** Today in the campus time zone (YYYY-MM-DD). */
+  today: string;
+  selectWeek: (isoMonday: string) => Promise<void>;
+  profile: { institution: string | null; semester: string | null };
   /** Backend roles of the signed-in user; the admin workspace needs an administrator role. */
   roles: string[];
   canAdminister: boolean;
@@ -180,6 +190,8 @@ export function StoreProvider({
   const [freeSlots, setFreeSlots] = useState<FreeSlot[]>(initialFreeSlots);
   const [relations, setRelations] = useState<AssignmentRelation[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState(getApiWeek());
+  const [profile, setProfile] = useState<{ institution: string | null; semester: string | null }>({ institution: null, semester: null });
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
   const backendConnected = connection === "online";
@@ -251,6 +263,8 @@ export function StoreProvider({
     setFreeSlots(workspace.freeSlots);
     setRelations(workspace.relations);
     setRoles(workspace.roles);
+    setProfile(workspace.profile);
+    setSelectedWeek(getApiWeek());
     setConnection("online");
     fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
   }, []);
@@ -324,7 +338,7 @@ export function StoreProvider({
           : "To Do") as Assignment["status"],
     };
   });
-  const catalogCourses = summarizeCourses(liveAssignments).map((summary) => {
+  const catalogCourses = (live ? [] : summarizeCourses(liveAssignments)).map((summary) => {
     const remote = baseCourses.find((course) => course.id === summary.id);
     const course = remote
       ? {
@@ -358,6 +372,7 @@ export function StoreProvider({
       const upcoming = open.map((assignment) => assignment.deadline)[0];
       return {
         ...course,
+        docs: knowledgeDocs.filter((doc) => doc.courseId === course.id).length,
         assignments: rows.length,
         completed: rows.length - open.length,
         progress: rows.length
@@ -662,6 +677,24 @@ export function StoreProvider({
       setSettings(updated);
     },
     agentEnabled,
+    weekStart: connection === "offline" ? FIXTURE_WEEK : selectedWeek,
+    today: todayCampus(),
+    profile,
+    selectWeek: async (isoMonday) => {
+      setApiWeek(isoMonday);
+      setSelectedWeek(isoMonday);
+      if (connectionRef.current !== "online") return;
+      try {
+        const week = await fetchWeekData(baseCourses);
+        if (getApiWeek() !== isoMonday) return; // a newer selection already replaced it
+        setEvents(week.events);
+        setBaseDistribution(week.distribution);
+        setRemoteWorkload(week.workload);
+        setFreeSlots(week.freeSlots);
+      } catch (error) {
+        toast.error("Could not load that week", { description: String(error) });
+      }
+    },
     roles,
     // The fixture demo (offline) keeps the admin switch; a live backend needs a real role.
     canAdminister: connection !== "online" || roles.some((r) => r === "academic_admin" || r === "platform_admin"),
@@ -702,6 +735,7 @@ export function StoreProvider({
       setStatistics(workspace.statistics);
       setRelations(workspace.relations);
       setFreeSlots(workspace.freeSlots);
+      setEvents(workspace.events);
       setRemoteWorkload(workspace.workload);
       setBaseDistribution(workspace.distribution);
     },

@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { MetricCard, PageHeader, Panel, PredictionNote, CourseTag, ProgressBar } from "@/components/app/common";
 import { WorkloadChart } from "@/components/app/widgets";
 import { StudyPlanPanel } from "@/components/app/StudyPlanPanel";
+import { WeekSwitcher } from "@/components/app/WeekSwitcher";
+import { weekTitle } from "@/lib/week";
+import { intlLocale } from "@/lib/i18n";
 import { weeklyWorkload, workloadTotals } from "@/lib/data";
 
 export const Route = createFileRoute("/workload")({
@@ -21,12 +24,12 @@ export const Route = createFileRoute("/workload")({
 
 function Workload() {
   const { locale } = useI18n();
-  const { workloadPlanApplied: applied, applyWorkloadPlan, distribution, workload: workloadTotals, courses, backendConnected } = useStore();
+  const { workloadPlanApplied: applied, applyWorkloadPlan, distribution, workload: workloadTotals, courses, backendConnected, weekStart } = useStore();
   const peak = distribution.reduce((highest, day) => day.required > highest.required ? day : highest);
   const max = Math.max(...courses.map((c) => c.remaining));
   return (
     <>
-      <PageHeader title={localize("My Workload", locale)} subtitle={localize("Forecast for Week 43 based on assignment estimates and your timetable.", locale)} />
+      <PageHeader title={localize("My Workload", locale)} subtitle={`${weekTitle(weekStart, intlLocale(locale), localize("Week", locale))} · ${localize("based on assignment estimates and your timetable.", locale)}`} actions={<WeekSwitcher />} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label={localize("Required", locale)} value={`${workloadTotals.required}h`} sub={localize("This week", locale)} icon={Hourglass} />
         <MetricCard label={localize("Available", locale)} value={`${workloadTotals.available}h`} sub={localize("Free study time", locale)} icon={Clock} />

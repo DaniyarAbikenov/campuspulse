@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { useStore } from "@/lib/store";
 import { formatHour, type FreeSlot } from "@/lib/data";
+import { WeekSwitcher } from "@/components/app/WeekSwitcher";
+import { dayLabels, daysBetween, weekTitle } from "@/lib/week";
+import { intlLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/schedule")({
@@ -22,14 +25,15 @@ export const Route = createFileRoute("/schedule")({
   component: Schedule,
 });
 
-const days = ["Mon 19", "Tue 20", "Wed 21", "Thu 22", "Fri 23", "Sat 24", "Sun 25"];
 const hours = Array.from({ length: 12 }, (_, i) => 8 + i);
 const H = 44;
 const kindCls = { lecture: "border-border bg-card", study: "border-primary/30 bg-primary-soft text-primary", event: "border-info/30 bg-info-soft text-info", free: "" };
 
 function Schedule() {
   const { locale } = useI18n();
-  const { events, addEvent, log, tasks, workload, freeSlots, backendConnected } = useStore();
+  const { events, addEvent, log, tasks, workload, freeSlots, weekStart, today } = useStore();
+  const days = dayLabels(weekStart, intlLocale(locale));
+  const todayIndex = daysBetween(weekStart, today);
   const [slot, setSlot] = useState<FreeSlot | null>(null);
   const [task, setTask] = useState("");
   const taken = (s: FreeSlot) => events.some((e) => e.day === s.day && e.start < s.end && e.end > s.start);
@@ -52,13 +56,13 @@ function Schedule() {
 
   return (
     <>
-      <PageHeader title={localize("My Schedule", locale)} subtitle={localize("Week 43 · October 19 – 25, 2026", locale)} actions={<Button size="sm" onClick={() => setSlot(freeSlots.find((s) => !taken(s)) ?? null)}><Plus className="h-3.5 w-3.5" /> {localize("Plan Study Session", locale)}</Button>} />
+      <PageHeader title={localize("My Schedule", locale)} subtitle={weekTitle(weekStart, intlLocale(locale), localize("Week", locale))} actions={<><WeekSwitcher /><Button size="sm" onClick={() => setSlot(freeSlots.find((s) => !taken(s)) ?? null)}><Plus className="h-3.5 w-3.5" /> {localize("Plan Study Session", locale)}</Button></>} />
       <p className="mb-3 text-[13px]" aria-live="polite">{localize(workload.scheduled, locale)}{localize("h study scheduled ·", locale)} {localize(workload.unscheduled, locale)}{localize("h not yet scheduled", locale)}</p>
       <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
         <div className="panel overflow-x-auto">
           <div className="grid min-w-[760px] grid-cols-[52px_repeat(7,1fr)]">
             <div className="border-b" />
-            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === 0 && "text-primary")}>{localize(d, locale)}</div>), locale)}
+            {localize(days.map((d, i) => <div key={d} className={cn("border-b border-l px-2 py-2 text-[12px] font-medium", i === todayIndex && "text-primary")}>{localize(d, locale)}</div>), locale)}
             <div className="relative">{localize(hours.map((h) => <div key={h} style={{ height: H }} className="pr-2 pt-0.5 text-right font-mono text-[10.5px] text-muted-foreground">{localize(h, locale)}{localize(":00", locale)}</div>), locale)}</div>
             {localize(days.map((_, di) => (
               <div key={di} className="relative border-l" style={{ height: H * hours.length }}>

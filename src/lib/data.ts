@@ -33,6 +33,8 @@ export interface Assignment {
   description?: string;
   courseId: string;
   deadline: string;
+  /** ISO due date from the API; absent for fixture assignments. */
+  dueAt?: string;
   estimate: number;
   actual?: number;
   progress: number;
