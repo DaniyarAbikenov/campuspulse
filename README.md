@@ -39,7 +39,18 @@ python -m campuspulse_agent.chat "What is due this week?" --token <student acces
 adk api_server src --port 8002                  # or serve it for the backend (mode adk_server)
 ```
 
-Backend: `CAMPUSPULSE_AGENT_MODE=adk_server`. The Moodle MCP server must be running
+Backend: `CAMPUSPULSE_AGENT_MODE=adk_server`. The easiest local setup is the runner script, which
+serves the agent on `127.0.0.1:8002` using your Application Default Credentials and reads the Moodle
+MCP key from Secret Manager into the process only:
+
+```bash
+CAMPUSPULSE_MOODLE_MCP_URL=https://YOUR-MOODLE-MCP/mcp ./scripts/run_local.sh
+```
+
+With the backend in Docker add to its `.env`:
+`CAMPUSPULSE_AGENT_MODE=adk_server`, `CAMPUSPULSE_AGENT_ADK_URL=http://host.docker.internal:8002`,
+`CAMPUSPULSE_AGENT_ADK_APP=campuspulse_agent` and `CAMPUSPULSE_AGENT_ADK_HOST_HEADER=localhost:8002`
+(ADK only accepts local `Host` headers). The Moodle MCP server must be running
 (`CAMPUSPULSE_MOODLE_MCP_URL`).
 
 ## Deploy to Agent Engine
