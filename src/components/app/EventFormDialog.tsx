@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { campusInputs, createRemoteCampusEvent, updateRemoteCampusEvent } from "@/lib/api";
+import { campusInputs, createRemoteCampusEvent, updateRemoteCampusEvent, errorText } from "@/lib/api";
 import type { CampusEvent } from "@/lib/data";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -47,8 +47,12 @@ export function EventFormDialog({
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Reset only when the dialog opens, never while it is open: store updates must not wipe what is typed.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    const justOpened = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!justOpened) return;
     if (event?.startsAt && event.endsAt) {
       const from = campusInputs(event.startsAt);
       setTitle(event.title);
@@ -90,7 +94,7 @@ export function EventFormDialog({
       onOpenChange(false);
     } catch (error) {
       toast.error(localize("Could not save the event", locale), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorText(error),
       });
     } finally {
       setBusy(false);

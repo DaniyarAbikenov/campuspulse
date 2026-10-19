@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MaterialFormDialog } from "@/components/app/MaterialFormDialog";
-import { deleteRemoteMaterial } from "@/lib/api";
+import { deleteRemoteMaterial, errorText } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CourseTag, EmptyState, PageHeader, Panel, PredictionNote } from "@/components/app/common";
@@ -55,7 +55,7 @@ function Knowledge() {
       setDoc(null);
       toast.success(localize("Material deleted", locale));
     } catch (error) {
-      toast.error(localize("Could not delete", locale), { description: error instanceof Error ? error.message : String(error) });
+      toast.error(localize("Could not delete", locale), { description: errorText(error) });
     } finally {
       setRemoving(null);
     }

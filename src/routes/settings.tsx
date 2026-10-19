@@ -1,3 +1,4 @@
+import { errorText } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
@@ -66,7 +67,7 @@ function Settings() {
       toast.success(localize(message, locale));
     } catch (error) {
       toast.error(localize("Could not save settings", locale), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorText(error),
       });
     }
   };
@@ -118,6 +119,7 @@ function Settings() {
                 <Input
                   name="program"
                   id="profile-program"
+                  placeholder={localize("e.g. Software Engineering", locale)}
                   defaultValue={
                     role === "admin" ? "Faculty of Computing" : (settings.program ?? "")
                   }
@@ -130,6 +132,7 @@ function Settings() {
                 </label>
                 <Input
                   name="group_name"
+                  placeholder="SE-2429"
                   id="profile-group"
                   defaultValue={role === "admin" ? "Administration" : (settings.group_name ?? "")}
                   className="mt-1 h-9"

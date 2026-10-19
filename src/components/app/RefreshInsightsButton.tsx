@@ -1,3 +1,4 @@
+import { errorText } from "@/lib/api";
 import { useState } from "react";
 import { applyStep, type TraceItem } from "@/lib/agentSteps";
 import { Loader2, Sparkles } from "lucide-react";
@@ -24,7 +25,7 @@ export function RefreshInsightsButton({ variant = "default" }: { variant?: "defa
       });
       toast.success(`${count} ${localize("new insights from the agent", locale)}`, { id });
     } catch (error) {
-      toast.error(localize("The agent could not review your week", locale), { id, description: error instanceof Error ? error.message : String(error) });
+      toast.error(localize("The agent could not review your week", locale), { id, description: errorText(error) });
     } finally {
       setBusy(false);
     }

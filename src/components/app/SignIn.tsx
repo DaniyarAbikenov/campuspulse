@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/app/Logo";
-import { DEMO_LOGIN_ENABLED, GOOGLE_CLIENT_ID } from "@/lib/api";
+import { DEMO_LOGIN_ENABLED, GOOGLE_CLIENT_ID, errorText } from "@/lib/api";
 import { loadGoogleIdentity } from "@/lib/google-identity";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -25,7 +25,7 @@ export function SignIn() {
           callback: ({ credential }) => {
             setBusy(true);
             signInWithGoogle(credential)
-              .catch((cause: unknown) => setError(String(cause)))
+              .catch((cause: unknown) => setError(errorText(cause)))
               .finally(() => setBusy(false));
           },
         });
@@ -37,7 +37,7 @@ export function SignIn() {
           locale: locale === "kk" ? "kk" : locale,
         });
       })
-      .catch((cause: unknown) => setError(String(cause)));
+      .catch((cause: unknown) => setError(errorText(cause)));
     return () => {
       active = false;
     };

@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { EmptyState, PageHeader, Panel, PredictionNote, PriorityIndicator, SourceReference, StatusBadge } from "@/components/app/common";
 import { TaskPlanReview } from "@/components/app/TaskPlanReview";
 import { AssignmentActions } from "@/components/app/AssignmentActions";
+import { Skeleton } from "@/components/ui/skeleton";
 import { applyStep, type TraceItem } from "@/lib/agentSteps";
 import { AgentTrace } from "@/components/app/AgentTrace";
-import { analyzeRemoteAssignment, fetchAssignmentText, fetchTaskPlan, type AgentStep, type DocumentPage, type TaskPlan } from "@/lib/api";
+import { analyzeRemoteAssignment, fetchAssignmentText, fetchTaskPlan, type AgentStep, type DocumentPage, type TaskPlan, errorText } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { courseOf, type Assignment, type Priority } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -70,7 +71,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
       setPlan(latest);
       setAppliedPlan(applied);
     } catch (error) {
-      console.warn("Assignment details unavailable", error);
+      console.warn("Assignment details unavailable", errorText(error));
     } finally {
       setLoaded(true);
     }
@@ -99,7 +100,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
       setSteps(result.steps);
       setReview(true);
     } catch (error) {
-      toast.error(localize("Analysis failed", locale), { description: error instanceof Error ? error.message : String(error) });
+      toast.error(localize("Analysis failed", locale), { description: errorText(error) });
     } finally {
       setAnalyzing(false);
     }
@@ -150,7 +151,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
             </dl>
           </Panel>
 
-          <Panel ai title={<span className="flex items-center gap-1.5">{localize("Requirements", locale)} <span className="text-[11px] font-normal tabular-nums text-muted-foreground">{requirements.length}</span></span>} bodyClass="p-0">
+          <Panel ai title={<span className="flex items-center gap-1.5">{localize("Requirements", locale)} <span className="text-[11px] font-normal tabular-nums text-muted-foreground">{loaded ? requirements.length : "…"}</span></span>} bodyClass="p-0">
             {requirements.length ? requirements.map((item) => {
               const linked = own.filter((task) => task.req === item.requirementId);
               const done = linked.length > 0 && linked.every((task) => task.column === "done");
@@ -172,7 +173,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
                 </div>
               );
             }) : (
-              <div className="p-3.5"><EmptyState icon={FileSearch} title={localize(loaded && pages ? "No requirements extracted yet" : "No analyzed document", locale)} text={localize(pages ? "Analyze the assignment to extract requirements with their source in the document." : "Upload the assignment brief (PDF, DOCX or TXT) to extract requirements.", locale)} /></div>
+              !loaded ? <div role="status" className="space-y-2 p-3.5"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-2/3" /><span className="sr-only">{localize("Loading…", locale)}</span></div> : <div className="p-3.5"><EmptyState icon={FileSearch} title={localize(loaded && pages ? "No requirements extracted yet" : "No analyzed document", locale)} text={localize(pages ? "Analyze the assignment to extract requirements with their source in the document." : "Upload the assignment brief (PDF, DOCX or TXT) to extract requirements.", locale)} /></div>
             )}
           </Panel>
 
@@ -236,7 +237,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
           <Panel ai title={localize("Analysis status", locale)}>
             <dl className="space-y-2 text-[12.5px]">
               {[
-                [localize("Requirements extracted", locale), String(requirements.length)],
+                [localize("Requirements extracted", locale), loaded ? String(requirements.length) : "…"],
                 [localize("Related assignments", locale), String(related.length)],
                 [localize("Citations verified", locale), shown ? `${shown.items.filter((item) => item.quoteVerified).length}/${shown.items.length}` : "—"],
                 [localize("Last analyzed", locale), plan ? new Date(plan.createdAt).toLocaleString() : shown ? new Date(shown.createdAt).toLocaleString() : localize("Not analyzed", locale)],

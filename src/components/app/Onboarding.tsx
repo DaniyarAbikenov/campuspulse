@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/app/Logo";
-import { fetchOnboardingOptions, type OnboardingOptions } from "@/lib/api";
+import { fetchOnboardingOptions, type OnboardingOptions, errorText } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 
@@ -24,7 +24,7 @@ export function Onboarding() {
         setOptions(loaded);
         setInstitutionId(loaded.institutions[0]?.id ?? "");
       })
-      .catch((cause: unknown) => setError(String(cause)));
+      .catch((cause: unknown) => setError(errorText(cause)));
   }, []);
 
   const institution = options?.institutions.find((item) => item.id === institutionId);
@@ -36,7 +36,7 @@ export function Onboarding() {
     setBusy(true);
     setError(null);
     completeOnboarding({ institutionId, studentNumber: studentNumber.trim(), program: program.trim(), ...(group.trim() ? { groupName: group.trim() } : {}), courseIds })
-      .catch((cause: unknown) => setError(String(cause)))
+      .catch((cause: unknown) => setError(errorText(cause)))
       .finally(() => setBusy(false));
   };
 

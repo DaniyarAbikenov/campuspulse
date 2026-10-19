@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { cancelRemoteAssignment, deleteRemoteAssignment, reopenRemoteAssignment } from "@/lib/api";
+import { cancelRemoteAssignment, deleteRemoteAssignment, reopenRemoteAssignment, errorText } from "@/lib/api";
 import type { Assignment } from "@/lib/data";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -49,7 +49,7 @@ export function AssignmentActions({ assignment }: { assignment: Assignment }) {
       if (action === "delete") void navigate({ to: "/assignments" });
     } catch (error) {
       toast.error(localize("That did not work", locale), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorText(error),
       });
     } finally {
       setConfirm(null);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createRemoteAssignment } from "@/lib/api";
+import { createRemoteAssignment, errorText } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { addDays } from "@/lib/week";
@@ -44,8 +44,12 @@ export function AssignmentFormDialog({
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Reset only when the dialog opens, never while it is open: store updates must not wipe what is typed.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    const justOpened = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!justOpened) return;
     setCourse(courseId ?? courses[0]?.id ?? "");
     setTitle("");
     setDue(addDays(today, 7));
@@ -87,7 +91,7 @@ export function AssignmentFormDialog({
       onOpenChange(false);
     } catch (error) {
       toast.error(localize("Could not add the assignment", locale), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorText(error),
       });
     } finally {
       setBusy(false);

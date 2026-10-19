@@ -17,6 +17,7 @@ import {
   updateImportItem,
   type ImportItem,
   type ImportProposal,
+  errorText,
 } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -42,7 +43,7 @@ export function ImportProposals() {
     try {
       setProposals(await fetchImportProposals());
     } catch (error) {
-      console.warn("Import proposals unavailable", error);
+      console.warn("Import proposals unavailable", errorText(error));
     }
   }, []);
   useEffect(() => {
@@ -70,7 +71,7 @@ export function ImportProposals() {
       updateImportItem(proposal.id, item.id, patch)
         .then(() => undefined)
         .catch((error: unknown) => {
-          toast.error("Change was not saved", { description: String(error) });
+          toast.error("Change was not saved", { description: errorText(error) });
           void refresh();
         }),
     );
@@ -88,7 +89,7 @@ export function ImportProposals() {
         description: `${result.created} ${localize("created", locale)}`,
       });
     } catch (error) {
-      toast.error("Import failed", { description: String(error) });
+      toast.error("Import failed", { description: errorText(error) });
     } finally {
       setBusy(false);
     }
@@ -101,7 +102,7 @@ export function ImportProposals() {
       await refresh();
       setOpen(null);
     } catch (error) {
-      toast.error("Could not dismiss", { description: String(error) });
+      toast.error("Could not dismiss", { description: errorText(error) });
     } finally {
       setBusy(false);
     }
@@ -115,7 +116,8 @@ export function ImportProposals() {
       <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-ai/30 bg-ai-soft/60 px-3 py-2 text-[13px]">
         <DownloadCloud className="h-4 w-4 text-ai" aria-hidden />
         <span className="min-w-0 flex-1">
-          {pending} {localize("assignments found in", locale)} {proposals[0]?.source === "moodle" ? "Moodle" : proposals[0]?.source}
+          {pending} {localize("assignments found in", locale)}{" "}
+          {proposals[0]?.source === "moodle" ? "Moodle" : proposals[0]?.source}
           {". "}
           {localize("Nothing is added until you approve.", locale)}
         </span>
@@ -128,7 +130,10 @@ export function ImportProposals() {
           <DialogHeader>
             <DialogTitle>{localize("Import assignments", locale)}</DialogTitle>
             <DialogDescription>
-              {localize("Choose the course and a time estimate for each assignment. Moodle does not provide estimates, so the default is only a starting point.", locale)}
+              {localize(
+                "Choose the course and a time estimate for each assignment. Moodle does not provide estimates, so the default is only a starting point.",
+                locale,
+              )}
             </DialogDescription>
           </DialogHeader>
           <ul className="max-h-[55vh] space-y-3 overflow-y-auto">
@@ -144,12 +149,15 @@ export function ImportProposals() {
                   <span className="min-w-0 flex-1">
                     <span className="font-medium">{item.title}</span>
                     <span className="block text-[11.5px] text-muted-foreground">
-                      {item.courseName} · {localize("due", locale)} {localize(dueLabel(item.dueAt), locale)}
+                      {item.courseName} · {localize("due", locale)}{" "}
+                      {localize(dueLabel(item.dueAt), locale)}
                     </span>
                   </span>
                 </label>
                 {item.description ? (
-                  <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">{item.description}</p>
+                  <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
+                    {item.description}
+                  </p>
                 ) : null}
                 {item.attachments.length ? (
                   <p className="mt-1 flex items-center gap-1 text-[11.5px] text-muted-foreground">
@@ -196,7 +204,8 @@ export function ImportProposals() {
                       disabled={!item.selected}
                       onChange={(event) => {
                         const hours = Number(event.target.value);
-                        if (Number.isFinite(hours) && hours >= 0) edit(open, item, { estimatedHours: hours });
+                        if (Number.isFinite(hours) && hours >= 0)
+                          edit(open, item, { estimatedHours: hours });
                       }}
                     />
                   </label>
@@ -208,7 +217,10 @@ export function ImportProposals() {
             <Button variant="outline" disabled={busy} onClick={() => open && void dismiss(open)}>
               {localize("Dismiss", locale)}
             </Button>
-            <Button disabled={busy || !chosen.length || blocked} onClick={() => open && void apply(open)}>
+            <Button
+              disabled={busy || !chosen.length || blocked}
+              onClick={() => open && void apply(open)}
+            >
               {localize("Import selected", locale)} ({chosen.length})
             </Button>
           </DialogFooter>

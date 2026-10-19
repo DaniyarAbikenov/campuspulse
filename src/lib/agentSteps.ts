@@ -2,6 +2,8 @@ import type { AgentStep } from "./api";
 
 /** One line of the agent's visible work: a tool call paired with its result, or a thought. */
 export interface TraceItem {
+  /** How many identical consecutive calls this line stands for (a retry shows as ×2). */
+  repeat?: number;
   id: number;
   kind: "tool" | "thought";
   tool: string | null;
@@ -126,4 +128,16 @@ export function describeToolResult(name: string | null, raw: string): string | n
     default:
       return null;
   }
+}
+
+/** Merge consecutive calls of the same tool into one line: a retried call is not a second step. */
+export function collapseTrace(items: TraceItem[]): TraceItem[] {
+  const merged: TraceItem[] = [];
+  for (const item of items) {
+    const last = merged[merged.length - 1];
+    if (last && item.kind === "tool" && last.kind === "tool" && last.tool === item.tool) {
+      merged[merged.length - 1] = { ...item, repeat: (last.repeat ?? 1) + 1 };
+    } else merged.push(item);
+  }
+  return merged;
 }

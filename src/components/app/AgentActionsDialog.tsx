@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { applyAgentAction, campusInputs, dismissAgentAction, type AgentAction } from "@/lib/api";
+import { applyAgentAction, campusInputs, dismissAgentAction, type AgentAction, errorText } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 
@@ -75,7 +75,7 @@ export function AgentActionsDialog({
       toast.success(localize(result.detail, locale));
       await reloadWorkspace();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorText(error);
       setOutcome((current) => ({ ...current, [action.id]: message }));
     } finally {
       setBusy(null);

@@ -29,7 +29,7 @@ function ActivityPage() {
         <MetricCard label={localize(role === "admin" ? "Activity types" : "Agent runs", locale)} value={String(activity.length)} sub={localize(role === "admin" ? "Last 7 days" : "Most recent", locale)} icon={Bot} />
         {localize(role === "student" ? <MetricCard label={localize("Documents indexed", locale)} value={String(documentTotals.count)} sub={localize(`${documentTotals.pages} pages`, locale)} icon={Database} /> : <MetricCard label={localize("Faculty courses", locale)} value={String(adminOverview?.courseCount ?? adminFeed.length)} sub={localize("Anonymised aggregates", locale)} icon={Database} />, locale)}
         <MetricCard label={localize("Tool calls", locale)} value={String(activity.reduce((sum, item) => sum + (item.tools?.length ?? 0), 0))} sub={localize("Across these runs", locale)} icon={Cpu} />
-        <MetricCard label={localize("Permissions", locale)} value="Read-only" sub={localize("No submissions on your behalf", locale)} icon={ShieldCheck} />
+        <MetricCard label={localize("Permissions", locale)} value={localize("Ask first", locale)} sub={localize("Changes happen only after you confirm them; nothing is submitted for you", locale)} icon={ShieldCheck} />
       </div>
       <div className="mt-4">
         <Panel title={localize("Timeline", locale)}><ActivityFeed items={activity} technical={role === "student"} /></Panel>

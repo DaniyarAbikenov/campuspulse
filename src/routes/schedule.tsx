@@ -2,17 +2,19 @@ import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Repeat, Sparkles, Trash2 } from "lucide-react";
+import { Pencil, Plus, Repeat, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddToCalendarDialog } from "@/components/app/AddToCalendarDialog";
-import { deleteRemoteEvent, deleteRemoteSeries, fetchSeries, type RepeatingActivity } from "@/lib/api";
+import { deleteRemoteEvent, deleteRemoteSeries, fetchSeries, updateRemoteEvent, type RepeatingActivity, errorText } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { useStore } from "@/lib/store";
 import { formatHour, type CalEvent, type FreeSlot } from "@/lib/data";
 import { WeekSwitcher } from "@/components/app/WeekSwitcher";
-import { dayLabels, daysBetween, weekTitle } from "@/lib/week";
+import { addDays, dayLabels, daysBetween, weekTitle } from "@/lib/week";
 import { intlLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +42,10 @@ function Schedule() {
   const [mobileDay, setMobileDay] = useState(() => Math.min(6, Math.max(0, daysBetween(weekStart, today))));
   const [selected, setSelected] = useState<CalEvent | null>(null);
   const [series, setSeries] = useState<RepeatingActivity[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ title: "", date: "", start: "09:00", end: "10:00", location: "" });
+  const clockOf = (hours: number) => `${String(Math.floor(hours)).padStart(2, "0")}:${String(Math.round((hours % 1) * 60)).padStart(2, "0")}`;
+  const beginEdit = (event: CalEvent) => { setDraft({ title: event.title, date: addDays(weekStart, event.day), start: clockOf(event.start), end: clockOf(event.end), location: event.location ?? "" }); setEditing(true); };
   const addAt = (target: FreeSlot | null) => { setSlot(target); setAdding(true); };
 
   useEffect(() => {
@@ -47,6 +53,18 @@ function Schedule() {
     void fetchSeries().then(setSeries).catch(() => undefined);
   }, [backendConnected, events]);
 
+  useEffect(() => { setEditing(false); }, [selected?.id]);
+  const saveEdit = async () => {
+    if (!selected?.backendId || !draft.title.trim() || draft.end <= draft.start) return;
+    try {
+      await updateRemoteEvent(selected.backendId, { ...draft, title: draft.title.trim(), location: draft.location.trim() });
+      await reloadWorkspace();
+      toast.success(localize("Event updated", locale));
+      setSelected(null);
+    } catch (error) {
+      toast.error(localize("Could not save the event", locale), { description: errorText(error) });
+    }
+  };
   const remove = async (action: () => Promise<unknown>, done: string) => {
     try {
       await action();
@@ -54,7 +72,7 @@ function Schedule() {
       toast.success(localize(done, locale));
       setSelected(null);
     } catch (error) {
-      toast.error(localize("Could not delete", locale), { description: error instanceof Error ? error.message : String(error) });
+      toast.error(localize("Could not delete", locale), { description: errorText(error) });
     }
   };
   const taken = (s: FreeSlot) => events.some((e) => e.day === s.day && e.start < s.end && e.end > s.start);
@@ -137,8 +155,22 @@ function Schedule() {
             <DialogTitle className="text-[16px]">{selected?.title}</DialogTitle>
             <DialogDescription>{selected ? `${days[selected.day]} · ${formatHour(selected.start)}–${formatHour(selected.end)}${selected.location ? ` · ${selected.location}` : ""}` : ""}</DialogDescription>
           </DialogHeader>
-          {backendConnected && selected?.backendId ? (
+          {backendConnected && selected?.backendId && editing ? (
+            <div className="space-y-2">
+              <Label htmlFor="evt-title" className="text-[12px]">{localize("Title", locale)}</Label>
+              <Input id="evt-title" value={draft.title} maxLength={240} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+              <div className="grid grid-cols-3 gap-2">
+                <div><Label htmlFor="evt-date" className="text-[12px]">{localize("Date", locale)}</Label><Input id="evt-date" type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></div>
+                <div><Label htmlFor="evt-start" className="text-[12px]">{localize("From", locale)}</Label><Input id="evt-start" type="time" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} /></div>
+                <div><Label htmlFor="evt-end" className="text-[12px]">{localize("To", locale)}</Label><Input id="evt-end" type="time" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} /></div>
+              </div>
+              <Label htmlFor="evt-location" className="text-[12px]">{localize("Place (optional)", locale)}</Label>
+              <Input id="evt-location" value={draft.location} maxLength={240} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
+              <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setEditing(false)}>{localize("Cancel", locale)}</Button><Button size="sm" onClick={() => void saveEdit()}>{localize("Save changes", locale)}</Button></div>
+            </div>
+          ) : backendConnected && selected?.backendId ? (
             <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => beginEdit(selected)}><Pencil className="h-3.5 w-3.5" /> {localize(selected.seriesId ? "Edit this one" : "Edit", locale)}</Button>
               <Button variant="outline" size="sm" onClick={() => void remove(() => deleteRemoteEvent(selected.backendId!), "Event deleted")}><Trash2 className="h-3.5 w-3.5" /> {localize(selected.seriesId ? "Delete this one" : "Delete", locale)}</Button>
               {selected.seriesId ? <Button variant="destructive" size="sm" onClick={() => void remove(() => deleteRemoteSeries(selected.seriesId!), "Repeating activity deleted")}>{localize("Delete the whole series", locale)}</Button> : null}
             </div>

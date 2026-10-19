@@ -6,7 +6,8 @@ const completeOnboarding = vi.fn().mockResolvedValue(undefined);
 const signOut = vi.fn();
 
 vi.mock("@/lib/store", () => ({ useStore: () => ({ completeOnboarding, signOut }) }));
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
   fetchOnboardingOptions: () =>
     Promise.resolve({
       institutions: [
@@ -30,7 +31,9 @@ describe("Onboarding", () => {
     render(<Onboarding />);
     await screen.findByText("SE 3204");
     fireEvent.change(screen.getByLabelText("Student number"), { target: { value: " 240028 " } });
-    fireEvent.change(screen.getByLabelText("Program"), { target: { value: "Software Engineering" } });
+    fireEvent.change(screen.getByLabelText("Program"), {
+      target: { value: "Software Engineering" },
+    });
     fireEvent.click(screen.getByLabelText(/CS 3112/));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await waitFor(() => expect(completeOnboarding).toHaveBeenCalledTimes(1));

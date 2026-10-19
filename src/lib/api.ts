@@ -208,6 +208,66 @@ interface ApiInsight {
   action_type?: string;
 }
 
+/** A failed API call whose `message` is already fit to show to a person. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+const FIELD_NAMES: Record<string, string> = {
+  group_name: "Group",
+  program: "Program",
+  full_name: "Name",
+  title: "Title",
+  due_at: "Deadline",
+  starts_at: "Start",
+  ends_at: "End",
+  estimated_hours: "Estimate",
+  place: "Place",
+  name: "Name",
+};
+const VALIDATION_TEXT: Record<string, string> = {
+  string_too_short: "cannot be empty",
+  string_too_long: "is too long",
+  missing: "is required",
+  greater_than: "is too small",
+  less_than: "is too large",
+  greater_than_equal: "is too small",
+  less_than_equal: "is too large",
+};
+
+/** Turns the backend's error body (a message, or a list of validation problems) into one sentence. */
+export function describeFailure(status: number, body: string): string {
+  let detail: unknown = body;
+  try {
+    detail = (JSON.parse(body) as { detail?: unknown }).detail ?? body;
+  } catch {
+    /* not JSON: use the text as it is */
+  }
+  if (Array.isArray(detail)) {
+    const problems = detail.map((item: { loc?: unknown[]; type?: string; msg?: string }) => {
+      const field = String(item.loc?.[item.loc.length - 1] ?? "");
+      const label = FIELD_NAMES[field] ?? field.replace(/_/g, " ");
+      const reason = VALIDATION_TEXT[item.type ?? ""] ?? item.msg ?? "is not valid";
+      return label ? `${label} ${reason}` : reason;
+    });
+    return [...new Set(problems)].join("; ");
+  }
+  if (typeof detail === "string" && detail.trim() && !detail.trim().startsWith("<")) return detail;
+  if (status === 401) return "Your session has expired. Sign in again.";
+  if (status === 403) return "You are not allowed to do that.";
+  if (status === 404) return "That no longer exists.";
+  if (status >= 500) return "Something went wrong on the server. Try again in a moment.";
+  return "The request was not accepted.";
+}
+
+/** The message of any thrown value, ready for a toast. */
+export const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
 /** Exchange the stored refresh token for a new access token; false when the session is gone. */
 async function refreshAccess(): Promise<boolean> {
   if (!refreshToken) return false;
@@ -231,8 +291,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     headers.set("Content-Type", "application/json");
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (response.status === 401 && retry && (await refreshAccess())) return request<T>(path, init, false);
-  if (!response.ok)
-    throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+  if (!response.ok) throw new ApiError(response.status, describeFailure(response.status, await response.text()));
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>);
 }
 
@@ -285,7 +344,7 @@ async function streamRequest<T>(
   if (response.status === 401 && retry && (await refreshAccess()))
     return streamRequest<T>(path, init, onStep, false);
   if (!response.ok || !response.body)
-    throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+    throw new ApiError(response.status, describeFailure(response.status, response.body ? await response.text() : ""));
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -300,7 +359,7 @@ async function streamRequest<T>(
       else if (event === "done") result = data as T;
       else if (event === "error") {
         const failure = data as { status?: number; detail?: string };
-        throw new Error(`${failure.status ?? 502}: ${failure.detail ?? "The agent failed"}`);
+        throw new ApiError(failure.status ?? 502, failure.detail ?? "The agent could not finish. Try again.");
       }
     }
     if (done) break;
@@ -1160,7 +1219,7 @@ export async function fetchAssignmentText(
     );
     return { title: data.title, pages: data.pages };
   } catch (error) {
-    if (String(error).startsWith("Error: 404")) return null;
+    if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
 }
@@ -1171,7 +1230,7 @@ export async function fetchTaskPlan(backendId: string, applied = false): Promise
     const raw = await request<ApiTaskPlan & { created_at: string }>(`/assignments/${backendId}/task-plan${applied ? "?applied=true" : ""}`);
     return { ...taskPlan(raw), status: raw.status, createdAt: raw.created_at, applied: raw.status === "applied" };
   } catch (error) {
-    if (String(error).startsWith("Error: 404")) return null;
+    if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
 }
@@ -1527,3 +1586,32 @@ export const applyAgentAction = (id: string) =>
   request<{ detail: string }>(`/agent/actions/${id}/apply`, { method: "POST" });
 export const dismissAgentAction = (id: string) =>
   request(`/agent/actions/${id}/dismiss`, { method: "POST" });
+
+export const updateRemoteTask = (
+  id: string,
+  values: { title?: string; description?: string; estimatedHours?: number; priority?: string },
+) =>
+  request(`/tasks/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...(values.title === undefined ? {} : { title: values.title }),
+      ...(values.description === undefined ? {} : { description: values.description }),
+      ...(values.estimatedHours === undefined ? {} : { estimated_hours: values.estimatedHours }),
+      ...(values.priority === undefined ? {} : { priority: values.priority.toLowerCase() }),
+    }),
+  });
+export const deleteRemoteTask = (id: string) => request(`/tasks/${id}`, { method: "DELETE" });
+/** Change the title, time or place of one calendar event (one occurrence of a series). */
+export const updateRemoteEvent = (
+  id: string,
+  values: { title: string; date: string; start: string; end: string; location: string },
+) =>
+  request(`/schedule-events/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      title: values.title,
+      starts_at: campusIso(values.date, values.start),
+      ends_at: campusIso(values.date, values.end),
+      ...(values.location ? { location: values.location } : {}),
+    }),
+  });

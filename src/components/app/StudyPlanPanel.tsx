@@ -3,7 +3,7 @@ import { AlertTriangle, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/app/common";
-import { applyStudyPlan, campusClockText, campusTime, fetchStudyPlan, type StudyPlan } from "@/lib/api";
+import { applyStudyPlan, campusClockText, campusTime, fetchStudyPlan, type StudyPlan, errorText } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 
@@ -23,7 +23,7 @@ export function StudyPlanPanel() {
       setPlan(await fetchStudyPlan());
       setError(null);
     } catch (cause) {
-      setError(String(cause));
+      setError(errorText(cause));
     }
   }, []);
   // Re-plan whenever the selected week changes.
@@ -37,7 +37,7 @@ export function StudyPlanPanel() {
       setPlan(result.plan);
       toast.success(localize("Study plan applied", locale), { description: `${result.created} ${localize("study sessions added to your calendar", locale)}` });
     } catch (cause) {
-      toast.error(localize("Could not apply the plan", locale), { description: String(cause) });
+      toast.error(localize("Could not apply the plan", locale), { description: errorText(cause) });
     } finally {
       setBusy(false);
     }

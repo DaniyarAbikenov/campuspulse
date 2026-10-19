@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, withoutIds } from "@/lib/utils";
 import { describeToolResult, toolLabel } from "@/lib/agentSteps";
 import { useStore } from "@/lib/store";
 import { assignments, courseOf, weeklyWorkload, type Insight, type Activity } from "@/lib/data";
@@ -441,14 +441,14 @@ export function ActivityFeed({ items, technical = false }: { items: Activity[]; 
               </span>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[12.5px]">
-                  <span className="font-medium">{localize(a.title, locale)}</span>
+                  <span className="font-medium">{localize(withoutIds(a.title), locale)}</span>
                   {localize(
                     a.status === "success" && <CheckCircle2 className="h-3 w-3 text-success" />,
                     locale,
                   )}
                 </div>
                 <div className="truncate text-[11.5px] text-muted-foreground">
-                  {localize(a.detail, locale)}
+                  {localize(withoutIds(a.detail), locale)}
             </div>
                 {a.tools?.length ? (
                   <ul aria-label={localize("Tool calls", locale)} className="mt-1 space-y-0.5">

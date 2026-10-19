@@ -25,7 +25,7 @@ import { requirements } from "@/lib/data";
 import { addDays, todayCampus } from "@/lib/week";
 import { AnalysisProgress } from "./AnalysisProgress";
 import { TaskPlanReview } from "./TaskPlanReview";
-import { analyzeRemoteAssignment, type AgentStep, type TaskPlan } from "@/lib/api";
+import { analyzeRemoteAssignment, type AgentStep, type TaskPlan, errorText } from "@/lib/api";
 import { applyStep, type TraceItem } from "@/lib/agentSteps";
 import { AgentTrace } from "@/components/app/AgentTrace";
 
@@ -116,7 +116,7 @@ export function UploadDialog() {
         toast.success(localize("Assignment and file saved", locale));
       } catch (error) {
         toast.error(localize("Upload failed", locale), {
-          description: error instanceof Error ? error.message : String(error),
+          description: errorText(error),
         });
         return;
       }
@@ -135,7 +135,7 @@ export function UploadDialog() {
           setPlanSteps(result.steps);
           setPhase("plan");
         } catch (error) {
-          setFailure(error instanceof Error ? error.message : String(error));
+          setFailure(errorText(error));
           setPhase("failed");
         }
         return;

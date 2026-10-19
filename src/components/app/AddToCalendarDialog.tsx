@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TaskPicker } from "@/components/app/TaskPicker";
-import { createRemoteActivity, createRemoteSeries, createRemoteStudySession } from "@/lib/api";
+import { createRemoteActivity, createRemoteSeries, createRemoteStudySession, errorText } from "@/lib/api";
 import type { FreeSlot } from "@/lib/data";
 import { intlLocale, localize, useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -73,8 +73,12 @@ export function AddToCalendarDialog({
   const [busy, setBusy] = useState(false);
 
   // Each time the dialog opens it starts from the chosen free slot (or the first day shown).
+  // Reset only when the dialog opens, never while it is open: store updates must not wipe what is typed.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    const justOpened = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!justOpened) return;
     setMode("study");
     setAssignmentId("");
     setTaskId("");
@@ -166,7 +170,7 @@ export function AddToCalendarDialog({
       onOpenChange(false);
     } catch (error) {
       toast.error(localize("Could not add to the calendar", locale), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorText(error),
       });
     } finally {
       setBusy(false);
