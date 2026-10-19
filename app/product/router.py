@@ -1,11 +1,14 @@
 import asyncio
+import json
+from collections.abc import AsyncIterator
 from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -441,6 +444,58 @@ async def agent_chat(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
 
 
+def _require_gateway(gateway: AgentGateway | None) -> AgentGateway:
+    if gateway is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Agent is not configured"
+        )
+    return gateway
+
+
+def _event(name: str, data: object) -> str:
+    payload = data.model_dump_json() if isinstance(data, BaseModel) else json.dumps(data)
+    return f"event: {name}\ndata: {payload}\n\n"
+
+
+def _event_stream(results: AsyncIterator[BaseModel], final: type[BaseModel]) -> StreamingResponse:
+    """Server-sent events: one `step` per reasoning step as it happens, then `done` or `error`."""
+
+    async def generate() -> AsyncIterator[str]:
+        try:
+            async for item in results:
+                yield _event("done" if isinstance(item, final) else "step", item)
+        except AgentUnavailableError as error:
+            yield _event("error", {"status": status.HTTP_502_BAD_GATEWAY, "detail": str(error)})
+        except HTTPException as error:
+            yield _event("error", {"status": error.status_code, "detail": error.detail})
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/agent/chat/stream", tags=["agent"])
+async def agent_chat_stream(
+    payload: schemas.AgentChatRequest,
+    current: CurrentUserDep,
+    session: SessionDep,
+    gateway: AgentGatewayDep,
+) -> StreamingResponse:
+    return _event_stream(
+        agent_service.stream_chat(
+            session,
+            current,
+            _require_gateway(gateway),
+            payload,
+            settings=settings,
+            secret=get_jwt_secret(),
+        ),
+        schemas.AgentChatRead,
+    )
+
+
 @router.get(
     "/assignments/{assignment_id}/text",
     response_model=schemas.AssignmentTextRead,
@@ -527,6 +582,23 @@ async def analyze_assignment(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
 
 
+@router.post("/assignments/{assignment_id}/analysis/stream", tags=["analysis"])
+async def analyze_assignment_stream(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep, gateway: AgentGatewayDep
+) -> StreamingResponse:
+    return _event_stream(
+        agent_service.stream_analysis(
+            session,
+            current,
+            _require_gateway(gateway),
+            assignment_id,
+            settings=settings,
+            secret=get_jwt_secret(),
+        ),
+        schemas.AssignmentAnalysisRead,
+    )
+
+
 @router.get("/schedule/plan", response_model=schemas.StudyPlanRead, tags=["schedule"])
 def study_plan(
     current: CurrentUserDep, session: SessionDep, week_start: date | None = None
@@ -578,3 +650,19 @@ async def refresh_insights(
         )
     except AgentUnavailableError as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+
+
+@router.post("/insights/refresh/stream", tags=["insights"])
+async def refresh_insights_stream(
+    current: CurrentUserDep, session: SessionDep, gateway: AgentGatewayDep
+) -> StreamingResponse:
+    return _event_stream(
+        agent_service.stream_insights(
+            session,
+            current,
+            _require_gateway(gateway),
+            settings=settings,
+            secret=get_jwt_secret(),
+        ),
+        schemas.InsightRefreshRead,
+    )

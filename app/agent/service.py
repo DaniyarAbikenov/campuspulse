@@ -1,6 +1,7 @@
 import json
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -8,7 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import schemas
-from app.agent.gateway import AgentGateway, AgentReply, AgentStep, AgentUnavailableError
+from app.agent.gateway import (
+    AgentGateway,
+    AgentReply,
+    AgentStep,
+    AgentUnavailableError,
+)
 from app.auth.service import AuthenticatedUser
 from app.auth.tokens import create_access_token
 from app.core.config import Settings
@@ -58,7 +64,25 @@ def tool_calls_from_steps(steps: list[AgentStep]) -> list[schemas.AgentToolCallC
     return [schemas.AgentToolCallCreate(**call) for call in pending[:50]]
 
 
-async def chat(
+def step_read(step: AgentStep) -> schemas.AgentChatStepRead:
+    return schemas.AgentChatStepRead(kind=step.kind, name=step.name, detail=step.detail)
+
+
+async def _gateway_stream(
+    gateway: AgentGateway, **call: Any
+) -> AsyncIterator[AgentStep | AgentReply]:
+    """The gateway's live stream, or its whole reply replayed step by step when it has none."""
+    if hasattr(gateway, "stream"):
+        async for item in gateway.stream(**call):
+            yield item
+        return
+    reply = await gateway.chat(**call)
+    for step in reply.steps:
+        yield step
+    yield reply
+
+
+async def stream_chat(
     session: Session,
     actor: AuthenticatedUser,
     gateway: AgentGateway,
@@ -66,15 +90,24 @@ async def chat(
     *,
     settings: Settings,
     secret: str,
-) -> schemas.AgentChatRead:
+) -> AsyncIterator[schemas.AgentChatStepRead | schemas.AgentChatRead]:
+    """Yield each reasoning step live, then the recorded chat result."""
     title = payload.message.strip().replace("\n", " ")[:120]
+    reply: AgentReply | None = None
     try:
-        reply: AgentReply = await gateway.chat(
+        async for item in _gateway_stream(
+            gateway,
             user_id=str(actor.user.id),
             session_id=payload.session_id,
             message=payload.message,
             agent_token=mint_agent_token(actor, settings, secret),
-        )
+        ):
+            if isinstance(item, AgentReply):
+                reply = item
+            else:
+                yield step_read(item)
+        if reply is None:
+            raise AgentUnavailableError("The agent ended without a reply")
     except AgentUnavailableError:
         campus.record_agent_run(
             session,
@@ -98,14 +131,40 @@ async def chat(
             tool_calls=tool_calls_from_steps(reply.steps),
         ),
     )
-    return schemas.AgentChatRead(
+    yield schemas.AgentChatRead(
         session_id=reply.session_id,
         reply=reply.text,
         run_id=run.id,
-        steps=[
-            schemas.AgentChatStepRead(kind=step.kind, name=step.name, detail=step.detail)
-            for step in reply.steps
-        ],
+        steps=[step_read(step) for step in reply.steps],
+    )
+
+
+Result = TypeVar("Result")
+
+
+async def _finish(stream: AsyncIterator[Any], result_type: type[Result]) -> Result:
+    """Drain a service stream and return its final result."""
+    result: Result | None = None
+    async for item in stream:
+        if isinstance(item, result_type):
+            result = item
+    if result is None:
+        raise AgentUnavailableError("The agent ended without a result")
+    return result
+
+
+async def chat(
+    session: Session,
+    actor: AuthenticatedUser,
+    gateway: AgentGateway,
+    payload: schemas.AgentChatRequest,
+    *,
+    settings: Settings,
+    secret: str,
+) -> schemas.AgentChatRead:
+    return await _finish(
+        stream_chat(session, actor, gateway, payload, settings=settings, secret=secret),
+        schemas.AgentChatRead,
     )
 
 
@@ -118,7 +177,7 @@ ANALYSIS_PROMPT = (
 )
 
 
-async def analyze_assignment(
+async def stream_analysis(
     session: Session,
     actor: AuthenticatedUser,
     gateway: AgentGateway,
@@ -126,17 +185,23 @@ async def analyze_assignment(
     *,
     settings: Settings,
     secret: str,
-) -> schemas.AssignmentAnalysisRead:
+) -> AsyncIterator[schemas.AgentChatStepRead | schemas.AssignmentAnalysisRead]:
     plans.assignment_text(session, actor, assignment_id)  # 404 early when there is nothing to read
     started: datetime = models.utc_now()
-    reply = await chat(
+    reply: schemas.AgentChatRead | None = None
+    async for item in stream_chat(
         session,
         actor,
         gateway,
         schemas.AgentChatRequest(message=ANALYSIS_PROMPT.format(assignment_id=assignment_id)),
         settings=settings,
         secret=secret,
-    )
+    ):
+        if isinstance(item, schemas.AgentChatRead):
+            reply = item
+        else:
+            yield item
+    assert reply is not None
     session.expire_all()
     try:
         plan = plans.latest_plan(session, actor, assignment_id)
@@ -149,7 +214,22 @@ async def analyze_assignment(
     )
     if plan.status != models.PlanStatus.pending or created < started:
         raise AgentUnavailableError(_no_plan_reason(reply.steps))
-    return schemas.AssignmentAnalysisRead(plan=plan, steps=reply.steps)
+    yield schemas.AssignmentAnalysisRead(plan=plan, steps=reply.steps)
+
+
+async def analyze_assignment(
+    session: Session,
+    actor: AuthenticatedUser,
+    gateway: AgentGateway,
+    assignment_id: UUID,
+    *,
+    settings: Settings,
+    secret: str,
+) -> schemas.AssignmentAnalysisRead:
+    return await _finish(
+        stream_analysis(session, actor, gateway, assignment_id, settings=settings, secret=secret),
+        schemas.AssignmentAnalysisRead,
+    )
 
 
 def _no_plan_reason(steps: list[schemas.AgentChatStepRead]) -> str:
@@ -175,16 +255,17 @@ INSIGHT_PROMPT = (
 )
 
 
-async def refresh_insights(
+async def stream_insights(
     session: Session,
     actor: AuthenticatedUser,
     gateway: AgentGateway,
     *,
     settings: Settings,
     secret: str,
-) -> schemas.InsightRefreshRead:
+) -> AsyncIterator[schemas.AgentChatStepRead | schemas.InsightRefreshRead]:
     started: datetime = models.utc_now()
-    reply = await chat(
+    reply: schemas.AgentChatRead | None = None
+    async for item in stream_chat(
         session,
         actor,
         gateway,
@@ -193,7 +274,12 @@ async def refresh_insights(
         ),
         settings=settings,
         secret=secret,
-    )
+    ):
+        if isinstance(item, schemas.AgentChatRead):
+            reply = item
+        else:
+            yield item
+    assert reply is not None
     session.expire_all()
     fresh = [
         item
@@ -215,10 +301,24 @@ async def refresh_insights(
     ]
     if not fresh:
         raise AgentUnavailableError(_no_insights_reason(reply.steps))
-    return schemas.InsightRefreshRead(
+    yield schemas.InsightRefreshRead(
         created=[schemas.InsightRead.model_validate(item) for item in fresh],
         rejected=[],
         steps=reply.steps,
+    )
+
+
+async def refresh_insights(
+    session: Session,
+    actor: AuthenticatedUser,
+    gateway: AgentGateway,
+    *,
+    settings: Settings,
+    secret: str,
+) -> schemas.InsightRefreshRead:
+    return await _finish(
+        stream_insights(session, actor, gateway, settings=settings, secret=secret),
+        schemas.InsightRefreshRead,
     )
 
 

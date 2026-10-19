@@ -140,13 +140,18 @@ def test_chat_requires_authentication_and_a_message(
     assert student.post("/api/v1/agent/chat", json={"message": "hi"}).status_code == 401
 
 
+def sse(events: list[dict[str, Any]]) -> httpx.Response:
+    body = "".join(f"data: {json.dumps(event)}\n\n" for event in events)
+    return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body)
+
+
 def test_adk_server_gateway_creates_a_session_with_the_token_then_runs() -> None:
     seen: list[httpx.Request] = []
 
     def respond(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        if request.url.path == "/run":
-            return httpx.Response(200, json=EVENTS)
+        if request.url.path == "/run_sse":
+            return sse(EVENTS)
         return httpx.Response(200, json={})
 
     gateway = AdkServerGateway(
@@ -168,7 +173,7 @@ def test_adk_server_gateway_can_override_the_host_header() -> None:
 
     def respond(request: httpx.Request) -> httpx.Response:
         seen.append(request.headers["host"])
-        return httpx.Response(200, json=EVENTS if request.url.path == "/run" else {})
+        return sse(EVENTS) if request.url.path == "/run_sse" else httpx.Response(200, json={})
 
     gateway = AdkServerGateway(
         "http://host.docker.internal:8002",
@@ -179,3 +184,60 @@ def test_adk_server_gateway_can_override_the_host_header() -> None:
     )
     asyncio.run(gateway.chat(user_id="u1", session_id=None, message="hi", agent_token="t"))
     assert set(seen) == {"localhost:8002"}
+
+
+def parse_sse(text: str) -> list[tuple[str, dict[str, Any]]]:
+    events = []
+    for block in filter(None, text.split("\n\n")):
+        name, data = block.split("\n", 1)
+        events.append((name.removeprefix("event: "), json.loads(data.removeprefix("data: "))))
+    return events
+
+
+def test_chat_stream_sends_each_step_then_the_recorded_answer(
+    student: TestClient, gateway: FakeGateway
+) -> None:
+    response = student.post("/api/v1/agent/chat/stream", json={"message": "what is open?"})
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    events = parse_sse(response.text)
+    assert [name for name, _ in events] == ["step", "step", "done"]
+    assert events[0][1]["name"] == "list_assignments" and events[0][1]["kind"] == "tool_call"
+    assert events[2][1]["reply"] == "Two assignments are open." and events[2][1]["run_id"]
+
+
+def test_chat_stream_reports_an_unreachable_agent_as_an_event(
+    student: TestClient, gateway: FakeGateway
+) -> None:
+    gateway.fail = True
+    events = parse_sse(student.post("/api/v1/agent/chat/stream", json={"message": "hi"}).text)
+    assert events == [("error", {"status": 502, "detail": "down"})]
+
+
+def test_stream_requires_a_configured_agent(student: TestClient) -> None:
+    app.dependency_overrides[get_agent_gateway] = lambda: None
+    assert student.post("/api/v1/agent/chat/stream", json={"message": "hi"}).status_code == 503
+
+
+def test_adk_server_gateway_yields_steps_before_the_reply() -> None:
+    gateway = AdkServerGateway(
+        "http://adk.test",
+        "campuspulse",
+        5,
+        transport=httpx.MockTransport(
+            lambda request: (
+                sse(EVENTS) if request.url.path == "/run_sse" else httpx.Response(200, json={})
+            )
+        ),
+    )
+
+    async def kinds() -> list[str]:
+        return [
+            type(item).__name__
+            async for item in gateway.stream(
+                user_id="u", session_id=None, message="hi", agent_token="t"
+            )
+        ]
+
+    names = asyncio.run(kinds())
+    assert names[-1] == "AgentReply" and set(names[:-1]) == {"AgentStep"} and len(names) > 1
