@@ -88,6 +88,7 @@ Google flow подробно описан в [`docs/authentication.md`](docs/aut
 | Campus events | `GET /api/v1/campus-events`, `PATCH /api/v1/campus-events/{id}/save` |
 | Agent activity | `GET /api/v1/agent/activity`, `POST /api/v1/agent/runs` |
 | Imports | `POST/GET /api/v1/imports/proposals`, item `PATCH`, `POST .../apply`, `POST .../dismiss` |
+| Agent chat | `GET /api/v1/agent/status`, `POST /api/v1/agent/chat` |
 | Settings | `GET/PATCH /api/v1/settings` |
 | Insights | `GET/POST /api/v1/insights` |
 | Insight state | `PATCH /api/v1/insights/{id}` |
@@ -125,8 +126,21 @@ List routes фильтруют недоступные записи. Прямой
 | `CAMPUSPULSE_UPLOAD_DIRECTORY` | Storage загруженных файлов | `storage/uploads` |
 | `CAMPUSPULSE_MAX_UPLOAD_BYTES` | Максимальный размер файла | 20 MB |
 | `CAMPUSPULSE_ENABLE_DEMO_AUTH` | Разрешить локальный `/auth/demo` | `false` |
+| `CAMPUSPULSE_AGENT_MODE` | `disabled`, `vertex` (Agent Engine) или `adk_server` (локальный `adk api_server`) | `disabled` |
+| `CAMPUSPULSE_AGENT_RESOURCE` | Resource name Agent Engine (режим `vertex`) | — |
+| `CAMPUSPULSE_AGENT_PROJECT`, `CAMPUSPULSE_AGENT_LOCATION` | GCP проект и регион | —, `us-central1` |
+| `CAMPUSPULSE_AGENT_ADK_URL` | URL ADK-сервера (режим `adk_server`) | `http://127.0.0.1:8002` |
+| `CAMPUSPULSE_AGENT_TOKEN_TTL_MINUTES` | Срок токена, который получает агент | `60` |
 
 Compose переопределяет database URL на PostgreSQL и включает demo-auth для локального прототипа. Demo endpoint скрыт из OpenAPI и должен оставаться выключенным вне локальной среды.
+
+## AI-агент
+
+`POST /api/v1/agent/chat` передаёт сообщение агенту ([`campuspulse-agent`](../campuspulse-agent), Gemini + Google ADK) и
+возвращает ответ вместе с трассой рассуждений (thought, tool_call, tool_result). Backend выпускает агенту
+краткоживущий access-токен студента, поэтому все вызовы агента к API идут от имени студента и подчиняются
+тем же правилам доступа. Каждый чат записывается как `AgentRun` с `AgentToolCall` (страница Agent Activity).
+Режим `vertex` требует `pip install -e '.[agent]'` и `gcloud auth application-default login`.
 
 ## Запуск через Docker
 

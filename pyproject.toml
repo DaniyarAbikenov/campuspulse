@@ -21,6 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+agent = ["google-cloud-aiplatform[agent_engines]>=1.100"]
 dev = [
   "httpx>=0.28,<1.0",
   "mypy>=1.13,<2.0",
@@ -47,4 +48,8 @@ python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
 exclude = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["vertexai", "vertexai.*"]
+ignore_missing_imports = true
 

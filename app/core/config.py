@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +25,15 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 20 * 1024 * 1024
     enable_demo_auth: bool = False
     demo_user_email: str = "demo.student@campuspulse.example"
+    # Agent: "disabled", "vertex" (Vertex AI Agent Engine) or "adk_server" (local `adk api_server`).
+    agent_mode: Literal["disabled", "vertex", "adk_server"] = "disabled"
+    agent_resource: str | None = None
+    agent_project: str | None = None
+    agent_location: str = "us-central1"
+    agent_adk_url: str = "http://127.0.0.1:8002"
+    agent_adk_app: str = "campuspulse"
+    agent_token_ttl_minutes: int = 60
+    agent_timeout_seconds: float = 120.0
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

@@ -8,8 +8,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app import schemas
+from app.agent import service as agent_service
+from app.agent.gateway import AgentGateway, AgentUnavailableError, build_gateway
 from app.auth.authorization import can_read, require_write
-from app.auth.router import CurrentUserDep
+from app.auth.router import CurrentUserDep, get_jwt_secret
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
@@ -386,3 +388,45 @@ def apply_import_proposal(
     proposal_id: UUID, current: CurrentUserDep, session: SessionDep
 ) -> schemas.ImportApplyRead:
     return imports.apply(session, current, proposal_id)
+
+
+_gateway_cache: dict[str, AgentGateway | None] = {}
+
+
+def get_agent_gateway() -> AgentGateway | None:
+    key = f"{settings.agent_mode}|{settings.agent_resource}|{settings.agent_adk_url}"
+    if key not in _gateway_cache:
+        _gateway_cache[key] = build_gateway(settings)
+    return _gateway_cache[key]
+
+
+AgentGatewayDep = Annotated[AgentGateway | None, Depends(get_agent_gateway)]
+
+
+@router.get("/agent/status", response_model=schemas.AgentStatusRead, tags=["agent"])
+def agent_status(current: CurrentUserDep, gateway: AgentGatewayDep) -> schemas.AgentStatusRead:
+    return schemas.AgentStatusRead(enabled=gateway is not None, mode=settings.agent_mode)
+
+
+@router.post("/agent/chat", response_model=schemas.AgentChatRead, tags=["agent"])
+async def agent_chat(
+    payload: schemas.AgentChatRequest,
+    current: CurrentUserDep,
+    session: SessionDep,
+    gateway: AgentGatewayDep,
+) -> schemas.AgentChatRead:
+    if gateway is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Agent is not configured"
+        )
+    try:
+        return await agent_service.chat(
+            session,
+            current,
+            gateway,
+            payload,
+            settings=settings,
+            secret=get_jwt_secret(),
+        )
+    except AgentUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error

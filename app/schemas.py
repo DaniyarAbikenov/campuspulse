@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import (
@@ -721,3 +721,26 @@ class ImportApplyRead(StrictSchema):
     proposal: ImportProposalRead
     created: StrictInt
     already_imported: StrictInt
+
+
+class AgentChatRequest(StrictSchema):
+    message: Annotated[str, Field(min_length=1, max_length=4000)]
+    session_id: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+
+
+class AgentChatStepRead(StrictSchema):
+    kind: Literal["thought", "tool_call", "tool_result"]
+    name: str | None
+    detail: str
+
+
+class AgentChatRead(StrictSchema):
+    session_id: str
+    reply: str
+    run_id: UUID
+    steps: list[AgentChatStepRead]
+
+
+class AgentStatusRead(StrictSchema):
+    enabled: StrictBool
+    mode: str
