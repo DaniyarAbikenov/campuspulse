@@ -1,0 +1,389 @@
+from types import SimpleNamespace
+from typing import Any
+
+import httpx
+import pytest
+
+from campuspulse_agent import campuspulse_tools as tools
+from campuspulse_agent.agent import build_agent, build_toolset
+from campuspulse_agent.config import Settings
+
+
+def context(token: str | None = "student-token") -> Any:
+    return SimpleNamespace(state={tools.TOKEN_KEY: token} if token else {})
+
+
+@pytest.fixture
+def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
+    """Route every CampusPulse call to canned responses and record the requests."""
+    seen: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        path = request.url.path
+        if path == "/api/v1/workload":
+            return httpx.Response(
+                200,
+                json={
+                    "required_hours": 21.5,
+                    "available_hours": 12.0,
+                    "unscheduled_hours": 9.5,
+                    "by_day": [],
+                },
+            )
+        if path == "/api/v1/assignments/overview":
+            rows = [
+                {
+                    "id": "2",
+                    "title": "Later",
+                    "course_name": "SE",
+                    "due_at": "2026-11-01T00:00:00Z",
+                    "status": "todo",
+                    "estimated_hours": 3,
+                    "remaining_hours": 3,
+                },
+                {
+                    "id": "1",
+                    "title": "Soon",
+                    "course_name": "DB",
+                    "due_at": "2026-10-20T00:00:00Z",
+                    "status": "in_progress",
+                    "estimated_hours": 2,
+                    "remaining_hours": 1,
+                },
+                {
+                    "id": "3",
+                    "title": "Done",
+                    "course_name": "OS",
+                    "due_at": "2026-09-01T00:00:00Z",
+                    "status": "completed",
+                    "estimated_hours": 1,
+                    "remaining_hours": 0,
+                },
+            ]
+            return httpx.Response(200, json={"items": rows})
+        if path == "/api/v1/knowledge/search":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "document_id": "d1",
+                        "document_name": "Lecture_07.pdf",
+                        "kind": "lecture",
+                        "course_id": "c1",
+                        "page": 11,
+                        "excerpt": "Access and refresh token lifetimes and rotation.",
+                        "score": 0.71,
+                    }
+                ],
+            )
+        if path.endswith("/text"):
+            return httpx.Response(
+                200,
+                json={
+                    "assignment_id": "a1",
+                    "title": "Assignment 3",
+                    "course_name": "SE",
+                    "due_at": "2026-10-23T00:00:00Z",
+                    "pages": [{"page": 1, "text": "R1 Implement JWT."}],
+                },
+            )
+        if path == "/api/v1/statistics":
+            return httpx.Response(
+                200,
+                json={
+                    "estimate_accuracy_percent": 89,
+                    "completed": [
+                        {"title": "A1", "estimated_hours": 6, "actual_hours": 6.5, "extra": 1}
+                    ],
+                },
+            )
+        if path == "/api/v1/task-plans":
+            return httpx.Response(
+                201,
+                json={
+                    "id": "plan-1",
+                    "items": [
+                        {"requirement_id": "R1", "estimated_hours": 1.5, "quote_verified": True},
+                        {"requirement_id": "R2", "estimated_hours": 2.0, "quote_verified": False},
+                    ],
+                },
+            )
+        if path == "/api/v1/insights":
+            return httpx.Response(
+                200,
+                json=[
+                    {"title": "Old", "category": "workload_warning", "status": "dismissed", "x": 1}
+                ],
+            )
+        if path == "/api/v1/kanban":
+            task = {
+                "id": "t1",
+                "title": "Write",
+                "assignment_id": "a1",
+                "status": "todo",
+                "priority": "high",
+                "estimated_hours": 2,
+                "due_at": "2026-10-22T00:00:00Z",
+            }
+            done = {**task, "id": "t2", "status": "completed"}
+            return httpx.Response(200, json={"columns": [{"tasks": [task, done]}]})
+        if path == "/api/v1/agent/insights":
+            return httpx.Response(
+                201,
+                json={
+                    "created": [{"action_type": "create_study_session"}, {"action_type": "none"}],
+                    "rejected": [{"title": "x", "reason": "No verifiable source"}],
+                },
+            )
+        if path == "/api/v1/schedule":
+            return httpx.Response(
+                200,
+                json={
+                    "events": [
+                        {
+                            "id": "e1",
+                            "title": "Databases",
+                            "kind": "class_session",
+                            "starts_at": "2026-10-20T09:00:00+05:00",
+                            "ends_at": "2026-10-20T11:00:00+05:00",
+                            "user_id": "u",
+                        }
+                    ]
+                },
+            )
+        if path == "/api/v1/assignments/a1/status":
+            return httpx.Response(
+                200,
+                json={
+                    "title": "A",
+                    "status": "in_progress",
+                    "due_at": "2026-10-25T18:59:00Z",
+                    "progress_percent": 25,
+                    "estimated_hours": 6.0,
+                    "completed_hours": 1.5,
+                    "remaining_hours": 4.5,
+                    "scheduled_hours": 1.0,
+                    "unscheduled_hours": 3.5,
+                    "tasks_total": 4,
+                    "tasks_done": 1,
+                    "tasks_open": 3,
+                    "tasks": [],
+                    "study_sessions": [],
+                    "id": "a1",
+                },
+            )
+        if path == "/api/v1/agent/actions":
+            return httpx.Response(
+                201,
+                json={"created": [{"id": "a1"}], "rejected": [{"title": "x", "reason": "no"}]},
+            )
+        if path == "/api/v1/imports/proposals":
+            return httpx.Response(
+                201, json={"proposal": {"id": "p1", "items": [{}, {}]}, "skipped_existing": 1}
+            )
+        return httpx.Response(404)
+
+    real = httpx.AsyncClient
+
+    def client_factory(*args: Any, **kwargs: Any) -> httpx.AsyncClient:
+        return real(*args, **{**kwargs, "transport": httpx.MockTransport(respond)})
+
+    monkeypatch.setattr(tools.httpx, "AsyncClient", client_factory)
+    return seen
+
+
+async def test_requests_are_made_as_the_student(backend: list[httpx.Request]) -> None:
+    result = await tools.get_workload(context())
+    assert result["overloaded"] is True and result["unscheduled_hours"] == 9.5
+    assert backend[0].headers["Authorization"] == "Bearer student-token"
+
+
+async def test_tools_refuse_to_run_without_a_signed_in_student() -> None:
+    with pytest.raises(tools.CampusPulseError):
+        await tools.get_workload(context(token=None))
+
+
+async def test_open_assignments_are_sorted_by_due_date(backend: list[httpx.Request]) -> None:
+    rows = await tools.list_assignments(context())
+    assert [row["title"] for row in rows] == ["Soon", "Later"]
+    everything = await tools.list_assignments(context(), only_open=False)
+    assert [row["title"] for row in everything][0] == "Done"
+
+
+async def test_knowledge_search_cites_document_and_page(backend: list[httpx.Request]) -> None:
+    hits = await tools.search_knowledge(context(), "how do refresh tokens work", limit=3)
+    assert hits[0]["document"] == "Lecture_07.pdf" and hits[0]["page"] == 11
+    assert hits[0]["relevance"] == 0.71 and "rotation" in hits[0]["excerpt"]
+
+
+async def test_import_proposal_is_a_proposal_not_a_write(backend: list[httpx.Request]) -> None:
+    result = await tools.propose_assignment_import(context(), [{"external_id": "1"}])
+    assert result["proposed"] == 2 and result["already_known"] == 1
+    assert backend[0].url.path == "/api/v1/imports/proposals"
+
+
+def test_agent_exposes_tools_and_adds_moodle_only_when_configured() -> None:
+    without = build_toolset(Settings(moodle_mcp_url=None))
+    with_moodle = build_toolset(Settings(moodle_mcp_url="https://mcp.example/mcp"))
+    assert len(with_moodle) == len(without) + 1
+    agent = build_agent(Settings(moodle_mcp_url=None))
+    assert agent.name == "campuspulse" and "propose_actions" in agent.instruction
+
+
+def test_moodle_headers_come_from_the_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    from campuspulse_agent.agent import mcp_headers
+
+    monkeypatch.delenv("CAMPUSPULSE_MOODLE_MCP_TOKEN", raising=False)
+    assert mcp_headers(None) == {}
+    monkeypatch.setenv("CAMPUSPULSE_MOODLE_MCP_TOKEN", "runtime-key")
+    assert mcp_headers(None) == {"Authorization": "Bearer runtime-key"}
+
+
+async def test_assignment_text_is_returned_with_an_untrusted_note(
+    backend: list[httpx.Request],
+) -> None:
+    data = await tools.get_assignment_text(context(), "a1")
+    assert data["pages"][0]["page"] == 1 and "untrusted" in data["note"]
+    assert backend[0].url.path == "/api/v1/assignments/a1/text"
+
+
+async def test_statistics_keep_only_what_estimation_needs(backend: list[httpx.Request]) -> None:
+    data = await tools.get_study_statistics(context())
+    assert data["completed_assignments"] == [
+        {"title": "A1", "estimated_hours": 6, "actual_hours": 6.5}
+    ]
+
+
+async def test_task_plan_is_posted_and_unverified_quotes_are_reported(
+    backend: list[httpx.Request],
+) -> None:
+    item = tools.PlanItem(
+        requirement_id="R1",
+        requirement_text="JWT",
+        quote="Implement JWT",
+        page=1,
+        title="Implement JWT",
+        estimated_hours=1.5,
+    )
+    result = await tools.propose_task_plan(
+        context(), "a1", "One task", [item], related_assignment_id="a0", relation_type="extends"
+    )
+    assert result["tasks"] == 2 and result["total_hours"] == 3.5
+    assert result["quotes_not_found_in_document"] == ["R2"]
+    import json
+
+    sent = json.loads(backend[0].content)
+    assert sent["relation_type"] == "extends" and sent["items"][0]["quote"] == "Implement JWT"
+
+
+def test_plan_tool_schema_exposes_the_item_fields_to_gemini() -> None:
+    from google.adk.tools import FunctionTool
+
+    declaration = FunctionTool(tools.propose_task_plan)._get_declaration()
+    assert declaration is not None and declaration.name == "propose_task_plan"
+    schema = declaration.parameters_json_schema or declaration.parameters.model_dump()
+    text = str(schema)
+    assert "items" in text and "quote" in text and "requirement_id" in text
+
+
+async def test_plan_errors_are_returned_to_the_model_so_it_can_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, json={"detail": [{"loc": ["body", "items", 0, "quote"]}]})
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(
+        tools.httpx,
+        "AsyncClient",
+        lambda *a, **k: real(*a, **{**k, "transport": httpx.MockTransport(respond)}),
+    )
+    item = tools.PlanItem(
+        requirement_id="R1", requirement_text="x", quote="q", page=1, title="t", estimated_hours=1
+    )
+    result = await tools.propose_task_plan(context(), "a1", "s", [item])
+    assert "422" in result["error"] and "quote" in result["error"] and "again" in result["hint"]
+
+
+async def test_insight_tools_return_what_the_model_needs(backend: list[httpx.Request]) -> None:
+    assert await tools.list_insights(context()) == [
+        {"title": "Old", "category": "workload_warning", "status": "dismissed"}
+    ]
+    open_tasks = await tools.list_open_tasks(context())
+    assert [task["id"] for task in open_tasks] == ["t1"]  # the completed one is skipped
+
+
+async def test_propose_insights_posts_sources_and_reports_the_outcome(
+    backend: list[httpx.Request],
+) -> None:
+    import json
+
+    item = tools.InsightItem(
+        category="workload_warning",
+        title="t",
+        summary="s",
+        reasoning="r",
+        suggestion="g",
+        sources=[tools.InsightSource(kind="assignment", label="A", ref_id="a1")],
+    )
+    result = await tools.propose_insights(context(), [item])
+    assert result["saved"] == 2 and result["with_calendar_action"] == 1
+    assert result["rejected"][0]["reason"] == "No verifiable source"
+    assert json.loads(backend[0].content)["insights"][0]["sources"][0]["ref_id"] == "a1"
+
+
+async def test_propose_actions_sends_only_the_filled_fields(
+    backend: list[httpx.Request],
+) -> None:
+    import json
+
+    result = await tools.propose_actions(
+        context(),
+        [
+            tools.ProposedAction(
+                kind="create_study_session",
+                title="Study JWT",
+                starts_at="2026-10-20T08:00:00+05:00",
+                ends_at="2026-10-20T09:00:00+05:00",
+                task_id="t1",
+            ),
+            tools.ProposedAction(kind="cancel_assignment", title="Drop", assignment_id="a1"),
+        ],
+    )
+    assert result["proposed"] == 1 and result["rejected"][0]["reason"] == "no"
+    sent = json.loads(backend[0].content)["actions"]
+    assert sent[0]["payload"] == {
+        "title": "Study JWT",
+        "starts_at": "2026-10-20T08:00:00+05:00",
+        "ends_at": "2026-10-20T09:00:00+05:00",
+        "task_id": "t1",
+    }
+    assert sent[1]["payload"] == {"assignment_id": "a1"}
+    from google.adk.tools import FunctionTool
+
+    declaration = FunctionTool(tools.propose_actions)._get_declaration()
+    assert declaration is not None and declaration.name == "propose_actions"
+
+
+async def test_get_schedule_returns_only_what_is_needed_to_avoid_overlaps(
+    backend: list[httpx.Request],
+) -> None:
+    events = await tools.get_schedule(context(), "2026-10-19")
+    assert events == [
+        {
+            "title": "Databases",
+            "kind": "class_session",
+            "starts_at": "2026-10-20T09:00:00+05:00",
+            "ends_at": "2026-10-20T11:00:00+05:00",
+        }
+    ]
+    assert backend[0].url.params["week_start"] == "2026-10-19"
+
+
+async def test_assignment_status_is_passed_through_for_exact_quoting(
+    backend: list[httpx.Request],
+) -> None:
+    status = await tools.get_assignment_status(context(), "a1")
+    assert status["remaining_hours"] == 4.5 and status["tasks_done"] == 1
+    assert backend[0].url.path == "/api/v1/assignments/a1/status"
