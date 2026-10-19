@@ -465,7 +465,8 @@ export function StoreProvider({
     distribution,
     workload:
       remoteWorkload && !workloadPlanApplied
-        ? remoteWorkload
+        ? // The by-course total always comes from the same course list the page draws.
+          { ...remoteWorkload, allRemaining: liveCourses.reduce((sum, course) => sum + course.remaining, 0) }
         : {
             required,
             available: baseDistribution.reduce((sum, day) => sum + day.available, 0),
