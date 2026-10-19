@@ -111,7 +111,7 @@ def test_a_stale_suggestion_cannot_double_book_the_same_time(student: TestClient
     assert applied.status_code == 200, applied.text
     # Proposing the same window again is either downgraded to advice (the window is no longer
     # free) or, if the slot looks free to the validator, refused when applied.
-    second = post(student, item(student, study_session=session)).json()["created"][0]
+    second = post(student, item(student, title="Again", study_session=session)).json()["created"][0]
     if second["action_type"] == "none":
         return
     assert student.post(f"/api/v1/insights/{second['id']}/apply").status_code == 409
@@ -171,3 +171,61 @@ def test_refresh_reports_when_the_agent_proposes_nothing(student: TestClient) ->
     assert student.post("/api/v1/insights/refresh").status_code == 503
     app.dependency_overrides[get_agent_gateway] = lambda: InsightGateway(student, propose=False)
     assert student.post("/api/v1/insights/refresh").status_code == 502
+
+
+def test_the_same_recommendation_is_not_saved_twice(student: TestClient) -> None:
+    same = item(student, title="Plan the methodology")
+    result = post(student, same, dict(same), item(student, title="A different one")).json()
+    assert [i["title"] for i in result["created"]] == ["Plan the methodology", "A different one"]
+    assert result["rejected"][0]["reason"].startswith("Duplicate")
+    # accepting it keeps it: proposing it again later is still a duplicate
+    created = result["created"][0]
+    student.patch(f"/api/v1/insights/{created['id']}", json={"status": "accepted"})
+    again = post(student, item(student, title="Plan the methodology")).json()
+    assert again["created"] == [] and again["rejected"][0]["reason"].startswith("Duplicate")
+
+
+def test_a_session_for_a_fully_booked_task_is_only_advice(student: TestClient) -> None:
+    task = student.get("/api/v1/tasks").json()[0]
+    start, end = future_free_window(student)
+    hours = task["estimated_hours"]
+    me = student.get("/api/v1/auth/me").json()
+    fill_end = start + timedelta(hours=hours)
+    booked = student.post(
+        "/api/v1/schedule-events",
+        json={
+            "user_id": me["id"],
+            "title": "Study",
+            "kind": "study_session",
+            "task_id": task["id"],
+            "starts_at": start.isoformat(),
+            "ends_at": fill_end.isoformat(),
+        },
+    )
+    assert booked.status_code == 201, booked.text
+    later = fill_end + timedelta(hours=1)
+    session = {
+        "title": "More study",
+        "starts_at": later.isoformat(),
+        "ends_at": (later + timedelta(hours=1)).isoformat(),
+        "task_id": task["id"],
+    }
+    created = post(student, item(student, study_session=session)).json()["created"]
+    assert created[0]["action_type"] == "none"
+
+
+def test_the_interface_language_reaches_the_agent(student: TestClient) -> None:
+    seen: list[str] = []
+
+    class Spy:
+        async def chat(
+            self, *, user_id: str, session_id: str | None, message: str, agent_token: str
+        ) -> AgentReply:
+            seen.append(message)
+            return AgentReply("s", "ok", [])
+
+    app.dependency_overrides[get_agent_gateway] = lambda: Spy()
+    student.post("/api/v1/agent/chat", json={"message": "hi", "language": "ru"})
+    assert "in Russian" in seen[0] and seen[0].endswith("hi")
+    student.post("/api/v1/agent/chat", json={"message": "hi"})
+    assert "Write everything" not in seen[1]

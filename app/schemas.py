@@ -876,6 +876,8 @@ class ImportApplyRead(StrictSchema):
 class AgentChatRequest(StrictSchema):
     message: Annotated[str, Field(min_length=1, max_length=4000)]
     session_id: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    # Interface language: the agent writes everything the student reads in it.
+    language: Literal["en", "ru", "kk"] | None = None
 
 
 class AgentChatStepRead(StrictSchema):

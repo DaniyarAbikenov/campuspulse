@@ -3,7 +3,7 @@ import json
 from collections.abc import AsyncIterator
 from datetime import date, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -612,7 +612,11 @@ async def analyze_assignment(
 
 @router.post("/assignments/{assignment_id}/analysis/stream", tags=["analysis"])
 async def analyze_assignment_stream(
-    assignment_id: UUID, current: CurrentUserDep, session: SessionDep, gateway: AgentGatewayDep
+    assignment_id: UUID,
+    current: CurrentUserDep,
+    session: SessionDep,
+    gateway: AgentGatewayDep,
+    language: Annotated[Literal["en", "ru", "kk"] | None, Query()] = None,
 ) -> StreamingResponse:
     return _event_stream(
         agent_service.stream_analysis(
@@ -622,6 +626,7 @@ async def analyze_assignment_stream(
             assignment_id,
             settings=settings,
             secret=get_jwt_secret(),
+            language=language,
         ),
         schemas.AssignmentAnalysisRead,
     )
@@ -682,7 +687,10 @@ async def refresh_insights(
 
 @router.post("/insights/refresh/stream", tags=["insights"])
 async def refresh_insights_stream(
-    current: CurrentUserDep, session: SessionDep, gateway: AgentGatewayDep
+    current: CurrentUserDep,
+    session: SessionDep,
+    gateway: AgentGatewayDep,
+    language: Annotated[Literal["en", "ru", "kk"] | None, Query()] = None,
 ) -> StreamingResponse:
     return _event_stream(
         agent_service.stream_insights(
@@ -691,6 +699,7 @@ async def refresh_insights_stream(
             _require_gateway(gateway),
             settings=settings,
             secret=get_jwt_secret(),
+            language=language,
         ),
         schemas.InsightRefreshRead,
     )

@@ -82,11 +82,23 @@ async def _gateway_stream(
     yield reply
 
 
-def _with_clock(session: Session, actor: AuthenticatedUser, message: str) -> str:
-    """Tell the agent what day it is, so "tomorrow" and "this week" mean something."""
-    if "Now it is" in message:
-        return message
-    return f"({insight_agent.today_prompt_context(session, actor)})\n{message}"
+LANGUAGE_NAMES = {"en": "English", "ru": "Russian", "kk": "Kazakh"}
+
+
+def _with_clock(
+    session: Session, actor: AuthenticatedUser, message: str, language: str | None = None
+) -> str:
+    """Tell the agent what day it is, so "tomorrow" and "this week" mean something, and which
+    language the student's interface uses."""
+    notes = []
+    if "Now it is" not in message:
+        notes.append(insight_agent.today_prompt_context(session, actor))
+    if language in LANGUAGE_NAMES:
+        notes.append(
+            f"Write everything the student will read (answers, titles, reasoning, task names) "
+            f"in {LANGUAGE_NAMES[language]}."
+        )
+    return f"({' '.join(notes)})\n{message}" if notes else message
 
 
 async def stream_chat(
@@ -109,7 +121,7 @@ async def stream_chat(
             gateway,
             user_id=str(actor.user.id),
             session_id=payload.session_id,
-            message=_with_clock(session, actor, payload.message),
+            message=_with_clock(session, actor, payload.message, payload.language),
             agent_token=mint_agent_token(actor, settings, secret),
         ):
             if isinstance(item, AgentReply):
@@ -203,6 +215,7 @@ async def stream_analysis(
     *,
     settings: Settings,
     secret: str,
+    language: str | None = None,
 ) -> AsyncIterator[schemas.AgentChatStepRead | schemas.AssignmentAnalysisRead]:
     plans.assignment_text(session, actor, assignment_id)  # 404 early when there is nothing to read
     started: datetime = models.utc_now()
@@ -212,7 +225,9 @@ async def stream_analysis(
         session,
         actor,
         gateway,
-        schemas.AgentChatRequest(message=ANALYSIS_PROMPT.format(assignment_id=assignment_id)),
+        schemas.AgentChatRequest(
+            message=ANALYSIS_PROMPT.format(assignment_id=assignment_id), language=language
+        ),
         settings=settings,
         secret=secret,
         title=f"Analyzed “{named.title}”" if named else "Analyzed an assignment",
@@ -282,6 +297,7 @@ async def stream_insights(
     *,
     settings: Settings,
     secret: str,
+    language: str | None = None,
 ) -> AsyncIterator[schemas.AgentChatStepRead | schemas.InsightRefreshRead]:
     started: datetime = models.utc_now()
     reply: schemas.AgentChatRead | None = None
@@ -290,7 +306,8 @@ async def stream_insights(
         actor,
         gateway,
         schemas.AgentChatRequest(
-            message=INSIGHT_PROMPT.format(today=insight_agent.today_prompt_context(session, actor))
+            message=INSIGHT_PROMPT.format(today=insight_agent.today_prompt_context(session, actor)),
+            language=language,
         ),
         settings=settings,
         secret=secret,

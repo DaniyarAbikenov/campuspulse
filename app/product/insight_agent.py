@@ -3,14 +3,14 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app import schemas
 from app.auth.authorization import can_read
 from app.auth.service import AuthenticatedUser
 from app.db import models
-from app.product import service
+from app.product import scheduling, service
 
 GENERATED_BY = "agent"
 REVIEW_ROUTES = {
@@ -95,6 +95,16 @@ def create_from_agent(
             models.Insight.status == models.InsightStatus.new,
         )
     )
+    answered = {
+        (row.title.casefold(), row.assignment_id)
+        for row in session.scalars(
+            select(models.Insight).where(
+                models.Insight.user_id == actor.user.id,
+                models.Insight.status != models.InsightStatus.dismissed,
+            )
+        )
+    }
+    seen: set[tuple[str, UUID | None]] = set()
     for item in batch.insights:
         evidence, assignment = _verified_sources(session, actor, item.sources)
         if not evidence:
@@ -102,10 +112,25 @@ def create_from_agent(
                 schemas.RejectedInsightRead(title=item.title, reason="No verifiable source")
             )
             continue
+        key = (item.title.casefold(), assignment.id if assignment else None)
+        if key in seen or key in answered:
+            rejected.append(
+                schemas.RejectedInsightRead(
+                    title=item.title,
+                    reason="Duplicate: this was already suggested. Offer one insight with the "
+                    "best time and mention alternatives in its reasoning.",
+                )
+            )
+            continue
+        seen.add(key)
         action_type = models.InsightActionType.none
         payload: dict[str, object] | None = None
         cta = {"label": "Review", "action": REVIEW_ROUTES[item.category], "style": "primary"}
-        if item.study_session is not None and _fits_free_time(session, actor, item.study_session):
+        if (
+            item.study_session is not None
+            and _fits_free_time(session, actor, item.study_session)
+            and _task_has_room(session, actor, item.study_session)
+        ):
             course_id = item.study_session.course_id or (
                 assignment.course_id if assignment else None
             )
@@ -148,6 +173,20 @@ def create_from_agent(
     return schemas.AgentInsightResult(
         created=[schemas.InsightRead.model_validate(item) for item in created], rejected=rejected
     )
+
+
+def _task_has_room(
+    session: Session, actor: AuthenticatedUser, proposed: schemas.AgentStudySession
+) -> bool:
+    """A session for a task that already has all its hours booked is only advice."""
+    if proposed.task_id is None:
+        return True
+    task = session.get(models.Task, proposed.task_id)
+    if task is None:
+        return True
+    hours = (proposed.ends_at - proposed.starts_at).total_seconds() / 3600
+    booked = scheduling.booked_hours_by_task(session, actor.user.id)[task.id]
+    return booked + hours <= task.estimated_hours + scheduling.TOLERANCE_HOURS
 
 
 def today_prompt_context(session: Session, actor: AuthenticatedUser) -> str:
