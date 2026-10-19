@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     agent_location: str = "us-central1"
     agent_adk_url: str = "http://127.0.0.1:8002"
     agent_adk_app: str = "campuspulse"
+    # ADK only accepts local Host headers; set this when the server is reached through another
+    # name, such as host.docker.internal from a container (for example "localhost:8002").
+    agent_adk_host_header: str | None = None
     agent_token_ttl_minutes: int = 60
     agent_timeout_seconds: float = 120.0
     # Administrators only see aggregates over at least this many distinct students.

@@ -156,5 +156,26 @@ def test_adk_server_gateway_creates_a_session_with_the_token_then_runs() -> None
         gateway.chat(user_id="u1", session_id=None, message="hi", agent_token="tok")
     )
     assert reply.text == "Two assignments are open."
-    assert json.loads(seen[0].content)["state"] == {"campuspulse_token": "tok"}
+    created = json.loads(seen[0].content)
+    assert (
+        created["state"] == {"campuspulse_token": "tok"} and created["campuspulse_token"] == "tok"
+    )
     assert json.loads(seen[1].content)["newMessage"]["parts"][0]["text"] == "hi"
+
+
+def test_adk_server_gateway_can_override_the_host_header() -> None:
+    seen: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["host"])
+        return httpx.Response(200, json=EVENTS if request.url.path == "/run" else {})
+
+    gateway = AdkServerGateway(
+        "http://host.docker.internal:8002",
+        "campuspulse",
+        5,
+        transport=httpx.MockTransport(respond),
+        host_header="localhost:8002",
+    )
+    asyncio.run(gateway.chat(user_id="u1", session_id=None, message="hi", agent_token="t"))
+    assert set(seen) == {"localhost:8002"}

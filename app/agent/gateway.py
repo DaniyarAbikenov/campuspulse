@@ -134,7 +134,9 @@ class AdkServerGateway:
         app_name: str,
         timeout: float,
         transport: httpx.AsyncBaseTransport | None = None,
+        host_header: str | None = None,
     ) -> None:
+        self._host_header = host_header
         self._base = base_url.rstrip("/")
         self._app = app_name
         self._timeout = timeout
@@ -144,12 +146,20 @@ class AdkServerGateway:
         self, *, user_id: str, session_id: str | None, message: str, agent_token: str
     ) -> AgentReply:
         try:
-            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as http:
+            headers = {"Host": self._host_header} if self._host_header else {}
+            async with httpx.AsyncClient(
+                timeout=self._timeout, transport=self._transport, headers=headers
+            ) as http:
                 if session_id is None:
                     session_id = uuid4().hex
                     created = await http.post(
                         f"{self._base}/apps/{self._app}/users/{user_id}/sessions/{session_id}",
-                        json={"state": {TOKEN_STATE_KEY: agent_token}},
+                        # Some ADK versions read the body as the state, others its "state"
+                        # field: send the token both ways so either works.
+                        json={
+                            "state": {TOKEN_STATE_KEY: agent_token},
+                            TOKEN_STATE_KEY: agent_token,
+                        },
                     )
                     created.raise_for_status()
                 response = await http.post(
@@ -178,6 +188,9 @@ def build_gateway(settings: Settings) -> AgentGateway | None:
         )
     if settings.agent_mode == "adk_server":
         return AdkServerGateway(
-            settings.agent_adk_url, settings.agent_adk_app, settings.agent_timeout_seconds
+            settings.agent_adk_url,
+            settings.agent_adk_app,
+            settings.agent_timeout_seconds,
+            host_header=settings.agent_adk_host_header,
         )
     return None
