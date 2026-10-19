@@ -19,6 +19,7 @@ dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.11"]
 
 [project.scripts]
 campuspulse-moodle-mcp = "campuspulse_mcp.server:main"
+campuspulse-moodle-sync = "campuspulse_mcp.sync:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/campuspulse_mcp"]

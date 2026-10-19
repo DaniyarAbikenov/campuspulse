@@ -46,6 +46,18 @@ Claude Code / any MCP client (stdio):
   "CAMPUSPULSE_MOODLE_TOKEN": "..." } } } }
 ```
 
+## Import into CampusPulse
+
+```bash
+CAMPUSPULSE_BACKEND_DEMO_LOGIN=true python -m campuspulse_mcp.sync   # local dev
+```
+
+`campuspulse-moodle-sync` reads Moodle assignments and posts an **import proposal** to the
+CampusPulse backend. Nothing is created until the student reviews it in the app (Assignments →
+Import from Moodle), picks the target course and estimate, and approves. Repeated syncs skip
+assignments that were already imported. Use `CAMPUSPULSE_BACKEND_TOKEN` with the student's access
+token outside local development.
+
 ## Checks
 
 ```bash
