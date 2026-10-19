@@ -38,6 +38,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "assignments",
         "audit_events",
         "courses",
+        "document_chunks",
         "document_fragments",
         "documents",
         "enrollments",

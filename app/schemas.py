@@ -310,8 +310,41 @@ class TaskUpdate(StrictSchema):
     source_requirement: Annotated[str, Field(max_length=40)] | None = None
 
 
+class StudyResourceRead(StrictSchema):
+    """A passage of the student's own materials that helps with a task."""
+
+    document_id: UUID
+    document_name: str
+    page: StrictInt
+    excerpt: str
+
+
+def _none_as_empty(value: object) -> object:
+    return [] if value is None else value
+
+
+StudyResources = Annotated[
+    list[StudyResourceRead], BeforeValidator(_none_as_empty), Field(default_factory=list)
+]
+
+
+class KnowledgeHitRead(StrictSchema):
+    document_id: UUID
+    document_name: str
+    kind: DocumentKind
+    course_id: UUID
+    page: StrictInt
+    excerpt: str
+    score: float
+
+
+class ReindexRead(StrictSchema):
+    indexed_documents: StrictInt
+    semantic: StrictBool
+
+
 class TaskRead(TaskCreate, EntityRead):
-    pass
+    resources: StudyResources
 
 
 class KanbanTaskRead(TaskRead):
@@ -1022,6 +1055,7 @@ class TaskPlanItemRead(StrictSchema):
     priority: Priority
     selected: StrictBool
     task_id: UUID | None
+    resources: StudyResources
 
 
 class TaskPlanRead(StrictSchema):

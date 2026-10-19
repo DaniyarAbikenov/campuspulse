@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     enable_demo_auth: bool = False
     demo_user_email: str = "demo.student@campuspulse.example"
     # Agent: "disabled", "vertex" (Vertex AI Agent Engine) or "adk_server" (local `adk api_server`).
+    # Semantic search over the student's materials (Vertex AI text embeddings).
+    embeddings_enabled: bool = False
+    embeddings_model: str = "text-embedding-005"
+    embeddings_project: str | None = None  # defaults to agent_project
+    embeddings_location: str | None = None  # defaults to agent_location
     agent_mode: Literal["disabled", "vertex", "adk_server"] = "disabled"
     agent_resource: str | None = None
     agent_project: str | None = None

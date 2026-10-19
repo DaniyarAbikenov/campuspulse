@@ -9,6 +9,7 @@ from app import schemas
 from app.auth.authorization import can_read, require_write
 from app.auth.service import AuthenticatedUser
 from app.db import models
+from app.documents import retrieval
 from app.product import service
 
 _NON_WORD = re.compile(r"\W+", re.UNICODE)
@@ -136,6 +137,13 @@ def create_plan(
                 description=item.description,
                 estimated_hours=item.estimated_hours,
                 priority=item.priority,
+                resources=retrieval.resources_for(
+                    session,
+                    actor,
+                    requirement=item.requirement_text,
+                    title=item.title,
+                    assignment_id=assignment.id,
+                ),
             )
         )
     session.commit()
@@ -217,6 +225,7 @@ def apply(session: Session, actor: AuthenticatedUser, plan_id: UUID) -> schemas.
             due_at=assignment.due_at,
             is_ai_generated=True,
             source_requirement=item.requirement_id,
+            resources=item.resources or [],
         )
         require_write(session, actor, task)
         session.add(task)
