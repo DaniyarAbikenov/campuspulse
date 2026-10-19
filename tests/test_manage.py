@@ -464,3 +464,87 @@ def test_the_chat_reply_carries_the_actions_the_agent_proposed(student: TestClie
     assert [item["title"] for item in reply["actions"]] == ["Study"]
     assert reply["actions"][0]["status"] == "pending"
     _ = models
+
+
+# --- study session rules ------------------------------------------------------------------
+
+
+def study_event(client: TestClient, task_id: str, start: datetime, hours: float) -> Any:
+    me = client.get(f"{API}/auth/me").json()
+    return client.post(
+        f"{API}/schedule-events",
+        json={
+            "user_id": me["id"],
+            "title": "Study",
+            "kind": "study_session",
+            "task_id": task_id,
+            "starts_at": start.isoformat(),
+            "ends_at": (start + timedelta(hours=hours)).isoformat(),
+        },
+    )
+
+
+def far_day(days: int = 40) -> datetime:
+    return (datetime.now(UTC) + timedelta(days=days)).replace(
+        hour=4, minute=0, second=0, microsecond=0
+    )
+
+
+def test_a_task_cannot_be_booked_for_more_hours_than_its_estimate(student: TestClient) -> None:
+    task = add_task(student, make_assignment(student))  # estimate 1.5h
+    start = far_day()
+    assert study_event(student, task, start, 1.0).status_code == 201
+    second = study_event(student, task, start + timedelta(hours=2), 1.0)
+    assert second.status_code == 409
+    assert "already has 1h of 1.5h scheduled" in second.json()["detail"]
+    assert study_event(student, task, start + timedelta(hours=2), 0.5).status_code == 201
+
+
+def test_study_sessions_cannot_overlap_or_exceed_the_daily_limit(student: TestClient) -> None:
+    assignment = make_assignment(student)
+    tasks = [add_task(student, assignment) for _ in range(6)]
+    start = far_day(41)
+    student.patch(f"{API}/settings", json={"max_study_hours_per_day": 2})
+    assert study_event(student, tasks[0], start, 1.0).status_code == 201
+    overlap = study_event(student, tasks[1], start + timedelta(minutes=30), 1.0)
+    assert overlap.status_code == 409 and "overlaps" in overlap.json()["detail"]
+    assert study_event(student, tasks[1], start + timedelta(hours=1), 1.0).status_code == 201
+    over = study_event(student, tasks[2], start + timedelta(hours=3), 0.5)
+    assert over.status_code == 409 and "limit is 2h a day" in over.json()["detail"]
+
+
+def test_booked_study_uses_up_the_daily_limit_in_free_time(student: TestClient) -> None:
+    student.patch(f"{API}/settings", json={"max_study_hours_per_day": 3})
+    task = add_task(student, make_assignment(student))
+    start = far_day(42)
+    monday = (start.date() - timedelta(days=start.weekday())).isoformat()
+    before = student.get(f"{API}/schedule/free-time", params={"week_start": monday}).json()
+    assert study_event(student, task, start, 1.5).status_code == 201
+    after = student.get(f"{API}/schedule/free-time", params={"week_start": monday}).json()
+    day = start.date().isoformat()
+
+    def hours_on(slots: list[dict[str, Any]]) -> float:
+        return sum(s["duration_hours"] for s in slots if s["starts_at"][:10] == day)
+
+    assert hours_on(after) <= hours_on(before) - 1.5 + 0.01
+
+
+def test_the_planner_counts_study_booked_in_other_weeks(student: TestClient) -> None:
+    task = add_task(student, make_assignment(student))  # 1.5h, due in 5 days
+    me = student.get(f"{API}/auth/me").json()
+    start = (datetime.now(UTC) + timedelta(days=1)).replace(hour=4, minute=0, second=0)
+    created = student.post(
+        f"{API}/schedule-events",
+        json={
+            "user_id": me["id"],
+            "title": "Study",
+            "kind": "study_session",
+            "task_id": task,
+            "starts_at": start.isoformat(),
+            "ends_at": (start + timedelta(hours=1.5)).isoformat(),
+        },
+    )
+    assert created.status_code == 201, created.text
+    other_week = (start.date() - timedelta(days=start.weekday()) + timedelta(days=7)).isoformat()
+    plan = student.get(f"{API}/schedule/plan", params={"week_start": other_week}).json()
+    assert task not in [item["task_id"] for item in plan["sessions"]]

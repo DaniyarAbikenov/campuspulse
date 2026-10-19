@@ -13,6 +13,7 @@ from app.auth.router import router as auth_router
 from app.crud import create_entity, delete_entity, get_entity, list_entities, update_entity
 from app.db import models
 from app.db.session import get_session
+from app.product import scheduling
 from app.product.router import router as product_router
 
 router = APIRouter()
@@ -359,8 +360,19 @@ def list_schedule_events(
     status_code=status.HTTP_201_CREATED,
 )
 def create_schedule_event(
-    payload: schemas.ScheduleEventCreate, session: SessionDep
+    payload: schemas.ScheduleEventCreate, session: SessionDep, current: CurrentUserDep
 ) -> models.ScheduleEvent:
+    if (
+        payload.kind == models.ScheduleEventKind.study_session
+        and payload.user_id == current.user.id
+    ):
+        scheduling.check_study_session(
+            session,
+            current,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            task_id=payload.task_id,
+        )
     return create_entity(session, models.ScheduleEvent, payload)
 
 

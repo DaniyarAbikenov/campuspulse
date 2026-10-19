@@ -562,17 +562,15 @@ def apply_insight(
         )
         event = models.ScheduleEvent(**event_payload.model_dump())
         require_write(session, actor, event)
-        clash = session.scalar(
-            select(models.ScheduleEvent.id).where(
-                models.ScheduleEvent.user_id == actor.user.id,
-                models.ScheduleEvent.starts_at < event.ends_at,
-                models.ScheduleEvent.ends_at > event.starts_at,
-            )
+        from app.product import scheduling  # imported here: scheduling depends on this module
+
+        scheduling.check_study_session(
+            session,
+            actor,
+            starts_at=event.starts_at,
+            ends_at=event.ends_at,
+            task_id=event.task_id,
         )
-        if clash is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="That time is no longer free"
-            )
         session.add(event)
         session.flush()
         created_ids.append(event.id)
@@ -662,7 +660,13 @@ def _free_slots(
             ),
             key=lambda item: item[0],
         )
-        remaining_capacity = settings.max_study_hours_per_day
+        # Study already booked that day uses up part of the daily limit.
+        remaining_capacity = settings.max_study_hours_per_day - sum(
+            (_aware(event.ends_at) - _aware(event.starts_at)).total_seconds() / 3600
+            for event in events
+            if event.kind == models.ScheduleEventKind.study_session
+            and _aware(event.starts_at).astimezone(timezone).date() == day
+        )
         for event_start, event_end in [*day_events, (day_end, day_end)]:
             gap_end = min(event_start, day_end)
             if gap_end > cursor and remaining_capacity > 0:

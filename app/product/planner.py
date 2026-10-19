@@ -1,8 +1,6 @@
 """Fill the week's free time with study sessions for the work that is still unscheduled."""
 
-from collections import defaultdict
 from datetime import date, datetime, timedelta
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,7 +9,7 @@ from app import schemas
 from app.auth.authorization import can_read, require_write
 from app.auth.service import AuthenticatedUser
 from app.db import models
-from app.product import service
+from app.product import scheduling, service
 
 MIN_CHUNK_HOURS = 0.5
 PRIORITY_RANK = {models.Priority.high: 0, models.Priority.medium: 1, models.Priority.low: 2}
@@ -36,10 +34,8 @@ def plan_week(
 ) -> schemas.StudyPlanRead:
     """Deterministic greedy plan: earliest deadline first, never past a task's deadline."""
     schedule = service.schedule_week(session, actor, week_start)
-    booked: dict[UUID, float] = defaultdict(float)
-    for event in schedule.events:
-        if event.kind == models.ScheduleEventKind.study_session and event.task_id:
-            booked[event.task_id] += _hours(event.starts_at, event.ends_at)
+    # Hours already booked anywhere in the calendar count, not only those in the shown week.
+    booked = scheduling.booked_hours_by_task(session, actor.user.id)
 
     rows = []
     for task in session.scalars(

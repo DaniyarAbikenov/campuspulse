@@ -14,7 +14,7 @@ from app import schemas
 from app.auth.authorization import can_read, require_write
 from app.auth.service import AuthenticatedUser
 from app.db import models
-from app.product import manage
+from app.product import manage, scheduling
 
 PENDING_LIMIT = 20
 
@@ -226,17 +226,16 @@ def _execute(
             ).model_dump()
         )
         require_write(session, actor, event)
-        clash = session.scalar(
-            select(models.ScheduleEvent.id).where(
-                models.ScheduleEvent.user_id == actor.user.id,
-                models.ScheduleEvent.starts_at < event.ends_at,
-                models.ScheduleEvent.ends_at > event.starts_at,
+        if kind == models.AgentActionKind.create_study_session:
+            scheduling.check_study_session(
+                session,
+                actor,
+                starts_at=event.starts_at,
+                ends_at=event.ends_at,
+                task_id=event.task_id,
             )
-        )
-        if clash is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="That time is no longer free"
-            )
+        else:
+            scheduling.check_no_overlap(session, actor, event.starts_at, event.ends_at)
         session.add(event)
         return "Added to your calendar"
     if kind == models.AgentActionKind.create_task:
