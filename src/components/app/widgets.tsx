@@ -132,7 +132,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
           onClick={() => {
             // Fixture insight "i2" (offline demo only) points at the prototype assignment.
             if (insight.applicable && insight.status !== "Applied") {
-              void applyInsight(insight.id).then(() => toast.success(localize("Added to your calendar", locale)));
+              void applyInsight(insight.id).then((ok) => { if (ok) toast.success(localize("Added to your calendar", locale)); });
               return;
             }
             if (insight.id === "i2" && !insight.backendId)

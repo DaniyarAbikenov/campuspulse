@@ -1,4 +1,4 @@
-export type Status = "To Do" | "In Progress" | "Review" | "Completed" | "Upcoming";
+export type Status = "To Do" | "In Progress" | "Review" | "Completed" | "Upcoming" | "Cancelled";
 export type Priority = "High" | "Medium" | "Low";
 
 export interface Course {
@@ -139,7 +139,7 @@ export const weeklyWorkload = [
   { day: "Sun", required: 0, available: 0 },
 ];
 
-export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event"; room?: string; courseId?: string; }
+export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event" | "personal"; room?: string; courseId?: string; }
 
 export const tomorrowSchedule: Slot[] = [
   { start: "09:00", end: "11:00", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
@@ -149,7 +149,7 @@ export const tomorrowSchedule: Slot[] = [
 ];
 
 // Weekly calendar: day index 0=Mon
-export interface CalEvent { id: string; backendId?: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; }
+export interface CalEvent { id: string; backendId?: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; seriesId?: string; location?: string; }
 export const weekEvents: CalEvent[] = [
   { id: "c1", day: 0, start: 9, end: 11, title: "Advanced Databases", kind: "lecture", courseId: "adb" },
   { id: "c2", day: 0, start: 11, end: 13, title: "Software Engineering", kind: "lecture", courseId: "se" },
@@ -192,8 +192,8 @@ export const requirements = [
   { id: "R6", text: "Document authentication workflow.", detail: "Add a README section with a sequence diagram of login and refresh.", page: 4, done: false },
 ];
 
-export interface KnowledgeDoc { id: string; title: string; courseId: string; type: string; pages: number; indexed: string; concepts: string[]; }
-export interface CampusEvent { id: string; backendId?: string; title: string; date: string; time: string; place: string; category: string; match: number; reason: string; saved?: boolean; slot?: { day: number; start: number; end: number } | null; }
+export interface KnowledgeDoc { id: string; title: string; courseId: string; type: string; pages: number; indexed: string; concepts: string[]; kind?: string; assignmentId?: string | null; }
+export interface CampusEvent { id: string; backendId?: string; title: string; date: string; time: string; place: string; category: string; match: number; reason: string; saved?: boolean; slot?: { day: number; start: number; end: number } | null; startsAt?: string; endsAt?: string; description?: string; canEdit?: boolean; }
 export const knowledgeDocs: KnowledgeDoc[] = [
   { id: "d1", title: "Assignment_3.pdf", courseId: "se", type: "Assignment", pages: 4, indexed: "Today 09:42", concepts: ["JWT", "Spring Security", "RBAC"] },
   { id: "d2", title: "Assignment_2.pdf", courseId: "se", type: "Assignment", pages: 3, indexed: "Oct 2", concepts: ["JPA", "PostgreSQL", "Repositories"] },

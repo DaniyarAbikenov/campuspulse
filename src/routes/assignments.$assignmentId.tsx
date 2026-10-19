@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, Panel, PredictionNote, PriorityIndicator, SourceReference, StatusBadge } from "@/components/app/common";
 import { TaskPlanReview } from "@/components/app/TaskPlanReview";
+import { AssignmentActions } from "@/components/app/AssignmentActions";
 import { applyStep, type TraceItem } from "@/lib/agentSteps";
 import { AgentTrace } from "@/components/app/AgentTrace";
 import { analyzeRemoteAssignment, fetchAssignmentText, fetchTaskPlan, type AgentStep, type DocumentPage, type TaskPlan } from "@/lib/api";
@@ -120,6 +121,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
         subtitle={`${courseOf(a.courseId).name} · ${localize("Due", locale)} ${a.deadline}`}
         actions={<>
           <StatusBadge status={a.status} />
+          <AssignmentActions assignment={a} />
           <Button size="sm" variant="outline" onClick={() => openChat(a.title)}><Sparkles className="h-3.5 w-3.5 text-ai" /> {localize("Ask about this", locale)}</Button>
           {pending ? <Button size="sm" onClick={() => setReview(true)}>{localize("Review task plan", locale)}</Button> : null}
           {pages && agentEnabled && !pending ? (

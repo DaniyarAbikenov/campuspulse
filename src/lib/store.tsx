@@ -118,7 +118,8 @@ interface Store {
   };
   insights: Insight[];
   setInsightStatus: (id: string, s: Insight["status"]) => void;
-  applyInsight: (id: string) => Promise<void>;
+  /** Resolves true when the change was made (always true for the offline demo). */
+  applyInsight: (id: string) => Promise<boolean>;
   activity: Activity[];
   knowledgeDocs: KnowledgeDoc[];
   documentFragments: DocumentFragment[];
@@ -625,15 +626,17 @@ export function StoreProvider({
       setInsights((items) =>
         items.map((item) => (item.id === id ? { ...item, status: "Applied" } : item)),
       );
-      if (!insight?.backendId) return;
+      if (!insight?.backendId) return true;
       try {
         await applyRemoteInsight(insight.backendId);
         await reloadWorkspaceRef.current();
+        return true;
       } catch (error) {
         setInsights((items) =>
           items.map((item) => (item.id === id ? { ...item, status: insight.status } : item)),
         );
         toast.error("Could not apply the recommendation", { description: String(error) });
+        return false;
       }
     },
     activity,

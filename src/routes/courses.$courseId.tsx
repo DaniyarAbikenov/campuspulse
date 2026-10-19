@@ -1,12 +1,14 @@
 import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowRight, Brain, FileText, Link2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Brain, FileText, Link2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, Panel, PredictionNote, ProgressBar, StatusBadge } from "@/components/app/common";
 import { AssignmentTable, SimpleBars } from "@/components/app/widgets";
 import { KanbanBoard } from "@/components/app/Kanban";
+import { AssignmentFormDialog } from "@/components/app/AssignmentFormDialog";
 import { assignments, findCourse } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -29,7 +31,8 @@ export const Route = createFileRoute("/courses/$courseId")({
 function CourseDetails() {
   const { locale } = useI18n();
   const { course: loadedCourse, courseId } = Route.useLoaderData();
-  const { courses: liveCourses, assignments, knowledgeDocs, connection, insights, statistics, tasks } = useStore();
+  const { courses: liveCourses, assignments, knowledgeDocs, connection, insights, statistics, tasks, backendConnected } = useStore();
+  const [adding, setAdding] = useState(false);
   const course = liveCourses.find((item) => item.id === courseId) ?? loadedCourse;
   if (!course) {
     if (connection === "connecting") return <p role="status" className="text-[13px] text-muted-foreground">{localize("Loading course…", locale)}</p>;
@@ -73,6 +76,8 @@ function CourseDetails() {
             <Panel title={localize("Recent materials", locale)}>{localize(docs.map((d) => <div key={d.id} className="flex items-center gap-2 border-b py-2 text-[13px] last:border-0"><FileText className="h-4 w-4 text-muted-foreground" />{localize(d.title, locale)}<span className="ml-auto text-[11.5px] text-muted-foreground">{localize(d.indexed, locale)}</span></div>), locale)}</Panel>
           </TabsContent>
           <TabsContent value="assignments">
+            {backendConnected ? <div className="mb-3 flex justify-end"><Button size="sm" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" /> {localize("Add assignment", locale)}</Button></div> : null}
+            {!list.length ? <p className="mb-3 text-[13px] text-muted-foreground">{localize("No assignments in this course yet.", locale)}</p> : null}
             <div className="panel overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead><tr className="border-b text-left text-[11.5px] text-muted-foreground"><th scope="col" className="px-4 py-2 font-medium">{localize("Assignment", locale)}</th><th scope="col" className="px-2 font-medium">{localize("Due", locale)}</th><th scope="col" className="px-2 font-medium">{localize("Status", locale)}</th><th scope="col" className="px-2 font-medium">{localize("Est.", locale)}</th><th scope="col" className="px-2 font-medium">{localize("Actual", locale)}</th><th scope="col" className="px-4 font-medium">{localize("Dependencies", locale)}</th></tr></thead>
@@ -118,6 +123,7 @@ function CourseDetails() {
           <Button asChild size="sm" variant="outline" className="mt-4 w-full"><Link to="/knowledge">{localize("Explore Course Knowledge", locale)}</Link></Button>
         </Panel>
       </div>
+      <AssignmentFormDialog open={adding} onOpenChange={setAdding} courseId={course.id} />
     </>
   );
 }

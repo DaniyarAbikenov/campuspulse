@@ -66,6 +66,7 @@ const statusStyles: Record<string, string> = {
   Review: "bg-warning-soft text-warning border-warning/20",
   Completed: "bg-success-soft text-success border-success/20",
   Upcoming: "bg-secondary text-muted-foreground border-border",
+  Cancelled: "bg-destructive/10 text-destructive border-destructive/20",
   New: "bg-primary-soft text-primary border-primary/20",
   Applied: "bg-info-soft text-info border-info/20",
   Accepted: "bg-success-soft text-success border-success/20",

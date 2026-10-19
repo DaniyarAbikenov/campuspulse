@@ -99,6 +99,8 @@ interface ApiKanban {
 }
 interface ApiEvent {
   id: string;
+  series_id?: string | null;
+  location?: string | null;
   starts_at: string;
   ends_at: string;
   title: string;
@@ -147,6 +149,7 @@ interface ApiKnowledge {
   documents: {
     id: string;
     course_id: string;
+    assignment_id: string | null;
     name: string;
     kind: string;
     page_count: number;
@@ -173,6 +176,8 @@ interface ApiCampusEvent {
   match_percent: number | null;
   reason: string | null;
   is_saved: boolean;
+  description?: string | null;
+  can_edit?: boolean;
 }
 interface ApiAgentActivity {
   runs: {
@@ -311,10 +316,10 @@ const eventKind: Record<string, CalEvent["kind"]> = {
   class_session: "lecture",
   study_session: "study",
   campus_event: "event",
-  personal: "event",
+  personal: "personal",
 };
 const remoteEventKind = (kind: CalEvent["kind"]) =>
-  ({ lecture: "class_session", study: "study_session", event: "campus_event", free: "personal" })[
+  ({ lecture: "class_session", study: "study_session", event: "campus_event", free: "personal", personal: "personal" })[
     kind
   ];
 const shortDate = (value?: string | null) =>
@@ -345,6 +350,7 @@ const titleStatus = (status: string): Assignment["status"] =>
       review: "Review",
       completed: "Completed",
       upcoming: "Upcoming",
+      cancelled: "Cancelled",
     }) as Record<string, Assignment["status"]>
   )[status] ?? "To Do";
 const taskColumn = (status: string): Task["column"] =>
@@ -430,6 +436,8 @@ function mapEvents(items: ApiEvent[], courseByBackend: Map<string, string>): Cal
     kind: eventKind[item.kind] ?? "event",
     ...(item.course_id ? { courseId: courseByBackend.get(item.course_id) ?? item.course_id } : {}),
     ...(item.task_id ? { taskId: item.task_id } : {}),
+    ...(item.series_id ? { seriesId: item.series_id } : {}),
+    ...(item.location ? { location: item.location } : {}),
   }));
 }
 const mapDistribution = (workload: ApiWorkload) =>
@@ -632,6 +640,10 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       match: item.match_percent ?? 0,
       reason: item.reason ?? "",
       saved: item.is_saved,
+      startsAt: item.starts_at,
+      endsAt: item.ends_at,
+      ...(item.description ? { description: item.description } : {}),
+      canEdit: item.can_edit ?? false,
       slot:
         day >= 0 && day <= 6
           ? { day, start: hours(item.starts_at), end: hours(item.ends_at) }
@@ -646,6 +658,8 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     pages: item.page_count,
     indexed: `${monthDay.format(campusClock(item.indexed_at))} ${clockText(item.indexed_at)}`,
     concepts: item.concepts,
+    kind: item.kind,
+    assignmentId: item.assignment_id,
   }));
   const fragments: DocumentFragment[] = knowledge.fragments.map((item) => ({
     id: item.id,
@@ -880,10 +894,19 @@ export interface AgentStep {
   name: string | null;
   detail: string;
 }
+/** A change the agent proposed; it only happens after the student applies it. */
+export interface AgentAction {
+  id: string;
+  kind: string;
+  title: string;
+  summary: string;
+  payload: Record<string, unknown>;
+}
 export interface AgentChatReply {
   sessionId: string;
   reply: string;
   steps: AgentStep[];
+  actions: AgentAction[];
 }
 export const fetchAgentEnabled = async () =>
   (await request<{ enabled: boolean }>("/agent/status")).enabled;
@@ -892,12 +915,22 @@ export const sendAgentMessage = async (
   sessionId: string | null,
   onStep?: (step: AgentStep) => void,
 ): Promise<AgentChatReply> => {
-  const reply = await streamRequest<{ session_id: string; reply: string; steps: AgentStep[] }>(
+  const reply = await streamRequest<{
+    session_id: string;
+    reply: string;
+    steps: AgentStep[];
+    actions?: AgentAction[];
+  }>(
     "/agent/chat/stream",
     { body: { message, ...(sessionId ? { session_id: sessionId } : {}) } },
     onStep,
   );
-  return { sessionId: reply.session_id, reply: reply.reply, steps: reply.steps };
+  return {
+    sessionId: reply.session_id,
+    reply: reply.reply,
+    steps: reply.steps,
+    actions: reply.actions ?? [],
+  };
 };
 
 export type AuthState = "signed_out" | "needs_onboarding" | "signed_in";
@@ -1260,3 +1293,233 @@ export async function refreshRemoteInsights(onStep?: (step: AgentStep) => void) 
   );
   return { count: result.created.length, steps: result.steps };
 }
+
+const pad = (value: number) => String(value).padStart(2, "0");
+/** An instant from a date (YYYY-MM-DD) and clock time (HH:MM) on the campus clock. */
+export function campusIso(date: string, time: string): string {
+  const offset = CAMPUS_OFFSET_MS / 3_600_000;
+  return `${date}T${time}:00${offset < 0 ? "-" : "+"}${pad(Math.abs(offset))}:00`;
+}
+/** Date and time inputs (YYYY-MM-DD, HH:MM) for an API instant, on the campus clock. */
+export function campusInputs(value: string): { date: string; time: string } {
+  const local = campusClock(value).toISOString();
+  return { date: local.slice(0, 10), time: local.slice(11, 16) };
+}
+
+export interface AssignmentChange {
+  removedTasks: number;
+  removedSessions: number;
+}
+const changeOf = (raw: { removed_tasks: number; removed_sessions: number }): AssignmentChange => ({
+  removedTasks: raw.removed_tasks,
+  removedSessions: raw.removed_sessions,
+});
+export const createRemoteAssignment = (input: {
+  courseId: string;
+  title: string;
+  dueAt: string;
+  description?: string;
+  estimatedHours: number;
+}) =>
+  request<{ id: string }>("/assignments", {
+    method: "POST",
+    body: JSON.stringify({
+      course_id: input.courseId,
+      owner_user_id: currentUserId,
+      title: input.title,
+      ...(input.description ? { description: input.description } : {}),
+      due_at: input.dueAt,
+      estimated_hours: input.estimatedHours,
+    }),
+  });
+export const updateRemoteAssignment = (
+  id: string,
+  values: { title?: string; description?: string; dueAt?: string; estimatedHours?: number },
+) =>
+  request(`/assignments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...(values.title === undefined ? {} : { title: values.title }),
+      ...(values.description === undefined ? {} : { description: values.description }),
+      ...(values.dueAt === undefined ? {} : { due_at: values.dueAt }),
+      ...(values.estimatedHours === undefined ? {} : { estimated_hours: values.estimatedHours }),
+    }),
+  });
+export const cancelRemoteAssignment = async (id: string) =>
+  changeOf(await request(`/assignments/${id}/cancel`, { method: "POST" }));
+export const reopenRemoteAssignment = async (id: string) =>
+  changeOf(await request(`/assignments/${id}/reopen`, { method: "POST" }));
+export const deleteRemoteAssignment = async (id: string) =>
+  changeOf(await request(`/assignments/${id}`, { method: "DELETE" }));
+
+export interface RepeatingActivity {
+  id: string;
+  title: string;
+  kind: "personal" | "class_session";
+  weekdays: number[];
+  start: string;
+  end: string;
+  startsOn: string;
+  endsOn: string;
+  location: string | null;
+  courseId: string | null;
+  occurrences: number;
+}
+interface ApiSeries {
+  id: string;
+  title: string;
+  kind: RepeatingActivity["kind"];
+  weekdays: number[];
+  start: string;
+  end: string;
+  starts_on: string;
+  ends_on: string;
+  location: string | null;
+  course_id: string | null;
+  occurrences: number;
+}
+const seriesOf = (item: ApiSeries): RepeatingActivity => ({
+  id: item.id,
+  title: item.title,
+  kind: item.kind,
+  weekdays: item.weekdays,
+  start: item.start,
+  end: item.end,
+  startsOn: item.starts_on,
+  endsOn: item.ends_on,
+  location: item.location,
+  courseId: item.course_id,
+  occurrences: item.occurrences,
+});
+export const fetchSeries = async () =>
+  (await request<ApiSeries[]>("/schedule/series")).map(seriesOf);
+export const createRemoteSeries = async (input: {
+  title: string;
+  kind: RepeatingActivity["kind"];
+  weekdays: number[];
+  start: string;
+  end: string;
+  startsOn: string;
+  endsOn?: string;
+  location?: string;
+  courseId?: string;
+}) =>
+  seriesOf(
+    await request<ApiSeries>("/schedule/series", {
+      method: "POST",
+      body: JSON.stringify({
+        title: input.title,
+        kind: input.kind,
+        weekdays: input.weekdays,
+        start: input.start,
+        end: input.end,
+        starts_on: input.startsOn,
+        ...(input.endsOn ? { ends_on: input.endsOn } : {}),
+        ...(input.location ? { location: input.location } : {}),
+        ...(input.courseId ? { course_id: input.courseId } : {}),
+      }),
+    }),
+  );
+export const deleteRemoteSeries = (id: string) =>
+  request(`/schedule/series/${id}`, { method: "DELETE" });
+export const deleteRemoteEvent = (id: string) =>
+  request(`/schedule-events/${id}`, { method: "DELETE" });
+/** A one-off activity on any date (a workout, a meeting) as a personal calendar event. */
+export const createRemoteActivity = (input: {
+  title: string;
+  date: string;
+  start: string;
+  end: string;
+  location?: string;
+  courseId?: string;
+}) =>
+  request<{ id: string }>("/schedule-events", {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: currentUserId,
+      title: input.title,
+      kind: "personal",
+      starts_at: campusIso(input.date, input.start),
+      ends_at: campusIso(input.date, input.end),
+      ...(input.location ? { location: input.location } : {}),
+      ...(input.courseId ? { course_id: input.courseId } : {}),
+    }),
+  });
+/** A study session for a task on any date. */
+export const createRemoteStudySession = (input: {
+  title: string;
+  date: string;
+  start: string;
+  end: string;
+  taskId: string;
+  courseId?: string;
+}) =>
+  request<{ id: string }>("/schedule-events", {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: currentUserId,
+      title: input.title,
+      kind: "study_session",
+      task_id: input.taskId,
+      starts_at: campusIso(input.date, input.start),
+      ends_at: campusIso(input.date, input.end),
+      ...(input.courseId ? { course_id: input.courseId } : {}),
+    }),
+  });
+
+export interface CampusEventInput {
+  title: string;
+  description?: string;
+  category: string;
+  place: string;
+  date: string;
+  start: string;
+  end: string;
+}
+const campusEventBody = (input: CampusEventInput) => ({
+  title: input.title,
+  description: input.description ?? "",
+  category: input.category.toLowerCase(),
+  place: input.place,
+  starts_at: campusIso(input.date, input.start),
+  ends_at: campusIso(input.date, input.end),
+});
+export const createRemoteCampusEvent = (input: CampusEventInput) =>
+  request("/campus-events", { method: "POST", body: JSON.stringify(campusEventBody(input)) });
+export const updateRemoteCampusEvent = (id: string, input: CampusEventInput) =>
+  request(`/campus-events/${id}`, { method: "PATCH", body: JSON.stringify(campusEventBody(input)) });
+export const deleteRemoteCampusEvent = (id: string) =>
+  request(`/campus-events/${id}`, { method: "DELETE" });
+
+export async function uploadRemoteMaterial(input: {
+  file: File;
+  courseId: string;
+  kind: string;
+  name?: string;
+}) {
+  const form = new FormData();
+  form.set("file", input.file);
+  form.set("course_id", input.courseId);
+  form.set("kind", input.kind.toLowerCase());
+  if (input.name) form.set("name", input.name);
+  return request<{ id: string; page_count: number }>("/materials", { method: "POST", body: form });
+}
+export const updateRemoteMaterial = (
+  id: string,
+  values: { name?: string; kind?: string; courseId?: string },
+) =>
+  request(`/materials/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...(values.name === undefined ? {} : { name: values.name }),
+      ...(values.kind === undefined ? {} : { kind: values.kind.toLowerCase() }),
+      ...(values.courseId === undefined ? {} : { course_id: values.courseId }),
+    }),
+  });
+export const deleteRemoteMaterial = (id: string) =>
+  request(`/materials/${id}`, { method: "DELETE" });
+
+export const applyAgentAction = (id: string) =>
+  request<{ detail: string }>(`/agent/actions/${id}/apply`, { method: "POST" });
+export const dismissAgentAction = (id: string) =>
+  request(`/agent/actions/${id}/dismiss`, { method: "POST" });

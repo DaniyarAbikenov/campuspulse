@@ -2,8 +2,12 @@ import { localize, useI18n } from "@/lib/i18n";
 import { guardWorkspace } from "@/lib/workspace-access";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { FileText, Search, Upload, BookMarked } from "lucide-react";
+import { FileText, Search, Upload, BookMarked, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MaterialFormDialog } from "@/components/app/MaterialFormDialog";
+import { deleteRemoteMaterial } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CourseTag, EmptyState, PageHeader, Panel, PredictionNote } from "@/components/app/common";
@@ -24,7 +28,22 @@ type Doc = KnowledgeDoc;
 
 function Knowledge() {
   const { locale } = useI18n();
-  const { setUploadOpen, tasks, analysisSource, knowledgeDocs, documentFragments, courses, backendConnected } = useStore();
+  const { setUploadOpen, tasks, analysisSource, knowledgeDocs, documentFragments, courses, backendConnected, reloadWorkspace } = useStore();
+  const [form, setForm] = useState<Doc | "new" | null>(null);
+  const [removing, setRemoving] = useState<Doc | null>(null);
+  const remove = async () => {
+    if (!removing) return;
+    try {
+      await deleteRemoteMaterial(removing.id);
+      await reloadWorkspace();
+      setDoc(null);
+      toast.success(localize("Material deleted", locale));
+    } catch (error) {
+      toast.error(localize("Could not delete", locale), { description: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setRemoving(null);
+    }
+  };
   const conceptMap = new Map<string, Set<string>>();
   for (const item of knowledgeDocs) for (const concept of item.concepts) conceptMap.set(concept, (conceptMap.get(concept) ?? new Set()).add(item.id));
   const concepts = [...conceptMap.entries()].map(([concept, ids]) => [concept, ids.size] as const).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14);
@@ -35,7 +54,7 @@ function Knowledge() {
   const list = knowledgeDocs.filter((d) => (course === "all" || d.courseId === course) && (d.title + d.concepts.join(" ")).toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <PageHeader title={localize("Knowledge Base", locale)} subtitle={localize(`${documentTotals.count} documents indexed · ${documentTotals.pages} pages`, locale)} actions={<Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="h-3.5 w-3.5" /> {localize("Add Document", locale)}</Button>} />
+      <PageHeader title={localize("Knowledge Base", locale)} subtitle={localize(`${documentTotals.count} documents indexed · ${documentTotals.pages} pages`, locale)} actions={backendConnected ? <Button size="sm" onClick={() => setForm("new")}><Plus className="h-3.5 w-3.5" /> {localize("Add material", locale)}</Button> : <Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="h-3.5 w-3.5" /> {localize("Add Document", locale)}</Button>} />
       <div className="mb-4 grid gap-4 lg:grid-cols-[1fr_320px]">
         <div>
           <div className="mb-3 flex flex-wrap gap-2">
@@ -75,6 +94,7 @@ function Knowledge() {
             <SheetHeader><SheetTitle className="text-[15px]">{localize(doc.title, locale)}</SheetTitle><SheetDescription>{localize(doc.type, locale)} {localize("·", locale)} {localize(doc.pages, locale)} {localize("pages", locale)}</SheetDescription></SheetHeader>
             <div className="space-y-3 px-4 text-[13px]">
               <CourseTag id={doc.courseId} />
+              {backendConnected ? (doc.assignmentId ? <p className="text-[12px] text-muted-foreground">{localize("This is an assignment brief. Manage it from the assignment page.", locale)}</p> : <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setForm(doc)}><Pencil className="h-3.5 w-3.5" /> {localize("Edit", locale)}</Button><Button size="sm" variant="outline" className="text-destructive" onClick={() => setRemoving(doc)}><Trash2 className="h-3.5 w-3.5" /> {localize("Delete", locale)}</Button></div>) : null}
               <div><div className="mb-1 text-[11.5px] text-muted-foreground">{localize("Extracted concepts", locale)}</div><div className="flex flex-wrap gap-1">{localize(doc.concepts.map((c) => <span key={c} className="rounded border bg-secondary px-1.5 py-0.5 text-[11.5px]">{localize(c, locale)}</span>), locale)}</div></div>
               {backendConnected ? null : <PredictionNote>{localize("Summary: this document introduces", locale)} {localize(doc.concepts.join(", "), locale)} {localize("and is referenced by", locale)} {localize(doc.type === "Assignment" ? "the generated task breakdown" : "your study plan and related assignments", locale)}{localize(".", locale)}</PredictionNote>}
               <div className="text-[11.5px] text-muted-foreground">{localize("Indexed", locale)} {localize(doc.indexed, locale)} {localize("·", locale)} {localize(documentFragments.filter((fragment) => fragment.documentId === doc.id).length, locale)} {localize(backendConnected ? "indexed fragments" : "sourced demo fragments", locale)}</div>
@@ -85,6 +105,19 @@ function Knowledge() {
           </>, locale)}
         </SheetContent>
       </Sheet>
+      <MaterialFormDialog open={form !== null} onOpenChange={(o) => !o && setForm(null)} material={form === "new" ? null : form} />
+      <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{localize("Delete this material?", locale)}</AlertDialogTitle>
+            <AlertDialogDescription>{localize("The file and its indexed text are removed, so the agent can no longer cite it.", locale)}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{localize("Keep it", locale)}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void remove()}>{localize("Delete", locale)}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

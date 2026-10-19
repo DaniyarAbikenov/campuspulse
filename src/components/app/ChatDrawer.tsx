@@ -8,11 +8,12 @@ import { generatedTasks, workloadTotals, adminCourses } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { weekTitle } from "@/lib/week";
-import { sendAgentMessage, type AgentStep } from "@/lib/api";
+import { sendAgentMessage, type AgentAction, type AgentStep } from "@/lib/api";
+import { AgentActionsDialog } from "@/components/app/AgentActionsDialog";
 import { applyStep, traceOf, type TraceItem } from "@/lib/agentSteps";
 import { AgentTrace } from "@/components/app/AgentTrace";
 
-interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[]; steps?: AgentStep[]; error?: boolean }
+interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[]; steps?: AgentStep[]; actions?: AgentAction[]; error?: boolean }
 
 const contextFor = (path: string, names: { assignments: { id: string; title: string }[]; courses: { id: string; name: string }[]; week: string }, live: boolean) => {
   if (!live) {
@@ -66,6 +67,7 @@ export function ChatDrawer() {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [liveSteps, setLiveSteps] = useState<TraceItem[]>([]);
+  const [review, setReview] = useState<AgentAction[] | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing, liveSteps]);
@@ -81,7 +83,9 @@ export function ChatDrawer() {
       sendAgentMessage(`${q}\n\n(Context: the student is currently viewing "${contextFor(path, { assignments, courses, week: weekTitle(weekStart, "en") }, true)}".)`, sessionId, (step) => setLiveSteps((items) => applyStep(items, step)))
         .then((reply) => {
           setSessionId(reply.sessionId);
-          setMsgs((m) => [...m, { role: "ai", text: reply.reply || "The agent returned no answer.", steps: reply.steps }]);
+          setMsgs((m) => [...m, { role: "ai", text: reply.reply || "The agent returned no answer.", steps: reply.steps, actions: reply.actions }]);
+          // Proposed changes open in a window: nothing happens until the student presses Apply.
+          if (reply.actions.length) setReview(reply.actions);
         })
         .catch(() => setMsgs((m) => [...m, { role: "ai", text: "The agent is unavailable right now. Try again in a moment.", error: true }]))
         .finally(() => { setTyping(false); setLiveSteps([]); });
@@ -118,6 +122,7 @@ export function ChatDrawer() {
                     </details>
                   ) : null}
                   <p className={cn("leading-relaxed", m.error && "text-destructive")}>{localize(m.text, locale)}</p>
+                  {m.actions?.length ? <Button size="sm" variant="outline" className="mt-2" onClick={() => setReview(m.actions ?? null)}>{localize("Review proposed changes", locale)} ({m.actions.length})</Button> : null}
                   {localize(m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{localize(m.list.map((l) => <li key={l}>{localize(l, locale)}</li>), locale)}</ol>, locale)}
                   {localize(m.sources && <div className="mt-2 flex flex-wrap gap-1">{localize(m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{localize(s, locale)}</span>), locale)}</div>, locale)}
                 </div>
@@ -142,6 +147,7 @@ export function ChatDrawer() {
           </form>
         </div>
       </SheetContent>
+      <AgentActionsDialog actions={review ?? []} open={review !== null} onOpenChange={(o) => !o && setReview(null)} />
     </Sheet>
   );
 }
