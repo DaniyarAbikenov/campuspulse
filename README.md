@@ -1,136 +1,222 @@
 # CampusPulse Backend
 
-Typed FastAPI service for the initial CampusPulse academic domain. It supports Google Identity
-Services sign-in, CampusPulse access and refresh tokens, identity mapping, roles and audit events.
-Academic CRUD is protected by role and ownership checks. MCP, AI workflows, document parsing and a
-configurable policy engine are not implemented yet.
+Строго типизированный backend CampusPulse AI на FastAPI. Он хранит академические сущности, выполняет CRUD и агрегирование данных для интерфейса, проверяет Google Identity tokens, выпускает собственные access/refresh tokens и ограничивает доступ по ролям, организации, enrollment и ownership.
 
-## Domain resources
+Repository: https://github.com/DaniyarAbikenov/campuspulse-backend
 
-- Institutions
-- Users
-- Semesters
-- Courses
-- Enrollments
-- Assignments
-- Assignment relations
-- Tasks
-- Documents (metadata only)
-- Schedule events
-- Personal settings
-- Actionable AI insight records
+## Реализовано
 
-The academic resources expose list, create, read, partial update and delete operations under
-`/api/v1`. Identity accounts, roles, role assignments and audit events currently exist only as
-database and Pydantic models, so they cannot be mutated through an unsecured API.
-Request bodies use strict Pydantic v2 schemas: implicit type coercion and unknown fields are rejected.
+- FastAPI API с версионированным префиксом `/api/v1`.
+- Строгие Pydantic v2 schemas: лишние поля и нежелательное приведение типов отклоняются.
+- SQLAlchemy 2, PostgreSQL 17 и SQLite для простого host-run режима.
+- Alembic migrations и идемпотентный deterministic seeder.
+- Google Identity Services authentication.
+- Короткоживущий JWT access token и rotating opaque refresh token.
+- Хеширование refresh tokens в базе, logout/revocation и `/auth/me`.
+- RBAC и resource-level authorization.
+- CRUD для основных академических сущностей.
+- Агрегирующие endpoint’ы под текущие frontend-экраны.
+- Загрузка PDF, DOCX и TXT до 20 MB.
+- Stored insights с настраиваемым CTA и идемпотентным применением.
+- Docker hot reload и отдельный Docker Compose для инфраструктуры.
 
-The schema overview is in [docs/database-schema.md](docs/database-schema.md), and the Mermaid ERD is
-in [docs/erd.md](docs/erd.md). The access rules are documented in
-[docs/authorization.md](docs/authorization.md).
+AI model calls, OCR/document parsing, vector search и MCP в backend пока отсутствуют.
 
-## Local Google authentication
+## Технологии
 
-The backend receives the Google ID token produced by the Google Identity Services browser widget.
-It verifies the token with Google's signing keys and configured audience, then returns a short-lived
-CampusPulse access token plus a rotating refresh token.
+- Python 3.11+
+- FastAPI
+- Pydantic v2 / pydantic-settings
+- SQLAlchemy 2
+- Alembic
+- PostgreSQL 17 / psycopg 3
+- Google Auth
+- PyJWT
+- Uvicorn
+- Pytest, Ruff и strict mypy
 
-Copy `.env.example` to `.env`, generate a private JWT secret, and set your Google Web Client ID:
+## Доменные сущности
 
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
+| Область | Сущности |
+|---|---|
+| Identity | Institution, User, IdentityAccount, AuthSession |
+| Authorization | Role, UserRole, Enrollment |
+| Academic structure | Semester, Course |
+| Planning | Assignment, AssignmentRelation, Task, ScheduleEvent |
+| Content | Document |
+| Product | UserSettings, Insight |
+| Audit | AuditEvent |
 
-Create a Web application OAuth client in Google Cloud and add `http://localhost:5173` as an
-Authorized JavaScript origin. Popup mode with a JavaScript callback does not require a redirect URI
-or client secret. The complete browser/backend contract is in
-[docs/authentication.md](docs/authentication.md).
+Полное описание таблиц: [`docs/database-schema.md`](docs/database-schema.md).
+Mermaid ERD: [`docs/erd.md`](docs/erd.md).
 
-Authentication endpoints:
+## API
 
-- `POST /api/v1/auth/google`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-- `POST /api/v1/auth/onboarding`
+Все защищённые запросы используют `Authorization: Bearer <access_token>`.
 
-Every academic CRUD endpoint requires `Authorization: Bearer <access_token>`. A newly created
-Google user completes onboarding once to select an institution, profile details and initial
-courses.
+### Authentication
 
-The local Compose profile enables the hidden `POST /api/v1/auth/demo` endpoint so the prototype can
-run before a Google Web Client ID is configured. It signs in the seeded demo student and is disabled
-by default outside Compose through `CAMPUSPULSE_ENABLE_DEMO_AUTH=false`.
+| Method | Path | Назначение |
+|---|---|---|
+| POST | `/api/v1/auth/google` | Проверить Google ID token и создать/найти пользователя |
+| POST | `/api/v1/auth/refresh` | Ротация refresh token и выдача новой пары |
+| POST | `/api/v1/auth/logout` | Отозвать refresh session |
+| GET | `/api/v1/auth/me` | Текущий профиль и роли |
+| POST | `/api/v1/auth/onboarding` | Выбрать institution, program и начальные courses |
+| POST | `/api/v1/auth/demo` | Скрытый локальный вход; доступен только при включённом demo-auth |
 
-Frontend-oriented endpoints are documented in
-[docs/frontend-api.md](docs/frontend-api.md). They provide the aggregated course and assignment
-cards, weekly schedule and free-time slots, Kanban columns, workload and study statistics,
-actionable insights, assignment file upload, and user settings used by the current prototype.
+Google flow подробно описан в [`docs/authentication.md`](docs/authentication.md).
 
-## Run with Docker and hot reload
+### Frontend-oriented endpoints
 
-The API and infrastructure intentionally live in separate Compose projects. Start PostgreSQL first:
+| Экран | Endpoint |
+|---|---|
+| Courses | `GET /api/v1/courses/overview` |
+| Assignments | `GET /api/v1/assignments/overview` |
+| Upload Assignment | `POST /api/v1/assignments/upload` |
+| Download document | `GET /api/v1/documents/{id}/download` |
+| My Schedule | `GET /api/v1/schedule` |
+| Free time | `GET /api/v1/schedule/free-time` |
+| Kanban | `GET /api/v1/kanban` |
+| Move card | `PATCH /api/v1/kanban/tasks/{id}/move` |
+| Workload | `GET /api/v1/workload` |
+| Statistics | `GET /api/v1/statistics` |
+| Settings | `GET/PATCH /api/v1/settings` |
+| Insights | `GET/POST /api/v1/insights` |
+| Insight state | `PATCH /api/v1/insights/{id}` |
+| Apply CTA | `POST /api/v1/insights/{id}/apply` |
+
+Courses поддерживают `q`, `semester_id` и `has_open_assignments`. Assignments поддерживают поиск, course/status filters и диапазон deadline. Kanban поддерживает поиск, course, assignment, priority и completed filters.
+
+Подробный контракт: [`docs/frontend-api.md`](docs/frontend-api.md). При запущенном сервисе полный OpenAPI доступен на http://127.0.0.1:8000/docs.
+
+### Raw CRUD
+
+CRUD routes существуют для institutions, users, semesters, courses, enrollments, assignments, assignment relations, tasks, documents и schedule events. Identity accounts, roles, role assignments и audit events намеренно не имеют открытого generic CRUD.
+
+## Авторизация и роли
+
+- `student` управляет собственными assignments, tasks, schedule, settings и insights в enrolled courses.
+- `academic_admin` управляет академическими данными своей institution.
+- `platform_admin` имеет глобальную область.
+
+List routes фильтруют недоступные записи. Прямой доступ к чужому ресурсу возвращает `404`, чтобы не раскрывать его существование. Assignment имеет `owner_user_id`, поскольку status, progress и effort являются персональными.
+
+Полная матрица: [`docs/authorization.md`](docs/authorization.md).
+
+## Конфигурация
+
+Скопируйте `.env.example` в `.env`.
+
+| Variable | Назначение | Default/example |
+|---|---|---|
+| `CAMPUSPULSE_DATABASE_URL` | SQLAlchemy connection URL | `sqlite:///./campuspulse.db` |
+| `CAMPUSPULSE_API_V1_PREFIX` | API prefix | `/api/v1` |
+| `CAMPUSPULSE_GOOGLE_CLIENT_ID` | Google Web Client ID | требуется для Google login |
+| `CAMPUSPULSE_JWT_SECRET` | Подпись CampusPulse JWT | случайное значение минимум 32 bytes |
+| `CAMPUSPULSE_CORS_ORIGINS` | Разрешённые frontend origins | localhost/127.0.0.1:5173 |
+| `CAMPUSPULSE_UPLOAD_DIRECTORY` | Storage загруженных файлов | `storage/uploads` |
+| `CAMPUSPULSE_MAX_UPLOAD_BYTES` | Максимальный размер файла | 20 MB |
+| `CAMPUSPULSE_ENABLE_DEMO_AUTH` | Разрешить локальный `/auth/demo` | `false` |
+
+Compose переопределяет database URL на PostgreSQL и включает demo-auth для локального прототипа. Demo endpoint скрыт из OpenAPI и должен оставаться выключенным вне локальной среды.
+
+## Запуск через Docker
+
+Инфраструктура и приложение разделены, чтобы PostgreSQL можно было запускать и останавливать независимо.
 
 ```bash
 cp .env.infrastructure.example .env.infrastructure
-docker compose \
-  --env-file .env.infrastructure \
-  -f compose.infrastructure.yml \
-  up -d --wait
+cp .env.example .env
+
+docker compose --env-file .env.infrastructure -f compose.infrastructure.yml up -d --wait
+docker compose --env-file .env.infrastructure up -d --build
+docker compose exec api python -m app.seeds
 ```
 
-Then start the API:
+- API: http://127.0.0.1:8000
+- OpenAPI: http://127.0.0.1:8000/docs
+- Health: http://127.0.0.1:8000/health
 
-```bash
-docker compose --env-file .env.infrastructure up --build
-```
+`app/` и `migrations/` подключены как bind mounts; изменение Python-кода перезапускает Uvicorn. Перед стартом API автоматически выполняется `alembic upgrade head`.
 
-`app/` is mounted into the API container. Changes to Python files restart Uvicorn automatically.
-The API container applies all pending Alembic migrations before starting Uvicorn.
-The API is available at `http://127.0.0.1:8000`, and OpenAPI at
-`http://127.0.0.1:8000/docs`. PostgreSQL stays inside `campuspulse-network`, so it does not collide
-with databases already running on the host.
-
-Stop the API and infrastructure independently:
+Остановка:
 
 ```bash
 docker compose down
 docker compose --env-file .env.infrastructure -f compose.infrastructure.yml down
 ```
 
-Add `--volumes` to the second command only when you deliberately want to remove the local PostgreSQL
-data volume.
+Для полного удаления локальных данных добавьте `--volumes` только ко второй команде.
 
-## Run directly on the host
+## Запуск без Docker
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
+cp .env.example .env
 alembic upgrade head
+python -m app.seeds
 uvicorn app.main:app --reload
 ```
 
-Optionally load the deterministic prototype dataset after the migration:
+Без изменения `.env` используется SQLite. Docker-профиль использует PostgreSQL.
+
+## Миграции и сиды
 
 ```bash
+alembic current
+alembic upgrade head
+alembic check
 python -m app.seeds
 ```
 
-The seeder is idempotent. Running it again updates the same fixed demo records rather than creating
-duplicates. In Docker, run it with `docker compose exec api python -m app.seeds`.
+Seeder создаёт фиксированного demo student, три роли, пять courses, девять assignments, восемь tasks, schedule events, settings и insights. Он идемпотентен: повторный запуск обновляет фиксированные UUID и не увеличивает количество записей.
 
-Open `http://127.0.0.1:8000/docs` for the generated OpenAPI interface.
+Данные сидера являются демонстрационными, даже несмотря на то, что frontend получает их через настоящий API.
 
-SQLite is used by default outside Docker. The Docker setup uses PostgreSQL 17 through the separate
-infrastructure project.
+## Файлы
 
-## Verify
+`POST /assignments/upload` принимает multipart fields `file`, `course_id`, `title`, `due_at`, optional `description` и `estimated_hours`. Запись Assignment и Document создаётся одной транзакцией. При ошибке файл удаляется. Metadata хранится в PostgreSQL, а байты — в `CAMPUSPULSE_UPLOAD_DIRECTORY`.
+
+Текущая реализация не извлекает текст и не вызывает AI. Filename в интерфейсе не должен подразумевать, что файл был проанализирован.
+
+## Проверки
 
 ```bash
 pytest
-ruff check .
+ruff check app tests
 mypy app
 alembic check
 ```
 
+`mypy` работает в strict mode. Тесты покрывают CRUD, authentication/refresh/logout, authorization, frontend endpoints, uploads, insights, migrations и идемпотентность seed.
+
+## Структура
+
+```text
+app/
+  api/          raw CRUD routes
+  auth/         Google verification, tokens, sessions, dependencies
+  core/         configuration
+  db/           SQLAlchemy models and session
+  product/      frontend-oriented routes and aggregation services
+  crud.py       typed CRUD helpers
+  schemas.py    strict Pydantic contracts
+  seeds.py      deterministic demo dataset
+migrations/     Alembic environment and revisions
+docs/           auth, RBAC, schema, ERD and frontend API
+storage/        local uploaded files
+tests/          API and migration tests
+```
+
+## Известные ограничения и следующий этап
+
+- Google login backend готов, но frontend login/onboarding UI ещё не подключён.
+- Refresh token пока возвращается JSON; production-вариант должен использовать Secure HttpOnly cookie и CSRF protection.
+- Upload storage локальный; production требует object storage и malware/content validation.
+- Нет очереди фоновых задач, document ingestion, OCR, embeddings или AI orchestration.
+- Нет MCP server. Сначала следует определить внутренние agent tools и permission model.
+- AuditEvent model существует, но полное журналирование всех действий ещё не подключено.
+- Нужны deployment config, observability, backups и rate limiting.
