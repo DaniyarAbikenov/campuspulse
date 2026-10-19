@@ -147,7 +147,7 @@ class InsightGateway:
     ) -> AgentReply:
         import asyncio
 
-        assert "Today is" in message and "list_insights" in message
+        assert "Now it is" in message and "list_insights" in message
         if self.propose:
             headers = {"Authorization": f"Bearer {agent_token}"}
             body = self.body

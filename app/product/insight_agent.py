@@ -155,9 +155,7 @@ def today_prompt_context(session: Session, actor: AuthenticatedUser) -> str:
     now = datetime.now(timezone)
     monday = now.date() - timedelta(days=now.weekday())
     return (
-        f"Today is {now.date().isoformat()} ({now.strftime('%A')}); "
-        f"this week starts on {monday.isoformat()}."
+        f"Now it is {now.strftime('%A %Y-%m-%d %H:%M')} (UTC{now.strftime('%z')[:3]}:00); "
+        f"this week starts on {monday.isoformat()}. Free windows that start before now are in "
+        "the past: never suggest them."
     )
-
-
-__all__ = ["create_from_agent", "today_prompt_context"]
