@@ -75,7 +75,7 @@ expire after 15 minutes.
 `GET /api/v1/auth/me` returns the user profile and current role codes. The academic CRUD routes are
 protected by the access token and the policies in [authorization.md](authorization.md).
 
-A new Google user initially has no institution. `POST /api/v1/auth/onboarding` accepts the
+A new Google user initially has no institution. `GET /api/v1/auth/onboarding/options` lists the institutions and the courses of their latest semester (it returns 409 once onboarding is complete). `POST /api/v1/auth/onboarding` accepts the
 institution, student number, program and up to 20 course IDs. It validates that every course belongs
 to the selected institution, creates enrollments and can only succeed once.
 
