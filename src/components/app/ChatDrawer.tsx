@@ -7,7 +7,7 @@ import { useStore } from "@/lib/store";
 import { generatedTasks, workloadTotals, adminCourses } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { fetchAgentEnabled, sendAgentMessage, type AgentStep } from "@/lib/api";
+import { sendAgentMessage, type AgentStep } from "@/lib/api";
 
 interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[]; steps?: AgentStep[]; error?: boolean }
 
@@ -50,8 +50,7 @@ const prompts = ["Why did you create these tasks?", "Why is this week overloaded
 
 export function ChatDrawer() {
   const { locale } = useI18n();
-  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload, backendConnected } = useStore();
-  const [agentEnabled, setAgentEnabled] = useState(false);
+  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload, agentEnabled } = useStore();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -60,10 +59,6 @@ export function ChatDrawer() {
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
-  useEffect(() => {
-    if (!backendConnected || !chatOpen) return;
-    fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
-  }, [backendConnected, chatOpen]);
   const useAgent = agentEnabled && role === "student";
 
   const send = (q: string) => {

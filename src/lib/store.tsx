@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { signOutGoogle } from "./google-identity";
 import {
   completeOnboardingRemote,
+  fetchAgentEnabled,
   restoreSession,
   signInDemo as signInDemoRemote,
   signInWithGoogle as signInWithGoogleRemote,
@@ -127,6 +128,7 @@ interface Store {
   settings: RemoteSettings;
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
   reloadWorkspace: () => Promise<void>;
+  agentEnabled: boolean;
   uploadAssignment: (input: {
     file: File;
     courseId: string;
@@ -134,7 +136,7 @@ interface Store {
     dueAt: string;
     description?: string;
     estimatedHours: number;
-  }) => Promise<void>;
+  }) => Promise<{ assignmentId: string; extractionOk: boolean }>;
 }
 
 // Fast Refresh can keep the mounted provider while re-evaluating this module.
@@ -155,6 +157,7 @@ export function StoreProvider({
   const [role, setRole] = useState<Role>("student");
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [auth, setAuth] = useState<AuthStatus>("checking");
+  const [agentEnabled, setAgentEnabled] = useState(false);
   const backendConnected = connection === "online";
   const connectionRef = useRef<ConnectionState>("connecting");
   connectionRef.current = connection;
@@ -222,6 +225,7 @@ export function StoreProvider({
     setCampusEvents(workspace.campusEvents);
     setActivity(workspace.activity);
     setConnection("online");
+    fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
   }, []);
 
   const enter = useCallback(
@@ -622,6 +626,7 @@ export function StoreProvider({
       const updated = await updateRemoteSettings(values);
       setSettings(updated);
     },
+    agentEnabled,
     reloadWorkspace: async () => {
       const workspace = await connectWorkspace();
       setBaseCourses(workspace.courses);
@@ -634,10 +639,11 @@ export function StoreProvider({
     uploadAssignment: async (input) => {
       const course = baseCourses.find((item) => item.id === input.courseId);
       if (!course?.backendId) throw new Error("The selected course is not connected to the API");
-      await uploadRemoteAssignment({ ...input, courseId: course.backendId });
+      const created = await uploadRemoteAssignment({ ...input, courseId: course.backendId });
       const workspace = await connectWorkspace();
       setBaseCourses(workspace.courses);
       setBaseAssignments(workspace.assignments);
+      return { assignmentId: created.assignmentId, extractionOk: created.extraction.status === "ok" };
     },
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

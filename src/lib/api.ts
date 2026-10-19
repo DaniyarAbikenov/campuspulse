@@ -582,7 +582,11 @@ export async function uploadRemoteAssignment(input: {
   form.set("due_at", input.dueAt);
   form.set("estimated_hours", String(input.estimatedHours));
   if (input.description) form.set("description", input.description);
-  return request<Record<string, unknown>>("/assignments/upload", { method: "POST", body: form });
+  const created = await request<{
+    assignment: { id: string };
+    extraction: { status: "ok" | "no_text" | "unsupported" | "failed"; pages: number };
+  }>("/assignments/upload", { method: "POST", body: form });
+  return { assignmentId: created.assignment.id, extraction: created.extraction };
 }
 
 const isoAt = (day: number, hour: number) =>
@@ -839,3 +843,91 @@ export const completeOnboardingRemote = (values: {
       course_ids: values.courseIds,
     }),
   });
+
+interface ApiPlanItem {
+  id: string;
+  requirement_id: string;
+  requirement_text: string;
+  quote: string;
+  page: number;
+  quote_verified: boolean;
+  title: string;
+  description: string;
+  estimated_hours: number;
+  priority: string;
+  selected: boolean;
+}
+interface ApiTaskPlan {
+  id: string;
+  assignment_id: string;
+  status: string;
+  summary: string;
+  related_assignment_title: string | null;
+  relation_type: string | null;
+  items: ApiPlanItem[];
+}
+export interface PlanTask {
+  id: string;
+  requirementId: string;
+  requirementText: string;
+  quote: string;
+  page: number;
+  quoteVerified: boolean;
+  title: string;
+  description: string;
+  estimatedHours: number;
+  priority: string;
+  selected: boolean;
+}
+export interface TaskPlan {
+  id: string;
+  assignmentId: string;
+  summary: string;
+  relatedTitle: string | null;
+  relation: string | null;
+  items: PlanTask[];
+}
+const taskPlan = (raw: ApiTaskPlan): TaskPlan => ({
+  id: raw.id,
+  assignmentId: raw.assignment_id,
+  summary: raw.summary,
+  relatedTitle: raw.related_assignment_title,
+  relation: raw.relation_type,
+  items: raw.items.map((item) => ({
+    id: item.id,
+    requirementId: item.requirement_id,
+    requirementText: item.requirement_text,
+    quote: item.quote,
+    page: item.page,
+    quoteVerified: item.quote_verified,
+    title: item.title,
+    description: item.description,
+    estimatedHours: item.estimated_hours,
+    priority: item.priority,
+    selected: item.selected,
+  })),
+});
+/** Asks the agent to read the uploaded brief; resolves with its proposed plan (30–90 s). */
+export async function analyzeRemoteAssignment(assignmentId: string) {
+  const result = await request<{ plan: ApiTaskPlan; steps: AgentStep[] }>(
+    `/assignments/${assignmentId}/analysis`,
+    { method: "POST" },
+  );
+  return { plan: taskPlan(result.plan), steps: result.steps };
+}
+export const updatePlanItem = (
+  planId: string,
+  itemId: string,
+  values: { selected?: boolean; estimatedHours?: number },
+) =>
+  request(`/task-plans/${planId}/items/${itemId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...(values.selected === undefined ? {} : { selected: values.selected }),
+      ...(values.estimatedHours === undefined ? {} : { estimated_hours: values.estimatedHours }),
+    }),
+  });
+export const applyTaskPlan = (planId: string) =>
+  request<{ created: number }>(`/task-plans/${planId}/apply`, { method: "POST" });
+export const dismissTaskPlan = (planId: string) =>
+  request(`/task-plans/${planId}/dismiss`, { method: "POST" });
