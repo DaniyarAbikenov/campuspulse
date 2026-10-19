@@ -12,6 +12,7 @@ const API_URL = import.meta.env["VITE_API_URL"] ?? "http://127.0.0.1:8000/api/v1
 const WEEK_START = "2026-10-19";
 let accessToken = "";
 let refreshToken = "";
+let currentUserId = "";
 
 interface ApiCourse {
   id: string;
@@ -72,6 +73,19 @@ interface ApiWorkload {
   scheduled_study_hours: number;
   unscheduled_hours: number;
   by_day: { day: string; required_hours: number; available_hours: number }[];
+}
+interface ApiStatistics {
+  reported_study_hours: number;
+  estimate_accuracy_percent: number;
+  completed_assignments: number;
+  completed: {
+    assignment_id: string;
+    title: string;
+    course_name: string;
+    estimated_hours: number;
+    actual_hours: number;
+    delta_hours: number;
+  }[];
 }
 interface ApiInsight {
   id: string;
@@ -142,6 +156,16 @@ const insightIdByCategory: Record<string, string> = {
   schedule_opportunity: "i4",
   deadline_conflict: "i5",
 };
+const eventKind: Record<string, CalEvent["kind"]> = {
+  class_session: "lecture",
+  study_session: "study",
+  campus_event: "event",
+  personal: "event",
+};
+const remoteEventKind = (kind: CalEvent["kind"]) =>
+  ({ lecture: "class_session", study: "study_session", event: "campus_event", free: "personal" })[
+    kind
+  ];
 const shortDate = (value?: string | null) =>
   value
     ? new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(
@@ -194,6 +218,11 @@ export interface RemoteSettings {
   daily_briefing: boolean;
   event_suggestions: boolean;
 }
+export interface RemoteStatistics {
+  reportedHours: number;
+  estimateAccuracy: number;
+  completedAssignments: number;
+}
 export interface WorkspaceData {
   courses: Course[];
   assignments: Assignment[];
@@ -209,6 +238,7 @@ export interface WorkspaceData {
     unscheduled: number;
   };
   settings: RemoteSettings;
+  statistics: RemoteStatistics;
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
@@ -217,7 +247,8 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
   });
   accessToken = tokens.access_token;
   refreshToken = tokens.refresh_token;
-  const [rawCourses, page, board, schedule, workload, rawInsights, settings] = await Promise.all([
+  const [rawCourses, page, board, schedule, workload, rawInsights, settings, stats, me] =
+    await Promise.all([
     request<ApiCourse[]>("/courses/overview"),
     request<ApiAssignmentPage>("/assignments/overview"),
     request<ApiKanban>("/kanban"),
@@ -225,7 +256,10 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     request<ApiWorkload>(`/workload?week_start=${WEEK_START}`),
     request<ApiInsight[]>("/insights"),
     request<RemoteSettings>("/settings"),
+    request<ApiStatistics>("/statistics"),
+    request<{ id: string }>("/auth/me"),
   ]);
+  currentUserId = me.id;
   const courseByBackend = new Map<string, string>();
   const courses: Course[] = rawCourses.map((item) => {
     const id = courseIdByCode[item.code] ?? item.id;
@@ -295,9 +329,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     start: hours(item.starts_at),
     end: hours(item.ends_at),
     title: item.title,
-    kind:
-      ({ class: "lecture", personal: "event" } as Record<string, CalEvent["kind"]>)[item.kind] ??
-      (item.kind as CalEvent["kind"]),
+    kind: eventKind[item.kind] ?? "event",
     ...(item.course_id ? { courseId: courseByBackend.get(item.course_id) ?? item.course_id } : {}),
     ...(item.task_id ? { taskId: item.task_id } : {}),
   }));
@@ -365,6 +397,11 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
       unscheduled: workload.unscheduled_hours,
     },
     settings,
+    statistics: {
+      reportedHours: stats.reported_study_hours,
+      estimateAccuracy: stats.estimate_accuracy_percent,
+      completedAssignments: stats.completed_assignments,
+    },
   };
 }
 
@@ -398,4 +435,37 @@ export async function uploadRemoteAssignment(input: {
   form.set("estimated_hours", String(input.estimatedHours));
   if (input.description) form.set("description", input.description);
   return request<Record<string, unknown>>("/assignments/upload", { method: "POST", body: form });
+}
+
+const isoAt = (day: number, hour: number) => {
+  const date = new Date(Date.parse(WEEK_START) + day * 86_400_000 + Math.round(hour * 3_600_000));
+  return date.toISOString();
+};
+export async function createRemoteTask(task: Omit<Task, "id">, assignmentId: string) {
+  const created = await request<{ id: string }>("/tasks", {
+    method: "POST",
+    body: JSON.stringify({
+      assignment_id: assignmentId,
+      title: task.title,
+      description: task.description,
+      status: taskStatus(task.column),
+      priority: task.priority.toLowerCase(),
+      estimated_hours: task.estimate,
+    }),
+  });
+  return created.id;
+}
+export async function createRemoteEvent(event: Omit<CalEvent, "id">, courseBackendId?: string) {
+  const created = await request<{ id: string }>("/schedule-events", {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: currentUserId,
+      title: event.title,
+      kind: remoteEventKind(event.kind),
+      starts_at: isoAt(event.day, event.start),
+      ends_at: isoAt(event.day, event.end),
+      ...(courseBackendId ? { course_id: courseBackendId } : {}),
+    }),
+  });
+  return created.id;
 }

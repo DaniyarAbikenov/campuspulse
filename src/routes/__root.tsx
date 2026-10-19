@@ -108,6 +108,7 @@ function RootComponent() {
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar />
               <main className="mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-3 py-4 sm:px-5">
+                <ConnectionBanner />
                 <WorkspaceContent />
               </main>
             </div>
@@ -118,6 +119,26 @@ function RootComponent() {
         </TooltipProvider>
       </StoreProvider>
     </QueryClientProvider>
+  );
+}
+
+function ConnectionBanner() {
+  const { locale } = useI18n();
+  const { connection } = useStore();
+  if (connection === "online") return null;
+  const offline = connection === "offline";
+  return (
+    <div
+      role={offline ? "alert" : "status"}
+      className="mb-3 rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px]"
+    >
+      {localize(
+        offline
+          ? "Offline demo mode: the CampusPulse API is unavailable, showing sample data. Changes are not saved."
+          : "Connecting to the CampusPulse API…",
+        locale,
+      )}
+    </div>
   );
 }
 

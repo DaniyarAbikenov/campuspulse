@@ -27,25 +27,33 @@ import {
   type Assignment,
   type Course,
 } from "./data";
+import { toast } from "sonner";
 import {
   applyRemoteInsight,
   connectWorkspace,
+  createRemoteEvent,
+  createRemoteTask,
   moveRemoteTask,
   updateRemoteInsight,
   updateRemoteSettings,
   uploadRemoteAssignment,
   type RemoteSettings,
+  type RemoteStatistics,
 } from "./api";
 
 type Role = "student" | "admin";
 
+export type ConnectionState = "connecting" | "online" | "offline";
+
 interface Store {
   backendConnected: boolean;
+  connection: ConnectionState;
+  statistics: RemoteStatistics | null;
   role: Role;
   setRole: (r: Role) => void;
   tasks: Task[];
   moveTask: (id: string, column: Task["column"]) => void;
-  addTask: (t: Omit<Task, "id">) => void;
+  addTask: (t: Omit<Task, "id">) => Promise<void>;
   addGeneratedTasks: () => number;
   tasksGenerated: boolean;
   proposalApproved: boolean;
@@ -72,7 +80,7 @@ interface Store {
   activity: Activity[];
   log: (a: Omit<Activity, "id" | "time">) => void;
   events: CalEvent[];
-  addEvent: (e: Omit<CalEvent, "id">) => void;
+  addEvent: (e: Omit<CalEvent, "id">) => Promise<void>;
   chatOpen: boolean;
   setChatOpen: (o: boolean) => void;
   chatContext: string;
@@ -113,7 +121,9 @@ export function StoreProvider({
   onRoleChange?: (role: Role) => void;
 }) {
   const [role, setRole] = useState<Role>("student");
-  const [backendConnected, setBackendConnected] = useState(false);
+  const [connection, setConnection] = useState<ConnectionState>("connecting");
+  const backendConnected = connection === "online";
+  const [statistics, setStatistics] = useState<RemoteStatistics | null>(null);
   const [baseAssignments, setBaseAssignments] = useState<Assignment[]>(initialAssignments);
   const [baseCourses, setBaseCourses] = useState<Course[]>(initialCourses);
   const [baseDistribution, setBaseDistribution] = useState(weeklyWorkload);
@@ -171,11 +181,12 @@ export function StoreProvider({
         setBaseDistribution(workspace.distribution);
         setRemoteWorkload(workspace.workload);
         setSettings(workspace.settings);
-        setBackendConnected(true);
+        setStatistics(workspace.statistics);
+        setConnection("online");
       })
       .catch((error: unknown) => {
         console.warn("CampusPulse API is unavailable; using local demo data.", error);
-        setBackendConnected(false);
+        if (active) setConnection("offline");
       });
     return () => {
       active = false;
@@ -270,6 +281,8 @@ export function StoreProvider({
 
   const value: Store = {
     backendConnected,
+    connection,
+    statistics,
     role,
     setRole: (next) => {
       onRoleChange?.(next);
@@ -413,7 +426,24 @@ export function StoreProvider({
           console.warn("Task sync failed", error),
         );
     },
-    addTask: (t) => setTasks((p) => [{ ...t, id: crypto.randomUUID() }, ...p]),
+    addTask: async (t) => {
+      const localId = crypto.randomUUID();
+      const assignment =
+        (t.assignmentId ? baseAssignments.find((item) => item.id === t.assignmentId) : undefined) ??
+        baseAssignments.find(
+          (item) => item.courseId === t.courseId && item.status !== "Completed" && item.backendId,
+        );
+      const task = { ...t, ...(assignment ? { assignmentId: assignment.id } : {}) };
+      setTasks((p) => [{ ...task, id: localId }, ...p]);
+      if (!backendConnected || !assignment?.backendId) return;
+      try {
+        const backendId = await createRemoteTask(task, assignment.backendId);
+        setTasks((p) => p.map((item) => (item.id === localId ? { ...item, backendId } : item)));
+      } catch (error) {
+        setTasks((p) => p.filter((item) => item.id !== localId));
+        toast.error("Task was not saved", { description: String(error) });
+      }
+    },
     addGeneratedTasks,
     insights: insights.map((insight) =>
       insight.id === "i2"
@@ -456,7 +486,19 @@ export function StoreProvider({
     activity,
     log,
     events,
-    addEvent: (e) => setEvents((p) => [...p, { ...e, id: crypto.randomUUID() }]),
+    addEvent: async (e) => {
+      const localId = crypto.randomUUID();
+      setEvents((p) => [...p, { ...e, id: localId }]);
+      if (!backendConnected) return;
+      try {
+        const course = e.courseId ? baseCourses.find((item) => item.id === e.courseId) : undefined;
+        const backendId = await createRemoteEvent(e, course?.backendId);
+        setEvents((p) => p.map((item) => (item.id === localId ? { ...item, backendId } : item)));
+      } catch (error) {
+        setEvents((p) => p.filter((item) => item.id !== localId));
+        toast.error("Event was not saved", { description: String(error) });
+      }
+    },
     chatOpen,
     setChatOpen,
     chatContext,

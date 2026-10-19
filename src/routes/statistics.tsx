@@ -20,17 +20,20 @@ export const Route = createFileRoute("/statistics")({
 
 function Stats() {
   const { locale } = useI18n();
-  const { assignments, workload } = useStore();
+  const { assignments, workload, statistics } = useStore();
   const done = assignments.filter((a) => a.actual !== undefined);
   const actual = done.reduce((sum, a) => sum + (a.actual ?? 0), 0);
   const estimate = done.reduce((sum, a) => sum + a.estimate, 0);
+  const reported = statistics?.reportedHours ?? actual;
+  const accuracy = statistics?.estimateAccuracy ?? Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100);
+  const completedCount = statistics?.completedAssignments ?? assignments.filter((a) => a.status === "Completed").length;
   return (
     <>
       <PageHeader title={localize("Study Statistics", locale)} subtitle={localize("Fall Semester 2026 · Weeks 36–43", locale)} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label={localize("Reported study time", locale)} value={`${actual}h`} sub={localize("Completed assignments", locale)} icon={Timer} />
-        <MetricCard label={localize("Estimate accuracy", locale)} value={`${Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100)}%`} sub={localize("Actual vs. AI estimate", locale)} icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
-        <MetricCard label={localize("Completed", locale)} value={String(assignments.filter((a) => a.status === "Completed").length)} sub={localize("Assignments & labs", locale)} icon={CheckCircle2} />
+        <MetricCard label={localize("Reported study time", locale)} value={`${reported}h`} sub={localize("Completed assignments", locale)} icon={Timer} />
+        <MetricCard label={localize("Estimate accuracy", locale)} value={`${accuracy}%`} sub={localize("Actual vs. AI estimate", locale)} icon={Target} trend={{ dir: "up", text: "+4%", good: true }} />
+        <MetricCard label={localize("Completed", locale)} value={String(completedCount)} sub={localize("Assignments & labs", locale)} icon={CheckCircle2} />
         <MetricCard label={localize("Study streak", locale)} value="6 days" sub={localize("Longest: 11 days", locale)} icon={Flame} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
