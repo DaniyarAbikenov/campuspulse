@@ -263,3 +263,14 @@ def test_a_failed_save_is_explained_in_the_502(student: TestClient, uploaded: st
     app.dependency_overrides[get_agent_gateway] = lambda: FailingGateway(student, uploaded)
     response = student.post(f"/api/v1/assignments/{uploaded}/analysis")
     assert response.status_code == 502 and "422 bad quote" in response.json()["detail"]
+
+
+def test_fragments_sharing_a_page_are_returned_as_one_page(student: TestClient) -> None:
+    seeded = next(
+        a["id"]
+        for a in student.get("/api/v1/assignments/overview").json()["items"]
+        if a["title"] == "Assignment 3 — Authentication"
+    )
+    body = student.get(f"/api/v1/assignments/{seeded}/text").json()
+    numbers = [p["page"] for p in body["pages"]]
+    assert numbers == sorted(set(numbers)) == [2, 3, 4]

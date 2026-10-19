@@ -56,8 +56,19 @@ def assignment_text(
         title=assignment.title,
         course_name=course.name if course else "",
         due_at=assignment.due_at,
-        pages=[schemas.AssignmentPageRead(page=item.page, text=item.text) for item in pages],
+        pages=_merge_pages(pages),
     )
+
+
+def _merge_pages(fragments: list[models.DocumentFragment]) -> list[schemas.AssignmentPageRead]:
+    """Several fragments may share a page (seed data); readers get one entry per page."""
+    merged: dict[int, list[str]] = {}
+    for item in fragments:
+        merged.setdefault(item.page, []).append(item.text)
+    return [
+        schemas.AssignmentPageRead(page=page, text="\n\n".join(texts))
+        for page, texts in sorted(merged.items())
+    ]
 
 
 def create_plan(
