@@ -19,6 +19,8 @@ import {
   type CalEvent,
   type CampusEvent,
   type DocumentFragment,
+  type FreeSlot,
+  freeSlots as initialFreeSlots,
   type KnowledgeDoc,
   campusEvents as initialCampusEvents,
   knowledgeDocs as initialKnowledgeDocs,
@@ -39,6 +41,7 @@ import { signOutGoogle } from "./google-identity";
 import {
   completeOnboardingRemote,
   fetchAgentEnabled,
+  fetchFreeSlots,
   restoreSession,
   signInDemo as signInDemoRemote,
   signInWithGoogle as signInWithGoogleRemote,
@@ -129,6 +132,7 @@ interface Store {
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
   reloadWorkspace: () => Promise<void>;
   agentEnabled: boolean;
+  freeSlots: FreeSlot[];
   uploadAssignment: (input: {
     file: File;
     courseId: string;
@@ -158,6 +162,7 @@ export function StoreProvider({
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [auth, setAuth] = useState<AuthStatus>("checking");
   const [agentEnabled, setAgentEnabled] = useState(false);
+  const [freeSlots, setFreeSlots] = useState<FreeSlot[]>(initialFreeSlots);
   const backendConnected = connection === "online";
   const connectionRef = useRef<ConnectionState>("connecting");
   connectionRef.current = connection;
@@ -224,6 +229,7 @@ export function StoreProvider({
     setDocumentFragments(workspace.knowledge.fragments);
     setCampusEvents(workspace.campusEvents);
     setActivity(workspace.activity);
+    setFreeSlots(workspace.freeSlots);
     setConnection("online");
     fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
   }, []);
@@ -605,6 +611,8 @@ export function StoreProvider({
         const course = e.courseId ? baseCourses.find((item) => item.id === e.courseId) : undefined;
         const backendId = await createRemoteEvent(e, course?.backendId);
         setEvents((p) => p.map((item) => (item.id === localId ? { ...item, backendId } : item)));
+        // The backend recomputes the remaining free windows around the new session.
+        void fetchFreeSlots().then(setFreeSlots).catch(() => undefined);
       } catch (error) {
         setEvents((p) => p.filter((item) => item.id !== localId));
         toast.error("Event was not saved", { description: String(error) });
@@ -627,6 +635,7 @@ export function StoreProvider({
       setSettings(updated);
     },
     agentEnabled,
+    freeSlots,
     reloadWorkspace: async () => {
       const workspace = await connectWorkspace();
       setBaseCourses(workspace.courses);

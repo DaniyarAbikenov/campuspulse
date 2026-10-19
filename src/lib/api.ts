@@ -6,6 +6,7 @@ import {
   type Activity,
   type CampusEvent,
   type DocumentFragment,
+  type FreeSlot,
   type KnowledgeDoc,
   type Course,
   type Insight,
@@ -325,6 +326,7 @@ export interface WorkspaceData {
   knowledge: { docs: KnowledgeDoc[]; fragments: DocumentFragment[] };
   campusEvents: CampusEvent[];
   activity: Activity[];
+  freeSlots: FreeSlot[];
 }
 
 export async function connectWorkspace(): Promise<WorkspaceData> {
@@ -341,6 +343,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     knowledge,
     rawEvents,
     agent,
+    freeSlots,
   ] = await Promise.all([
     request<ApiCourse[]>("/courses/overview"),
     request<ApiAssignmentPage>("/assignments/overview"),
@@ -354,6 +357,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     request<ApiKnowledge>("/knowledge"),
     request<ApiCampusEvent[]>("/campus-events"),
     request<ApiAgentActivity>("/agent/activity?limit=50"),
+    fetchFreeSlots(),
   ]);
   currentUserId = me.id;
   const courseByBackend = new Map<string, string>();
@@ -545,6 +549,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
     knowledge: { docs, fragments },
     campusEvents,
     activity,
+    freeSlots,
     statistics: {
       reportedHours: stats.reported_study_hours,
       estimateAccuracy: stats.estimate_accuracy_percent,
@@ -931,3 +936,28 @@ export const applyTaskPlan = (planId: string) =>
   request<{ created: number }>(`/task-plans/${planId}/apply`, { method: "POST" });
 export const dismissTaskPlan = (planId: string) =>
   request(`/task-plans/${planId}/dismiss`, { method: "POST" });
+
+interface ApiFreeSlot {
+  starts_at: string;
+  ends_at: string;
+  duration_hours: number;
+}
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Study windows computed by the backend from classes, study sessions and the student's availability. */
+export async function fetchFreeSlots(): Promise<FreeSlot[]> {
+  const raw = await request<ApiFreeSlot[]>(`/schedule/free-time?week_start=${WEEK_START}`);
+  return raw
+    .filter((item) => item.duration_hours >= 0.5 && rawDayIndex(item.starts_at) >= 0 && rawDayIndex(item.starts_at) <= 6)
+    .map((item) => {
+      const day = rawDayIndex(item.starts_at);
+      const start = hours(item.starts_at);
+      const end = hours(item.ends_at);
+      return {
+        id: `${day}-${start}`,
+        day,
+        start,
+        end,
+        label: `${DAY_NAMES[day]} ${clockText(item.starts_at)}–${clockText(item.ends_at)}`,
+      };
+    });
+}

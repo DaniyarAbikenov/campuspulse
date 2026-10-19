@@ -39,7 +39,7 @@ Frontend подключён к локальному FastAPI, но остаётс
 | `/assignments` | Assignment table, status/search/course filters | API dataset, фильтрация в UI |
 | `/assignments/:assignmentId` | Requirements, relations, generated task proposal | Смешанный; analysis fixture |
 | `/kanban` | Пять колонок, filters и generated proposals | API для существующих задач; часть create/import flows локальная |
-| `/schedule` | Weekly calendar и study planning | API events; некоторые free-slot helpers остаются fixture |
+| `/schedule` | Weekly calendar и study planning | API: события и свободные окна (`/schedule/free-time`) |
 | `/workload` | Required/available hours и recommendation | API расчёт + локальный apply visualization |
 | `/statistics` | Estimate/actual analytics | API summary; semester trend is a fixture |
 | `/insights` | Proactive recommendations и CTA | API |
@@ -69,6 +69,8 @@ Frontend подключён к локальному FastAPI, но остаётс
 - `GET /campus-events`, `PATCH /campus-events/{id}/save`
 - `GET /agent/activity`, `POST /agent/runs`
 - `POST /tasks`, `POST /schedule-events`
+- `GET /schedule/free-time`
+- `POST /assignments/upload`, `POST /assignments/{id}/analysis`, `PATCH/POST /task-plans/…` (анализ брифа агентом, подтверждение плана)
 - `GET /agent/status`, `POST /agent/chat` (AI chat with reasoning trace when the agent is configured)
 - `GET/PATCH/POST /imports/proposals…` (review and approve assignments found in Moodle)
 - `PATCH /insights/{id}`
@@ -86,7 +88,7 @@ Frontend подключён к локальному FastAPI, но остаётс
 - Workload plan изменяет визуальную модель; server insight apply вызывается только из соответствующего insight flow.
 - Semester trend и admin cohort/activity — fixtures; offline-режим показывает явный баннер.
 - Requirements и historical hours на assignment detail — fixtures.
-- Upload сохраняет файл и assignment, но показанный analysis result не основан на содержимом файла.
+- Если агент не настроен, Upload показывает симулированный analysis (явно помечен); при включённом агенте анализ настоящий.
 - Topbar search/chat остаются прототипными.
 
 ## Локальный запуск

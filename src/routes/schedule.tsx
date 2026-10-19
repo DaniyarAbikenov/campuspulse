@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { PageHeader, Panel, PredictionNote } from "@/components/app/common";
 import { useStore } from "@/lib/store";
-import { freeSlots, formatHour } from "@/lib/data";
+import { formatHour, type FreeSlot } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/schedule")({
@@ -29,10 +29,16 @@ const kindCls = { lecture: "border-border bg-card", study: "border-primary/30 bg
 
 function Schedule() {
   const { locale } = useI18n();
-  const { events, addEvent, log, tasks, workload } = useStore();
-  const [slot, setSlot] = useState<(typeof freeSlots)[number] | null>(null);
+  const { events, addEvent, log, tasks, workload, freeSlots, backendConnected } = useStore();
+  const [slot, setSlot] = useState<FreeSlot | null>(null);
   const [task, setTask] = useState("");
-  const taken = (s: (typeof freeSlots)[number]) => events.some((e) => e.day === s.day && e.start < s.end && e.end > s.start);
+  const taken = (s: FreeSlot) => events.some((e) => e.day === s.day && e.start < s.end && e.end > s.start);
+
+  const rank = { High: 0, Medium: 1, Low: 2 } as const;
+  const scheduled = new Set(events.flatMap((e) => (e.taskId ? [e.taskId] : [])));
+  const nextTask = tasks.filter((t) => t.column !== "done" && !scheduled.has(t.id)).sort((x, y) => rank[x.priority] - rank[y.priority])[0];
+  const nextSlot = nextTask ? freeSlots.find((s) => !taken(s) && s.end - s.start >= Math.min(nextTask.estimate, 1)) : undefined;
+  const suggestion = nextTask && nextSlot ? { task: nextTask, slot: nextSlot } : null;
 
   const plan = () => {
     if (!slot) return;
@@ -82,9 +88,11 @@ function Schedule() {
               </div>
             )), locale)}
           </Panel>
-          <Panel title={localize(<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> {localize("Suggestion", locale)}</span>, locale)}>
-            <PredictionNote>{localize("Use", locale)} <b>{localize("Mon 13:00–15:00", locale)}</b> {localize("for JWT token generation (1.5h). It's the earliest slot before your heaviest days.", locale)}</PredictionNote>
-          </Panel>
+          {suggestion ? (
+            <Panel title={localize(<span className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-ai" /> {localize("Suggestion", locale)}</span>, locale)}>
+              <PredictionNote>{localize("Use", locale)} <b>{localize(suggestion.slot.label, locale)}</b> {localize("for", locale)} {suggestion.task.title} ({suggestion.task.estimate}{localize("h", locale)}). {localize("Highest-priority task that is not scheduled yet, in the earliest free window (rule-based).", locale)}</PredictionNote>
+            </Panel>
+          ) : null}
         </div>
       </div>
 

@@ -154,7 +154,8 @@ export const weekEvents: CalEvent[] = [
   { id: "c11", day: 1, start: 18, end: 20, title: "Study: Aggregation pipeline", kind: "study", courseId: "adb" },
 ];
 
-export const freeSlots = [
+export interface FreeSlot { id: string; day: number; start: number; end: number; label: string; }
+export const freeSlots: FreeSlot[] = [
   { id: "f1", day: 0, start: 13, end: 15, label: "Mon 13:00–15:00" },
   { id: "f2", day: 2, start: 15, end: 18, label: "Wed 15:00–18:00" },
   { id: "f3", day: 4, start: 13, end: 17, label: "Fri 13:00–17:00" },
