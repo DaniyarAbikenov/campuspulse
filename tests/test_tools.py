@@ -153,6 +153,27 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
                     ]
                 },
             )
+        if path == "/api/v1/assignments/a1/status":
+            return httpx.Response(
+                200,
+                json={
+                    "title": "A",
+                    "status": "in_progress",
+                    "due_at": "2026-10-25T18:59:00Z",
+                    "progress_percent": 25,
+                    "estimated_hours": 6.0,
+                    "completed_hours": 1.5,
+                    "remaining_hours": 4.5,
+                    "scheduled_hours": 1.0,
+                    "unscheduled_hours": 3.5,
+                    "tasks_total": 4,
+                    "tasks_done": 1,
+                    "tasks_open": 3,
+                    "tasks": [],
+                    "study_sessions": [],
+                    "id": "a1",
+                },
+            )
         if path == "/api/v1/agent/actions":
             return httpx.Response(
                 201,
@@ -359,3 +380,11 @@ async def test_get_schedule_returns_only_what_is_needed_to_avoid_overlaps(
         }
     ]
     assert backend[0].url.params["week_start"] == "2026-10-19"
+
+
+async def test_assignment_status_is_passed_through_for_exact_quoting(
+    backend: list[httpx.Request],
+) -> None:
+    status = await tools.get_assignment_status(context(), "a1")
+    assert status["remaining_hours"] == 4.5 and status["tasks_done"] == 1
+    assert backend[0].url.path == "/api/v1/assignments/a1/status"

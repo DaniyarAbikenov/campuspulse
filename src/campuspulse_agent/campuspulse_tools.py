@@ -139,6 +139,36 @@ async def get_schedule(
     ]
 
 
+async def get_assignment_status(tool_context: ToolContext, assignment_id: str) -> dict[str, Any]:
+    """The authoritative status of one assignment: progress, hours, every task and every study
+    session in any week. Quote its numbers exactly; never add them up yourself.
+
+    Args:
+        assignment_id: Id of the assignment (from list_assignments).
+    """
+    status = await _call(tool_context, "GET", f"/assignments/{assignment_id}/status")
+    return {
+        key: status[key]
+        for key in (
+            "title",
+            "status",
+            "due_at",
+            "progress_percent",
+            "estimated_hours",
+            "completed_hours",
+            "remaining_hours",
+            "scheduled_hours",
+            "unscheduled_hours",
+            "tasks_total",
+            "tasks_done",
+            "tasks_open",
+            "tasks",
+            "study_sessions",
+        )
+        if key in status
+    }
+
+
 async def list_campus_events(tool_context: ToolContext, limit: int = 5) -> list[dict[str, Any]]:
     """Upcoming campus events ranked by how well they fit this student.
 
@@ -484,6 +514,7 @@ CAMPUSPULSE_TOOLS = [
     list_assignments,
     get_free_time,
     get_schedule,
+    get_assignment_status,
     list_campus_events,
     search_knowledge,
     propose_assignment_import,
