@@ -241,3 +241,11 @@ def test_adk_server_gateway_yields_steps_before_the_reply() -> None:
 
     names = asyncio.run(kinds())
     assert names[-1] == "AgentReply" and set(names[:-1]) == {"AgentStep"} and len(names) > 1
+
+
+def test_the_agent_is_told_the_current_time(student: TestClient, gateway: FakeGateway) -> None:
+    student.post("/api/v1/agent/chat", json={"message": "plan my gym tomorrow"})
+    sent = gateway.calls[0]["message"]
+    assert sent.startswith("(Now it is ") and sent.endswith("plan my gym tomorrow")
+    runs = student.get("/api/v1/agent/activity").json()["runs"]
+    assert runs[0]["title"] == "plan my gym tomorrow"

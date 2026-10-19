@@ -82,6 +82,13 @@ async def _gateway_stream(
     yield reply
 
 
+def _with_clock(session: Session, actor: AuthenticatedUser, message: str) -> str:
+    """Tell the agent what day it is, so "tomorrow" and "this week" mean something."""
+    if "Now it is" in message:
+        return message
+    return f"({insight_agent.today_prompt_context(session, actor)})\n{message}"
+
+
 async def stream_chat(
     session: Session,
     actor: AuthenticatedUser,
@@ -100,7 +107,7 @@ async def stream_chat(
             gateway,
             user_id=str(actor.user.id),
             session_id=payload.session_id,
-            message=payload.message,
+            message=_with_clock(session, actor, payload.message),
             agent_token=mint_agent_token(actor, settings, secret),
         ):
             if isinstance(item, AgentReply):
