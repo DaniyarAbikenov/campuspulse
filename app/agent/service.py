@@ -201,9 +201,10 @@ async def chat(
 ANALYSIS_PROMPT = (
     "Analyze assignment {assignment_id} for the student and propose a task plan: read it with "
     "get_assignment_text, quote every requirement exactly with its page, create 5 to 8 tasks of "
-    "1 to 3 hours, link an earlier assignment it extends (look at all assignments, including "
-    "completed ones), calibrate estimates with get_study_statistics and call propose_task_plan "
-    "once. Finish with a one-sentence summary."
+    "1 to 3 hours (if the brief states how long the work should take, make the estimates add "
+    "up to that figure within 10%), link an earlier assignment it extends (look at all "
+    "assignments, including completed ones), calibrate estimates with get_study_statistics and "
+    "call propose_task_plan once. Finish with a one-sentence summary."
 )
 
 

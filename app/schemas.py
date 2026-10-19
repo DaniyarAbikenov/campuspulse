@@ -226,6 +226,40 @@ class AssignmentRead(AssignmentCreate, EntityRead):
     owner_user_id: UUID
 
 
+class StatusTaskRead(StrictSchema):
+    id: UUID
+    title: str
+    status: TaskStatus
+    estimated_hours: StrictFloat
+    scheduled_hours: StrictFloat
+
+
+class StatusSessionRead(StrictSchema):
+    task_title: str | None
+    starts_at: datetime
+    ends_at: datetime
+
+
+class AssignmentStatusRead(StrictSchema):
+    """One authoritative snapshot of where an assignment stands; every figure comes from here."""
+
+    id: UUID
+    title: str
+    status: AssignmentStatus
+    due_at: datetime
+    progress_percent: StrictInt
+    estimated_hours: StrictFloat
+    completed_hours: StrictFloat
+    remaining_hours: StrictFloat
+    scheduled_hours: StrictFloat
+    unscheduled_hours: StrictFloat
+    tasks_total: StrictInt
+    tasks_done: StrictInt
+    tasks_open: StrictInt
+    tasks: list[StatusTaskRead]
+    study_sessions: list[StatusSessionRead]
+
+
 class AssignmentChangeRead(StrictSchema):
     assignment: AssignmentRead
     removed_tasks: StrictInt

@@ -76,6 +76,7 @@ def sync_assignment_progress(session: Session, assignment_id: UUID) -> None:
         return
     done = sum(task.status == models.TaskStatus.completed for task in tasks)
     assignment.progress = round(done * 100 / len(tasks))
+    assignment.estimated_hours = round(sum(task.estimated_hours for task in tasks), 2)
     started = any(
         task.status != models.TaskStatus.todo and task.status != models.TaskStatus.backlog
         for task in tasks
@@ -783,3 +784,73 @@ def _user_timezone(session: Session, user: models.User) -> ZoneInfo:
 
 def _aware(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+def assignment_status(
+    session: Session, actor: AuthenticatedUser, assignment_id: UUID
+) -> schemas.AssignmentStatusRead:
+    from app.product import scheduling  # imported here: scheduling depends on this module
+
+    assignment = session.get(models.Assignment, assignment_id)
+    if assignment is None or not can_read(session, actor, assignment):
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    tasks = list(
+        session.scalars(
+            select(models.Task)
+            .where(models.Task.assignment_id == assignment_id)
+            .order_by(models.Task.created_at)
+        )
+    )
+    booked = scheduling.booked_hours_by_task(session, actor.user.id)
+    open_tasks = [task for task in tasks if task.status != models.TaskStatus.completed]
+    sessions = [
+        event
+        for event in session.scalars(
+            select(models.ScheduleEvent)
+            .where(
+                models.ScheduleEvent.user_id == actor.user.id,
+                models.ScheduleEvent.task_id.in_([task.id for task in tasks]),
+            )
+            .order_by(models.ScheduleEvent.starts_at)
+        )
+    ]
+    by_id = {task.id: task for task in tasks}
+    return schemas.AssignmentStatusRead(
+        id=assignment.id,
+        title=assignment.title,
+        status=assignment.status,
+        due_at=assignment.due_at,
+        progress_percent=assignment.progress,
+        estimated_hours=float(assignment.estimated_hours),
+        completed_hours=float(
+            round(
+                sum(t.estimated_hours for t in tasks if t.status == models.TaskStatus.completed), 2
+            )
+        ),
+        remaining_hours=float(remaining_for(session, assignment)),
+        scheduled_hours=float(
+            round(sum(min(booked.get(t.id, 0.0), t.estimated_hours) for t in open_tasks), 2)
+        ),
+        unscheduled_hours=float(unscheduled_for(session, [assignment])),
+        tasks_total=len(tasks),
+        tasks_done=len(tasks) - len(open_tasks),
+        tasks_open=len(open_tasks),
+        tasks=[
+            schemas.StatusTaskRead(
+                id=t.id,
+                title=t.title,
+                status=t.status,
+                estimated_hours=float(t.estimated_hours),
+                scheduled_hours=float(round(booked.get(t.id, 0.0), 2)),
+            )
+            for t in tasks
+        ],
+        study_sessions=[
+            schemas.StatusSessionRead(
+                task_title=by_id[e.task_id].title if e.task_id in by_id else None,
+                starts_at=e.starts_at,
+                ends_at=e.ends_at,
+            )
+            for e in sessions
+        ],
+    )

@@ -726,3 +726,18 @@ def test_the_planner_places_a_quarter_hour_remainder(student: TestClient) -> Non
     plan = student.get(f"{API}/schedule/plan").json()
     mine = [s for s in plan["sessions"] if s["task_id"] == created["id"]]
     assert [s["hours"] for s in mine] == [0.25]
+
+
+def test_the_status_snapshot_agrees_with_the_board(student: TestClient) -> None:
+    assignment = make_assignment(student)
+    tasks = [add_task(student, assignment) for _ in range(4)]  # 1.5h each
+    student.patch(f"{API}/kanban/tasks/{tasks[0]}/move", json={"status": "completed"})
+    assert study_event(student, tasks[1], far_day(61), 1.0).status_code == 201
+    snapshot = student.get(f"{API}/assignments/{assignment}/status").json()
+    assert snapshot["tasks_total"] == 4 and snapshot["tasks_done"] == 1
+    assert snapshot["progress_percent"] == 25
+    assert snapshot["estimated_hours"] == 6.0 and snapshot["completed_hours"] == 1.5
+    assert snapshot["remaining_hours"] == 4.5
+    assert snapshot["scheduled_hours"] == 1.0 and snapshot["unscheduled_hours"] == 3.5
+    assert len(snapshot["study_sessions"]) == 1
+    assert student.get(f"{API}/assignments/{assignment}").json()["estimated_hours"] == 6.0

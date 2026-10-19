@@ -526,6 +526,18 @@ async def agent_chat_stream(
 
 
 @router.get(
+    "/assignments/{assignment_id}/status",
+    response_model=schemas.AssignmentStatusRead,
+    tags=["assignments"],
+)
+def assignment_status(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AssignmentStatusRead:
+    """Progress, hours, tasks and study sessions of one assignment, computed in one place."""
+    return service.assignment_status(session, current, assignment_id)
+
+
+@router.get(
     "/assignments/{assignment_id}/text",
     response_model=schemas.AssignmentTextRead,
     tags=["analysis"],
