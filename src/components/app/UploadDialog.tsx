@@ -26,6 +26,8 @@ import { addDays, todayCampus } from "@/lib/week";
 import { AnalysisProgress } from "./AnalysisProgress";
 import { TaskPlanReview } from "./TaskPlanReview";
 import { analyzeRemoteAssignment, type AgentStep, type TaskPlan } from "@/lib/api";
+import { applyStep, type TraceItem } from "@/lib/agentSteps";
+import { AgentTrace } from "@/components/app/AgentTrace";
 
 const steps = [
   "Reading PDF",
@@ -59,6 +61,7 @@ export function UploadDialog() {
   const [realRun, setRealRun] = useState(false);
   const [plan, setPlan] = useState<TaskPlan | null>(null);
   const [planSteps, setPlanSteps] = useState<AgentStep[]>([]);
+  const [liveSteps, setLiveSteps] = useState<TraceItem[]>([]);
   const [failure, setFailure] = useState("");
   // Live workspace: start empty with the student's first course; the offline demo keeps its sample.
   const [course, setCourse] = useState(backendConnected ? (courses[0]?.id ?? "") : "se");
@@ -76,6 +79,7 @@ export function UploadDialog() {
     setRealRun(false);
     setPlan(null);
     setPlanSteps([]);
+    setLiveSteps([]);
     setFailure("");
     setFile(null);
     setTitle("");
@@ -123,9 +127,10 @@ export function UploadDialog() {
           return;
         }
         setRealRun(true);
+        setLiveSteps([]);
         setPhase("running");
         try {
-          const result = await analyzeRemoteAssignment(uploaded.assignmentId);
+          const result = await analyzeRemoteAssignment(uploaded.assignmentId, (step) => setLiveSteps((items) => applyStep(items, step)));
           setPlan(result.plan);
           setPlanSteps(result.steps);
           setPhase("plan");
@@ -316,9 +321,9 @@ export function UploadDialog() {
         )}
 
         {phase === "running" && realRun ? (
-          <div role="status" aria-live="polite" className="flex items-center gap-3 py-6 text-[13px]">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
-            <span>{localize("Reading the document, extracting requirements and estimating tasks…", locale)}</span>
+          <div role="status" aria-live="polite" className="space-y-3 py-3 text-[13px]">
+            <p className="text-muted-foreground">{localize("Reading the document, extracting requirements and estimating tasks…", locale)}</p>
+            <AgentTrace items={liveSteps} live />
           </div>
         ) : null}
 

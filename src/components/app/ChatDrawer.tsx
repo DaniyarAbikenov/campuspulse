@@ -9,11 +9,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { weekTitle } from "@/lib/week";
 import { sendAgentMessage, type AgentStep } from "@/lib/api";
+import { applyStep, traceOf, type TraceItem } from "@/lib/agentSteps";
+import { AgentTrace } from "@/components/app/AgentTrace";
 
 interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[]; steps?: AgentStep[]; error?: boolean }
-
-const stepLabel = (step: AgentStep) =>
-  step.kind === "tool_call" ? `→ ${step.name}(${step.detail})` : step.kind === "tool_result" ? `← ${step.name}: ${step.detail}` : `… ${step.detail}`;
 
 const contextFor = (path: string, names: { assignments: { id: string; title: string }[]; courses: { id: string; name: string }[]; week: string }, live: boolean) => {
   if (!live) {
@@ -66,9 +65,10 @@ export function ChatDrawer() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [liveSteps, setLiveSteps] = useState<TraceItem[]>([]);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
+  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing, liveSteps]);
   const useAgent = agentEnabled && role === "student";
 
   const send = (q: string) => {
@@ -76,14 +76,15 @@ export function ChatDrawer() {
     setMsgs((m) => [...m, { role: "user", text: q }]);
     setInput("");
     setTyping(true);
+    setLiveSteps([]);
     if (useAgent) {
-      sendAgentMessage(`${q}\n\n(Context: the student is currently viewing "${contextFor(path, { assignments, courses, week: weekTitle(weekStart, "en") }, true)}".)`, sessionId)
+      sendAgentMessage(`${q}\n\n(Context: the student is currently viewing "${contextFor(path, { assignments, courses, week: weekTitle(weekStart, "en") }, true)}".)`, sessionId, (step) => setLiveSteps((items) => applyStep(items, step)))
         .then((reply) => {
           setSessionId(reply.sessionId);
           setMsgs((m) => [...m, { role: "ai", text: reply.reply || "The agent returned no answer.", steps: reply.steps }]);
         })
         .catch(() => setMsgs((m) => [...m, { role: "ai", text: "The agent is unavailable right now. Try again in a moment.", error: true }]))
-        .finally(() => setTyping(false));
+        .finally(() => { setTyping(false); setLiveSteps([]); });
       return;
     }
     setTimeout(() => { setMsgs((m) => [...m, role === "admin" ? { role: "ai", text: `Faculty demo: ${adminCourses.length} courses tracked in this view. Advanced Databases has the highest course overload risk at 22%. These are anonymised cohort aggregates, not individual student records.`, sources: ["Faculty course aggregates"] } : q.toLowerCase().match(/workload|overload|week/) ? { role: "ai", text: `Week 43: ${workload.required}h required, ${workload.available}h capacity, ${workload.scheduled}h scheduled and ${workload.unscheduled}h not yet scheduled.`, sources: ["Live workspace"] } : answer(q, tasksGenerated)]); setTyping(false); }, 900);
@@ -113,9 +114,7 @@ export function ChatDrawer() {
                   {m.steps?.length ? (
                     <details className="mb-2 rounded border bg-secondary/40 px-2 py-1 text-[11.5px] text-muted-foreground">
                       <summary className="cursor-pointer">{localize("Reasoning", locale)} · {m.steps.filter((s) => s.kind === "tool_call").length} {localize("tool calls", locale)}</summary>
-                      <ol className="mt-1 space-y-0.5 font-mono text-[10.5px]">
-                        {m.steps.map((s, n) => <li key={n} className="break-words">{stepLabel(s)}</li>)}
-                      </ol>
+                      <AgentTrace items={traceOf(m.steps)} className="mt-1.5" />
                     </details>
                   ) : null}
                   <p className={cn("leading-relaxed", m.error && "text-destructive")}>{localize(m.text, locale)}</p>
@@ -125,7 +124,12 @@ export function ChatDrawer() {
               ) : m.text, locale)}
             </div>
           )), locale)}
-          {localize(typing && <div className="flex gap-1 px-1">{localize([0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />), locale)}</div>, locale)}
+          {typing && useAgent ? (
+            <div className="max-w-[90%] rounded-lg border bg-card p-3" role="status" aria-live="polite">
+              <AgentTrace items={liveSteps} live />
+            </div>
+          ) : null}
+          {localize(typing && !useAgent && <div className="flex gap-1 px-1">{localize([0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />), locale)}</div>, locale)}
           <div ref={end} />
         </div>
         <div className="border-t p-3">

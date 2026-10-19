@@ -69,6 +69,7 @@ import {
   uploadRemoteAssignment,
   type RemoteSettings,
   type RemoteStatistics,
+  type AgentStep,
 } from "./api";
 
 type Role = "student" | "admin";
@@ -142,7 +143,7 @@ interface Store {
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
   reloadWorkspace: () => Promise<void>;
   agentEnabled: boolean;
-  refreshInsights: () => Promise<number>;
+  refreshInsights: (onStep?: (step: AgentStep) => void) => Promise<number>;
   /** Monday (YYYY-MM-DD) of the week shown on the schedule, workload and overview pages. */
   weekStart: string;
   /** Today in the campus time zone (YYYY-MM-DD). */
@@ -686,8 +687,8 @@ export function StoreProvider({
       setSettings(updated);
     },
     agentEnabled,
-    refreshInsights: async () => {
-      const result = await refreshRemoteInsights();
+    refreshInsights: async (onStep) => {
+      const result = await refreshRemoteInsights(onStep);
       await reloadWorkspaceRef.current();
       return result.count;
     },

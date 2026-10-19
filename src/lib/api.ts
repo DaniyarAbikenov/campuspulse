@@ -202,27 +202,105 @@ interface ApiInsight {
   action_type?: string;
 }
 
+/** Exchange the stored refresh token for a new access token; false when the session is gone. */
+async function refreshAccess(): Promise<boolean> {
+  if (!refreshToken) return false;
+  const refreshed = await fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (refreshed.ok) {
+    setTokens((await refreshed.json()) as { access_token: string; refresh_token: string });
+    return true;
+  }
+  clearTokens();
+  return false;
+}
+
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   if (init.body && !(init.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
-  if (response.status === 401 && retry && refreshToken) {
-    const refreshed = await fetch(`${API_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-    if (refreshed.ok) {
-      setTokens((await refreshed.json()) as { access_token: string; refresh_token: string });
-      return request<T>(path, init, false);
-    }
-    clearTokens();
-  }
+  if (response.status === 401 && retry && (await refreshAccess())) return request<T>(path, init, false);
   if (!response.ok)
     throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>);
+}
+
+/** One server-sent event: its name and parsed JSON payload. */
+export interface ServerEvent {
+  event: string;
+  data: unknown;
+}
+
+/** Splits a text/event-stream buffer into complete events; returns the unfinished remainder. */
+export function parseServerEvents(buffer: string): { events: ServerEvent[]; rest: string } {
+  const blocks = buffer.split(/\r?\n\r?\n/);
+  const rest = blocks.pop() ?? "";
+  const events: ServerEvent[] = [];
+  for (const block of blocks) {
+    let event = "message";
+    const data: string[] = [];
+    for (const line of block.split(/\r?\n/)) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+    }
+    if (!data.length) continue;
+    try {
+      events.push({ event, data: JSON.parse(data.join("\n")) });
+    } catch {
+      /* a malformed event is skipped rather than ending the run */
+    }
+  }
+  return { events, rest };
+}
+
+/**
+ * POST to a streaming agent endpoint: `onStep` fires for each reasoning step the moment the
+ * agent produces it; resolves with the final result or rejects with the agent's error.
+ */
+async function streamRequest<T>(
+  path: string,
+  init: { body?: unknown },
+  onStep?: (step: AgentStep) => void,
+  retry = true,
+): Promise<T> {
+  const headers = new Headers({ Accept: "text/event-stream" });
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  if (init.body !== undefined) headers.set("Content-Type", "application/json");
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers,
+    ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+  });
+  if (response.status === 401 && retry && (await refreshAccess()))
+    return streamRequest<T>(path, init, onStep, false);
+  if (!response.ok || !response.body)
+    throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: T | undefined;
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const parsed = parseServerEvents(done ? `${buffer}\n\n` : buffer);
+    buffer = parsed.rest;
+    for (const { event, data } of parsed.events) {
+      if (event === "step") onStep?.(data as AgentStep);
+      else if (event === "done") result = data as T;
+      else if (event === "error") {
+        const failure = data as { status?: number; detail?: string };
+        throw new Error(`${failure.status ?? 502}: ${failure.detail ?? "The agent failed"}`);
+      }
+    }
+    if (done) break;
+  }
+  if (result === undefined) throw new Error("The agent stopped before it finished");
+  return result;
 }
 
 const COURSE_COLORS = ["bg-primary", "bg-info", "bg-warning", "bg-success", "bg-destructive"];
@@ -812,13 +890,12 @@ export const fetchAgentEnabled = async () =>
 export const sendAgentMessage = async (
   message: string,
   sessionId: string | null,
+  onStep?: (step: AgentStep) => void,
 ): Promise<AgentChatReply> => {
-  const reply = await request<{ session_id: string; reply: string; steps: AgentStep[] }>(
-    "/agent/chat",
-    {
-      method: "POST",
-      body: JSON.stringify({ message, ...(sessionId ? { session_id: sessionId } : {}) }),
-    },
+  const reply = await streamRequest<{ session_id: string; reply: string; steps: AgentStep[] }>(
+    "/agent/chat/stream",
+    { body: { message, ...(sessionId ? { session_id: sessionId } : {}) } },
+    onStep,
   );
   return { sessionId: reply.session_id, reply: reply.reply, steps: reply.steps };
 };
@@ -980,10 +1057,14 @@ const taskPlan = (raw: ApiTaskPlan): TaskPlan => ({
   })),
 });
 /** Asks the agent to read the uploaded brief; resolves with its proposed plan (30–90 s). */
-export async function analyzeRemoteAssignment(assignmentId: string) {
-  const result = await request<{ plan: ApiTaskPlan; steps: AgentStep[] }>(
-    `/assignments/${assignmentId}/analysis`,
-    { method: "POST" },
+export async function analyzeRemoteAssignment(
+  assignmentId: string,
+  onStep?: (step: AgentStep) => void,
+) {
+  const result = await streamRequest<{ plan: ApiTaskPlan; steps: AgentStep[] }>(
+    `/assignments/${assignmentId}/analysis/stream`,
+    {},
+    onStep,
   );
   return { plan: taskPlan(result.plan), steps: result.steps };
 }
@@ -1171,7 +1252,11 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
 }
 
 /** Asks the agent to review deadlines, workload and free time; resolves with the new insights. */
-export async function refreshRemoteInsights() {
-  const result = await request<{ created: unknown[]; steps: AgentStep[] }>("/insights/refresh", { method: "POST" });
+export async function refreshRemoteInsights(onStep?: (step: AgentStep) => void) {
+  const result = await streamRequest<{ created: unknown[]; steps: AgentStep[] }>(
+    "/insights/refresh/stream",
+    {},
+    onStep,
+  );
   return { count: result.created.length, steps: result.steps };
 }

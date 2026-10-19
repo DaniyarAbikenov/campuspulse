@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, Panel, PredictionNote, PriorityIndicator, SourceReference, StatusBadge } from "@/components/app/common";
 import { TaskPlanReview } from "@/components/app/TaskPlanReview";
+import { applyStep, type TraceItem } from "@/lib/agentSteps";
+import { AgentTrace } from "@/components/app/AgentTrace";
 import { analyzeRemoteAssignment, fetchAssignmentText, fetchTaskPlan, type AgentStep, type DocumentPage, type TaskPlan } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { courseOf, type Assignment, type Priority } from "@/lib/data";
@@ -48,6 +50,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
   const [pages, setPages] = useState<DocumentPage[] | null>(null);
   const [plan, setPlan] = useState<(TaskPlan & { status: string; createdAt: string }) | null>(null);
   const [steps, setSteps] = useState<AgentStep[]>([]);
+  const [liveSteps, setLiveSteps] = useState<TraceItem[]>([]);
   const [page, setPage] = useState(search.page ?? 1);
   const [openReq, setOpenReq] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -83,8 +86,9 @@ function AssignmentDetails({ a }: { a: Assignment }) {
   const analyze = async () => {
     if (!a.backendId) return;
     setAnalyzing(true);
+    setLiveSteps([]);
     try {
-      const result = await analyzeRemoteAssignment(a.backendId);
+      const result = await analyzeRemoteAssignment(a.backendId, (step) => setLiveSteps((items) => applyStep(items, step)));
       setPlan({ ...result.plan, status: "pending", createdAt: new Date().toISOString() });
       setSteps(result.steps);
       setReview(true);
@@ -231,7 +235,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
                 [localize("Last analyzed", locale), plan ? new Date(plan.createdAt).toLocaleString() : localize("Not analyzed", locale)],
               ].map(([label, value]) => <div key={label} className="flex justify-between"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium">{value}</dd></div>)}
             </dl>
-            {analyzing ? <p role="status" className="mt-3 flex items-center gap-2 text-[12px] text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {localize("The agent is reading the document…", locale)}</p> : null}
+            {analyzing ? <div role="status" className="mt-3 border-t pt-3"><AgentTrace items={liveSteps} live /></div> : null}
           </Panel>
         </div>
       </div>
