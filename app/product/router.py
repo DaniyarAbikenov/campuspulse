@@ -13,7 +13,7 @@ from app.auth.router import CurrentUserDep
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
-from app.product import service
+from app.product import campus, service
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -287,3 +287,46 @@ def apply_insight(
     insight_id: UUID, current: CurrentUserDep, session: SessionDep
 ) -> schemas.InsightApplyRead:
     return service.apply_insight(session, current, insight_id)
+
+
+@router.get("/knowledge", response_model=schemas.KnowledgeBaseRead, tags=["knowledge"])
+def knowledge(
+    current: CurrentUserDep, session: SessionDep, course_id: UUID | None = None
+) -> schemas.KnowledgeBaseRead:
+    return campus.knowledge_base(session, current, course_id=course_id)
+
+
+@router.get("/campus-events", response_model=list[schemas.CampusEventRead], tags=["events"])
+def campus_events(current: CurrentUserDep, session: SessionDep) -> list[schemas.CampusEventRead]:
+    return campus.campus_events(session, current)
+
+
+@router.patch(
+    "/campus-events/{event_id}/save", response_model=schemas.CampusEventRead, tags=["events"]
+)
+def save_campus_event(
+    event_id: UUID,
+    payload: schemas.CampusEventSaveRequest,
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> schemas.CampusEventRead:
+    return campus.save_campus_event(session, current, event_id, payload.saved)
+
+
+@router.get("/agent/activity", response_model=schemas.AgentActivityRead, tags=["agent"])
+def agent_activity(
+    current: CurrentUserDep, session: SessionDep, limit: Annotated[int, Query(ge=1, le=200)] = 50
+) -> schemas.AgentActivityRead:
+    return campus.agent_activity(session, current, limit=limit)
+
+
+@router.post(
+    "/agent/runs",
+    response_model=schemas.AgentRunRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["agent"],
+)
+def record_agent_run(
+    payload: schemas.AgentRunCreate, current: CurrentUserDep, session: SessionDep
+) -> schemas.AgentRunRead:
+    return campus.record_agent_run(session, current, payload)

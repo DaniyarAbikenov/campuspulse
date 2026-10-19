@@ -28,6 +28,262 @@ def merge_all(session: Session, entities: Iterable[models.Base]) -> None:
     session.flush()
 
 
+def _at(value: str) -> datetime:
+    return datetime.fromisoformat(value)
+
+
+def knowledge_fragments(
+    course_ids: dict[str, UUID], assignment_ids: dict[int, UUID]
+) -> list[models.Base]:
+    brief = [
+        (
+            "R1",
+            2,
+            "Implement JWT-based authentication.",
+            "Issue signed access tokens on successful login.",
+        ),
+        (
+            "R2",
+            2,
+            "Secure selected REST endpoints.",
+            "All /api/orders and /api/users endpoints must require a valid token.",
+        ),
+        (
+            "R3",
+            2,
+            "Add role-based authorization.",
+            "Support at least STUDENT and ADMIN roles. Only ADMIN may delete users.",
+        ),
+        (
+            "R4",
+            3,
+            "Implement token expiration handling.",
+            "Access tokens expire after 15 minutes; provide a refresh endpoint.",
+        ),
+        (
+            "R5",
+            3,
+            "Update existing user services.",
+            "Store BCrypt-hashed passwords in the existing User entity.",
+        ),
+        (
+            "R6",
+            4,
+            "Document authentication workflow.",
+            "Add a README section with a sequence diagram of login and refresh.",
+        ),
+    ]
+    fragments: list[models.Base] = [
+        models.DocumentFragment(
+            id=seed_id(910 + index),
+            document_id=seed_id(601),
+            assignment_id=assignment_ids[3],
+            page=page,
+            concept=concept,
+            text=text,
+            requirement_id=requirement,
+        )
+        for index, (requirement, page, concept, text) in enumerate(brief)
+    ]
+    lecture = [
+        (4, "OAuth2", "Authorization framework delegating access with scoped tokens."),
+        (11, "Tokens", "Access and refresh token lifetimes and rotation."),
+        (19, "CORS", "Browser cross-origin rules and allowed-origin configuration."),
+    ]
+    fragments.extend(
+        models.DocumentFragment(
+            id=seed_id(930 + index),
+            document_id=seed_id(602),
+            page=page,
+            concept=concept,
+            text=text,
+        )
+        for index, (page, concept, text) in enumerate(lecture)
+    )
+    return fragments
+
+
+def campus_events(institution_id: UUID, student_id: UUID) -> list[models.Base]:
+    rows = [
+        (
+            "AI Society Meetup: LLM Agents",
+            models.CampusEventCategory.tech,
+            "Main Hall C1",
+            "2026-10-22T16:00:00+05:00",
+            "2026-10-22T18:00:00+05:00",
+            94,
+            "Matches your SE coursework and fits Thursday after OS Lab.",
+        ),
+        (
+            "Career Fair — Software Roles",
+            models.CampusEventCategory.career,
+            "Expo Center",
+            "2026-10-23T13:00:00+05:00",
+            "2026-10-23T17:00:00+05:00",
+            82,
+            "Falls inside your Friday free slot.",
+        ),
+        (
+            "Hackathon Info Session",
+            models.CampusEventCategory.tech,
+            "Room B2.204",
+            "2026-10-19T13:15:00+05:00",
+            "2026-10-19T14:00:00+05:00",
+            76,
+            "Short session during your Monday free block.",
+        ),
+        (
+            "Database Systems Guest Lecture",
+            models.CampusEventCategory.academic,
+            "C1.204",
+            "2026-10-28T15:00:00+05:00",
+            "2026-10-28T16:30:00+05:00",
+            88,
+            "Directly supports your Advanced Databases midterm.",
+        ),
+        (
+            "Campus Volleyball Night",
+            models.CampusEventCategory.sports,
+            "Sports Complex",
+            "2026-10-24T18:00:00+05:00",
+            "2026-10-24T20:00:00+05:00",
+            61,
+            "Your Saturday has no academic workload.",
+        ),
+        (
+            "Academic Writing Workshop",
+            models.CampusEventCategory.academic,
+            "Library L2",
+            "2026-10-20T17:00:00+05:00",
+            "2026-10-20T18:30:00+05:00",
+            79,
+            "Helpful for the Research Methods report due Oct 26.",
+        ),
+    ]
+    entities: list[models.Base] = []
+    for index, (title, category, place, starts, ends, percent, reason) in enumerate(rows):
+        entities.append(
+            models.CampusEvent(
+                id=seed_id(940 + index),
+                institution_id=institution_id,
+                title=title,
+                category=category,
+                place=place,
+                starts_at=_at(starts),
+                ends_at=_at(ends),
+            )
+        )
+        entities.append(
+            models.CampusEventMatch(
+                id=seed_id(950 + index),
+                event_id=seed_id(940 + index),
+                user_id=student_id,
+                match_percent=percent,
+                reason=reason,
+            )
+        )
+    return entities
+
+
+def agent_history(student_id: UUID) -> list[models.Base]:
+    runs: list[
+        tuple[
+            models.AgentRunKind,
+            str,
+            str,
+            models.AgentRunStatus,
+            str,
+            list[tuple[str, dict[str, object], str]],
+        ]
+    ] = [
+        (
+            models.AgentRunKind.insight,
+            "New recommendation created",
+            "Workload warning for Oct 22–24",
+            models.AgentRunStatus.success,
+            "2026-10-19T09:46:00+05:00",
+            [
+                ("get_workload", {"week_start": "2026-10-19"}, "21.5h required vs 12h available"),
+                ("create_insight", {"category": "workload_warning"}, "Insight created"),
+            ],
+        ),
+        (
+            models.AgentRunKind.forecast,
+            "Workload forecast updated",
+            "Week 43 total: 21.5h required vs 12h available",
+            models.AgentRunStatus.warning,
+            "2026-10-19T09:45:00+05:00",
+            [("get_workload", {"week_start": "2026-10-19"}, "Overload on Wed and Thu")],
+        ),
+        (
+            models.AgentRunKind.dependency,
+            "Assignment dependency detected",
+            "SE Assignment 3 extends Assignment 2",
+            models.AgentRunStatus.success,
+            "2026-10-19T09:44:00+05:00",
+            [("search_documents", {"query": "Assignment 2"}, "Matched Assignment_2.pdf")],
+        ),
+        (
+            models.AgentRunKind.analysis,
+            "Assignment 3 analyzed",
+            "Assignment_3_Brief.pdf · 4 pages · 6 requirements",
+            models.AgentRunStatus.success,
+            "2026-10-19T09:42:00+05:00",
+            [("read_document", {"document": "Assignment_3_Brief.pdf"}, "6 requirements extracted")],
+        ),
+        (
+            models.AgentRunKind.indexed,
+            "Lecture 7 indexed",
+            "Software Engineering · Lecture_07_Authentication.pdf",
+            models.AgentRunStatus.success,
+            "2026-10-19T08:15:00+05:00",
+            [
+                (
+                    "read_document",
+                    {"document": "Lecture_07_Authentication.pdf"},
+                    "3 concepts indexed",
+                )
+            ],
+        ),
+        (
+            models.AgentRunKind.schedule,
+            "Timetable synchronized",
+            "Week 43 · 11 sessions",
+            models.AgentRunStatus.success,
+            "2026-10-19T07:30:00+05:00",
+            [("sync_timetable", {"week": 43}, "11 sessions imported")],
+        ),
+    ]
+    entities: list[models.Base] = []
+    for index, (kind, title, detail, run_status, started, calls) in enumerate(runs):
+        started_at = _at(started)
+        entities.append(
+            models.AgentRun(
+                id=seed_id(960 + index),
+                user_id=student_id,
+                kind=kind,
+                title=title,
+                detail=detail,
+                status=run_status,
+                started_at=started_at,
+                finished_at=started_at,
+            )
+        )
+        entities.extend(
+            models.AgentToolCall(
+                id=seed_id(980 + index * 5 + position),
+                run_id=seed_id(960 + index),
+                position=position,
+                tool_name=name,
+                arguments=arguments,
+                result_summary=summary,
+                status=models.AgentRunStatus.success,
+            )
+            for position, (name, arguments, summary) in enumerate(calls)
+        )
+    return entities
+
+
 def seed_database(session: Session) -> SeedSummary:
     institution_id = seed_id(1)
     student_id = seed_id(10)
@@ -408,6 +664,10 @@ def seed_database(session: Session) -> SeedSummary:
             ),
         ],
     )
+
+    merge_all(session, knowledge_fragments(course_ids, assignment_ids))
+    merge_all(session, campus_events(institution_id, student_id))
+    merge_all(session, agent_history(student_id))
 
     merge_all(
         session,

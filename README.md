@@ -43,7 +43,9 @@ AI model calls, OCR/document parsing, vector search и MCP в backend пока �
 | Authorization | Role, UserRole, Enrollment |
 | Academic structure | Semester, Course |
 | Planning | Assignment, AssignmentRelation, Task, ScheduleEvent |
-| Content | Document |
+| Content | Document, DocumentFragment |
+| Campus | CampusEvent, CampusEventMatch |
+| Agent | AgentRun, AgentToolCall |
 | Product | UserSettings, Insight |
 | Audit | AuditEvent |
 
@@ -81,6 +83,9 @@ Google flow подробно описан в [`docs/authentication.md`](docs/aut
 | Move card | `PATCH /api/v1/kanban/tasks/{id}/move` |
 | Workload | `GET /api/v1/workload` |
 | Statistics | `GET /api/v1/statistics` |
+| Knowledge | `GET /api/v1/knowledge` |
+| Campus events | `GET /api/v1/campus-events`, `PATCH /api/v1/campus-events/{id}/save` |
+| Agent activity | `GET /api/v1/agent/activity`, `POST /api/v1/agent/runs` |
 | Settings | `GET/PATCH /api/v1/settings` |
 | Insights | `GET/POST /api/v1/insights` |
 | Insight state | `PATCH /api/v1/insights/{id}` |

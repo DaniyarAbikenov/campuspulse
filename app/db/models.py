@@ -113,6 +113,32 @@ class InsightActionType(StrEnum):
     update_assignment = "update_assignment"
 
 
+class CampusEventCategory(StrEnum):
+    tech = "tech"
+    career = "career"
+    academic = "academic"
+    sports = "sports"
+    social = "social"
+
+
+class AgentRunKind(StrEnum):
+    analysis = "analysis"
+    task = "task"
+    dependency = "dependency"
+    forecast = "forecast"
+    insight = "insight"
+    indexed = "indexed"
+    schedule = "schedule"
+    chat = "chat"
+
+
+class AgentRunStatus(StrEnum):
+    running = "running"
+    success = "success"
+    warning = "warning"
+    failed = "failed"
+
+
 class Institution(TimestampMixin, Base):
     __tablename__ = "institutions"
 
@@ -453,3 +479,108 @@ class AuditEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, index=True
     )
+
+
+class DocumentFragment(TimestampMixin, Base):
+    """Indexed excerpt of a document; the unit a recommendation can cite as its source."""
+
+    __tablename__ = "document_fragments"
+    __table_args__ = (CheckConstraint("page >= 1", name="ck_document_fragment_page"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    assignment_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    page: Mapped[int] = mapped_column(Integer, default=1)
+    concept: Mapped[str] = mapped_column(String(160))
+    text: Mapped[str] = mapped_column(Text)
+    requirement_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class CampusEvent(TimestampMixin, Base):
+    __tablename__ = "campus_events"
+    __table_args__ = (CheckConstraint("ends_at > starts_at", name="ck_campus_event_range"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    institution_id: Mapped[UUID] = mapped_column(
+        ForeignKey("institutions.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(240))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[CampusEventCategory] = mapped_column(
+        SqlEnum(
+            CampusEventCategory,
+            native_enum=False,
+            create_constraint=True,
+            name="campus_event_category",
+        )
+    )
+    place: Mapped[str] = mapped_column(String(240))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CampusEventMatch(TimestampMixin, Base):
+    """Per-student relevance of a campus event with the reason shown to the user."""
+
+    __tablename__ = "campus_event_matches"
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", name="uq_campus_event_match_user"),
+        CheckConstraint("match_percent >= 0 AND match_percent <= 100", name="ck_event_match"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    event_id: Mapped[UUID] = mapped_column(
+        ForeignKey("campus_events.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    match_percent: Mapped[int] = mapped_column(Integer)
+    reason: Mapped[str] = mapped_column(Text)
+    is_saved: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+
+
+class AgentRun(TimestampMixin, Base):
+    """One visible unit of agent work; its tool calls form the reasoning trace."""
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[AgentRunKind] = mapped_column(
+        SqlEnum(AgentRunKind, native_enum=False, create_constraint=True, name="agent_run_kind")
+    )
+    title: Mapped[str] = mapped_column(String(240))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[AgentRunStatus] = mapped_column(
+        SqlEnum(AgentRunStatus, native_enum=False, create_constraint=True, name="agent_run_status"),
+        default=AgentRunStatus.success,
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AgentToolCall(TimestampMixin, Base):
+    __tablename__ = "agent_tool_calls"
+    __table_args__ = (
+        UniqueConstraint("run_id", "position", name="uq_agent_tool_call_position"),
+        CheckConstraint("position >= 0", name="ck_agent_tool_call_position"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("agent_runs.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    tool_name: Mapped[str] = mapped_column(String(120))
+    arguments: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[AgentRunStatus] = mapped_column(
+        SqlEnum(
+            AgentRunStatus, native_enum=False, create_constraint=True, name="agent_tool_status"
+        ),
+        default=AgentRunStatus.success,
+    )
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)

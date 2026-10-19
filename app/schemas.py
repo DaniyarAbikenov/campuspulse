@@ -14,9 +14,12 @@ from pydantic import (
 )
 
 from app.db.models import (
+    AgentRunKind,
+    AgentRunStatus,
     AssignmentRelationType,
     AssignmentStatus,
     AuditOutcome,
+    CampusEventCategory,
     Difficulty,
     DocumentKind,
     InsightActionType,
@@ -572,3 +575,90 @@ class InsightApplyRead(StrictSchema):
 class AssignmentUploadRead(StrictSchema):
     assignment: AssignmentRead
     document: DocumentRead
+
+
+class KnowledgeDocumentRead(StrictSchema):
+    id: UUID
+    course_id: UUID
+    assignment_id: UUID | None
+    name: str
+    kind: DocumentKind
+    page_count: StrictInt
+    indexed_at: datetime
+    concepts: list[str]
+
+
+class DocumentFragmentRead(StrictSchema):
+    id: UUID
+    document_id: UUID
+    assignment_id: UUID | None
+    page: StrictInt
+    concept: str
+    text: str
+    requirement_id: str | None
+
+
+class KnowledgeBaseRead(StrictSchema):
+    document_count: StrictInt
+    page_count: StrictInt
+    documents: list[KnowledgeDocumentRead]
+    fragments: list[DocumentFragmentRead]
+
+
+class CampusEventRead(StrictSchema):
+    id: UUID
+    title: str
+    description: str | None
+    category: CampusEventCategory
+    place: str
+    starts_at: datetime
+    ends_at: datetime
+    match_percent: StrictInt | None
+    reason: str | None
+    is_saved: StrictBool
+
+
+class CampusEventSaveRequest(StrictSchema):
+    saved: StrictBool
+
+
+class AgentToolCallBase(StrictSchema):
+    tool_name: Annotated[str, Field(min_length=1, max_length=120)]
+    arguments: dict[str, object] = Field(default_factory=dict)
+    result_summary: str | None = None
+    status: AgentRunStatus = AgentRunStatus.success
+    duration_ms: Annotated[StrictInt, Field(ge=0)] | None = None
+
+
+class AgentToolCallCreate(AgentToolCallBase):
+    pass
+
+
+class AgentToolCallRead(AgentToolCallBase):
+    id: UUID
+    position: StrictInt
+
+
+class AgentRunCreate(StrictSchema):
+    kind: AgentRunKind
+    title: ShortText
+    detail: str = ""
+    status: AgentRunStatus = AgentRunStatus.success
+    tool_calls: list[AgentToolCallCreate] = Field(default_factory=list, max_length=50)
+
+
+class AgentRunRead(StrictSchema):
+    id: UUID
+    kind: AgentRunKind
+    title: str
+    detail: str
+    status: AgentRunStatus
+    started_at: datetime
+    finished_at: datetime | None
+    tool_calls: list[AgentToolCallRead]
+
+
+class AgentActivityRead(StrictSchema):
+    total: StrictInt
+    tool_call_count: StrictInt
+    runs: list[AgentRunRead]
