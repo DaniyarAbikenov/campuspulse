@@ -280,6 +280,103 @@ async def propose_task_plan(
     }
 
 
+async def list_insights(tool_context: ToolContext) -> list[dict[str, Any]]:
+    """Insights already shown to the student, with their status, so you do not repeat them."""
+    rows = await _call(tool_context, "GET", "/insights")
+    return [
+        {"title": row["title"], "category": row["category"], "status": row["status"]}
+        for row in rows[:30]
+    ]
+
+
+async def list_open_tasks(tool_context: ToolContext, limit: int = 30) -> list[dict[str, Any]]:
+    """Tasks on the student's Kanban board that are not done, with ids for citing them.
+
+    Args:
+        limit: Maximum number of tasks to return.
+    """
+    board = await _call(tool_context, "GET", "/kanban")
+    tasks = [
+        {
+            "id": task["id"],
+            "title": task["title"],
+            "assignment_id": task["assignment_id"],
+            "status": task["status"],
+            "priority": task["priority"],
+            "estimated_hours": task["estimated_hours"],
+            "due_at": task["due_at"],
+        }
+        for column in board["columns"]
+        for task in column["tasks"]
+        if task["status"] != "completed"
+    ]
+    tasks.sort(key=lambda task: task["due_at"] or "9999")
+    return tasks[: max(1, min(limit, 60))]
+
+
+class InsightSource(BaseModel):
+    """Evidence for an insight. Records must be cited by id; figures need no id."""
+
+    kind: str = Field(description="assignment, task, document, workload or free_time")
+    label: str = Field(description="What the evidence shows, with its numbers")
+    ref_id: str | None = Field(default=None, description="Id of the assignment/task/document")
+
+
+class StudySession(BaseModel):
+    """A study block the student can add with one click. It must fit inside a free window."""
+
+    title: str
+    starts_at: str = Field(description="ISO 8601 with offset, in the future, inside a free window")
+    ends_at: str = Field(description="ISO 8601 with offset")
+    course_id: str | None = None
+    task_id: str | None = None
+
+
+class InsightItem(BaseModel):
+    category: str = Field(
+        description="workload_warning, deadline_conflict, schedule_opportunity, "
+        "study_preparation or assignment_analysis"
+    )
+    severity: str = Field(default="medium", description="low, medium or high")
+    title: str = Field(description="Short headline")
+    summary: str = Field(description="What is happening, one or two sentences")
+    reasoning: str = Field(description="Why it matters, with the concrete numbers and dates")
+    suggestion: str = Field(description="What the student should do")
+    confidence: int = Field(default=70, description="0-100")
+    sources: list[InsightSource] = Field(description="At least one; assignments and tasks by id")
+    study_session: StudySession | None = None
+
+
+async def propose_insights(
+    tool_context: ToolContext, insights: list[InsightItem]
+) -> dict[str, Any]:
+    """Save insights for the student to accept or dismiss. Call once with 2 to 5 insights.
+
+    Insights without a verifiable source are rejected, and a study_session that does not fit a
+    free window is kept as advice only.
+
+    Args:
+        insights: The insights, each with reasoning and sources.
+    """
+    try:
+        result = await _call(
+            tool_context,
+            "POST",
+            "/agent/insights",
+            json={"insights": [item.model_dump(exclude_none=True) for item in insights]},
+        )
+    except CampusPulseError as error:
+        return {"error": str(error), "hint": "Fix the problem described above and call again."}
+    return {
+        "saved": len(result["created"]),
+        "with_calendar_action": sum(
+            item["action_type"] == "create_study_session" for item in result["created"]
+        ),
+        "rejected": result["rejected"],
+        "next_step": "The student reviews them under AI Insights.",
+    }
+
+
 CAMPUSPULSE_TOOLS = [
     get_workload,
     list_assignments,
@@ -290,4 +387,7 @@ CAMPUSPULSE_TOOLS = [
     get_assignment_text,
     get_study_statistics,
     propose_task_plan,
+    list_insights,
+    list_open_tasks,
+    propose_insights,
 ]

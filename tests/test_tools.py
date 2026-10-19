@@ -110,6 +110,33 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
                     ],
                 },
             )
+        if path == "/api/v1/insights":
+            return httpx.Response(
+                200,
+                json=[
+                    {"title": "Old", "category": "workload_warning", "status": "dismissed", "x": 1}
+                ],
+            )
+        if path == "/api/v1/kanban":
+            task = {
+                "id": "t1",
+                "title": "Write",
+                "assignment_id": "a1",
+                "status": "todo",
+                "priority": "high",
+                "estimated_hours": 2,
+                "due_at": "2026-10-22T00:00:00Z",
+            }
+            done = {**task, "id": "t2", "status": "completed"}
+            return httpx.Response(200, json={"columns": [{"tasks": [task, done]}]})
+        if path == "/api/v1/agent/insights":
+            return httpx.Response(
+                201,
+                json={
+                    "created": [{"action_type": "create_study_session"}, {"action_type": "none"}],
+                    "rejected": [{"title": "x", "reason": "No verifiable source"}],
+                },
+            )
         if path == "/api/v1/imports/proposals":
             return httpx.Response(
                 201, json={"proposal": {"id": "p1", "items": [{}, {}]}, "skipped_existing": 1}
@@ -236,3 +263,30 @@ async def test_plan_errors_are_returned_to_the_model_so_it_can_retry(
     )
     result = await tools.propose_task_plan(context(), "a1", "s", [item])
     assert "422" in result["error"] and "quote" in result["error"] and "again" in result["hint"]
+
+
+async def test_insight_tools_return_what_the_model_needs(backend: list[httpx.Request]) -> None:
+    assert await tools.list_insights(context()) == [
+        {"title": "Old", "category": "workload_warning", "status": "dismissed"}
+    ]
+    open_tasks = await tools.list_open_tasks(context())
+    assert [task["id"] for task in open_tasks] == ["t1"]  # the completed one is skipped
+
+
+async def test_propose_insights_posts_sources_and_reports_the_outcome(
+    backend: list[httpx.Request],
+) -> None:
+    import json
+
+    item = tools.InsightItem(
+        category="workload_warning",
+        title="t",
+        summary="s",
+        reasoning="r",
+        suggestion="g",
+        sources=[tools.InsightSource(kind="assignment", label="A", ref_id="a1")],
+    )
+    result = await tools.propose_insights(context(), [item])
+    assert result["saved"] == 2 and result["with_calendar_action"] == 1
+    assert result["rejected"][0]["reason"] == "No verifiable source"
+    assert json.loads(backend[0].content)["insights"][0]["sources"][0]["ref_id"] == "a1"
