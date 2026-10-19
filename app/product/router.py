@@ -20,7 +20,17 @@ from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
 from app.documents import service as documents_service
-from app.product import admin, campus, imports, insight_agent, planner, plans, service
+from app.product import (
+    actions,
+    admin,
+    campus,
+    imports,
+    insight_agent,
+    manage,
+    planner,
+    plans,
+    service,
+)
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -81,6 +91,35 @@ def assignments_overview(
     )
 
 
+ALLOWED_UPLOADS = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+}
+
+
+async def _store_upload(
+    file: UploadFile, user_id: UUID, *, fallback: str
+) -> tuple[Path, Path, str]:
+    """Write an upload under the user's folder, enforcing the size limit."""
+    safe_name = Path(file.filename or fallback).name
+    relative_path = Path(str(user_id)) / f"{uuid4()}-{safe_name}"
+    destination = Path(settings.upload_directory) / relative_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    written = 0
+    try:
+        with destination.open("wb") as output:
+            while chunk := await file.read(1024 * 1024):
+                written += len(chunk)
+                if written > settings.max_upload_bytes:
+                    raise HTTPException(status_code=413, detail="File exceeds the 20 MB limit")
+                output.write(chunk)
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+    return destination, relative_path, safe_name
+
+
 @router.post(
     "/assignments/upload",
     response_model=schemas.AssignmentUploadRead,
@@ -97,11 +136,7 @@ async def upload_assignment(
     description: Annotated[str | None, Form()] = None,
     estimated_hours: Annotated[float, Form(ge=0, le=10_000)] = 0,
 ) -> schemas.AssignmentUploadRead:
-    if file.content_type not in {
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain",
-    }:
+    if file.content_type not in ALLOWED_UPLOADS:
         raise HTTPException(status_code=415, detail="Supported files are PDF, DOCX and TXT")
     assignment = models.Assignment(
         course_id=course_id,
@@ -113,18 +148,10 @@ async def upload_assignment(
     )
     require_write(session, current, assignment)
 
-    safe_name = Path(file.filename or "assignment").name
-    relative_path = Path(str(current.user.id)) / f"{uuid4()}-{safe_name}"
-    destination = Path(settings.upload_directory) / relative_path
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    written = 0
+    destination, relative_path, safe_name = await _store_upload(
+        file, current.user.id, fallback="assignment"
+    )
     try:
-        with destination.open("wb") as output:
-            while chunk := await file.read(1024 * 1024):
-                written += len(chunk)
-                if written > settings.max_upload_bytes:
-                    raise HTTPException(status_code=413, detail="File exceeds the 20 MB limit")
-                output.write(chunk)
         extraction, pages = await asyncio.to_thread(
             documents_service.extract, destination, file.content_type or ""
         )
@@ -666,3 +693,214 @@ async def refresh_insights_stream(
         ),
         schemas.InsightRefreshRead,
     )
+
+
+@router.delete(
+    "/assignments/{assignment_id}",
+    response_model=schemas.AssignmentChangeRead,
+    tags=["assignments"],
+)
+def delete_assignment(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AssignmentChangeRead:
+    """Delete an assignment with its tasks, study sessions, plans and uploaded brief."""
+    return manage.delete_assignment(session, current, assignment_id)
+
+
+@router.post(
+    "/assignments/{assignment_id}/cancel",
+    response_model=schemas.AssignmentChangeRead,
+    tags=["assignments"],
+)
+def cancel_assignment(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AssignmentChangeRead:
+    """Mark an assignment cancelled; its unfinished tasks and future study sessions go away."""
+    return manage.cancel_assignment(session, current, assignment_id)
+
+
+@router.post(
+    "/assignments/{assignment_id}/reopen",
+    response_model=schemas.AssignmentChangeRead,
+    tags=["assignments"],
+)
+def reopen_assignment(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AssignmentChangeRead:
+    return manage.reopen_assignment(session, current, assignment_id)
+
+
+@router.get("/schedule/series", response_model=list[schemas.ScheduleSeriesRead], tags=["schedule"])
+def list_schedule_series(
+    current: CurrentUserDep, session: SessionDep
+) -> list[schemas.ScheduleSeriesRead]:
+    return manage.list_series(session, current)
+
+
+@router.post(
+    "/schedule/series",
+    response_model=schemas.ScheduleSeriesRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["schedule"],
+)
+def create_schedule_series(
+    payload: schemas.ScheduleSeriesCreate, current: CurrentUserDep, session: SessionDep
+) -> schemas.ScheduleSeriesRead:
+    """A repeating activity or semester subject, expanded into calendar events."""
+    return manage.create_series(session, current, payload)
+
+
+@router.delete(
+    "/schedule/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["schedule"]
+)
+def delete_schedule_series(series_id: UUID, current: CurrentUserDep, session: SessionDep) -> None:
+    manage.delete_series(session, current, series_id)
+
+
+def _event_read(
+    session: Session, current: CurrentUserDep, event: models.CampusEvent
+) -> schemas.CampusEventRead:
+    return next(item for item in campus.campus_events(session, current) if item.id == event.id)
+
+
+@router.post(
+    "/campus-events",
+    response_model=schemas.CampusEventRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["events"],
+)
+def create_campus_event(
+    payload: schemas.CampusEventCreate, current: CurrentUserDep, session: SessionDep
+) -> schemas.CampusEventRead:
+    return _event_read(session, current, manage.create_campus_event(session, current, payload))
+
+
+@router.patch("/campus-events/{event_id}", response_model=schemas.CampusEventRead, tags=["events"])
+def update_campus_event(
+    event_id: UUID,
+    payload: schemas.CampusEventUpdate,
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> schemas.CampusEventRead:
+    return _event_read(
+        session, current, manage.update_campus_event(session, current, event_id, payload)
+    )
+
+
+@router.delete("/campus-events/{event_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["events"])
+def delete_campus_event(event_id: UUID, current: CurrentUserDep, session: SessionDep) -> None:
+    manage.delete_campus_event(session, current, event_id)
+
+
+def _material_read(
+    session: Session, current: CurrentUserDep, document: models.Document
+) -> schemas.KnowledgeDocumentRead:
+    knowledge = campus.knowledge_base(session, current, course_id=document.course_id)
+    return next(item for item in knowledge.documents if item.id == document.id)
+
+
+@router.post(
+    "/materials",
+    response_model=schemas.KnowledgeDocumentRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["knowledge"],
+)
+async def upload_material(
+    current: CurrentUserDep,
+    session: SessionDep,
+    file: Annotated[UploadFile, File()],
+    course_id: Annotated[UUID, Form()],
+    kind: Annotated[models.DocumentKind, Form()] = models.DocumentKind.lecture,
+    name: Annotated[str | None, Form(max_length=255)] = None,
+) -> schemas.KnowledgeDocumentRead:
+    """Add a lecture, syllabus or other material; its text is extracted and indexed."""
+    if file.content_type not in ALLOWED_UPLOADS:
+        raise HTTPException(status_code=415, detail="Supported files are PDF, DOCX and TXT")
+    if kind == models.DocumentKind.assignment:
+        raise HTTPException(status_code=422, detail="Assignment briefs are uploaded as assignments")
+    destination, relative_path, safe_name = await _store_upload(
+        file, current.user.id, fallback="material"
+    )
+    try:
+        _, pages = await asyncio.to_thread(
+            documents_service.extract, destination, file.content_type or ""
+        )
+        document = manage.create_material(
+            session,
+            current,
+            course_id=course_id,
+            kind=kind,
+            name=(name or "").strip() or safe_name,
+            storage_key=relative_path.as_posix(),
+            pages=pages,
+        )
+    except Exception:
+        session.rollback()
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        await file.close()
+    return _material_read(session, current, document)
+
+
+@router.patch(
+    "/materials/{document_id}", response_model=schemas.KnowledgeDocumentRead, tags=["knowledge"]
+)
+def update_material(
+    document_id: UUID,
+    payload: schemas.MaterialUpdate,
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> schemas.KnowledgeDocumentRead:
+    return _material_read(
+        session, current, manage.update_material(session, current, document_id, payload)
+    )
+
+
+@router.delete(
+    "/materials/{document_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["knowledge"]
+)
+def delete_material(document_id: UUID, current: CurrentUserDep, session: SessionDep) -> None:
+    manage.delete_material(session, current, document_id)
+
+
+@router.post(
+    "/agent/actions",
+    response_model=schemas.AgentActionResult,
+    status_code=status.HTTP_201_CREATED,
+    tags=["agent"],
+)
+def propose_agent_actions(
+    payload: schemas.AgentActionBatch, current: CurrentUserDep, session: SessionDep
+) -> schemas.AgentActionResult:
+    """Called by the agent: store changes for the student to confirm before anything happens."""
+    return actions.propose(session, current, payload)
+
+
+@router.get("/agent/actions", response_model=list[schemas.AgentActionRead], tags=["agent"])
+def pending_agent_actions(
+    current: CurrentUserDep, session: SessionDep
+) -> list[schemas.AgentActionRead]:
+    return actions.list_pending(session, current)
+
+
+@router.post(
+    "/agent/actions/{action_id}/apply",
+    response_model=schemas.AgentActionApplyRead,
+    tags=["agent"],
+)
+def apply_agent_action(
+    action_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AgentActionApplyRead:
+    return actions.apply(session, current, action_id)
+
+
+@router.post(
+    "/agent/actions/{action_id}/dismiss",
+    response_model=schemas.AgentActionRead,
+    tags=["agent"],
+)
+def dismiss_agent_action(
+    action_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AgentActionRead:
+    return actions.dismiss(session, current, action_id)

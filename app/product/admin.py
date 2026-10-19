@@ -106,7 +106,9 @@ def overview(
             for item in assignments
             if item.course_id == course.id and item.owner_user_id in students
         ]
-        open_items = [item for item in mine if item.status != models.AssignmentStatus.completed]
+        open_items = [
+            item for item in mine if item.status not in models.INACTIVE_ASSIGNMENT_STATUSES
+        ]
         visible = len(students) >= k
         done = [item for item in mine if item.status == models.AssignmentStatus.completed]
         done_owners = {item.owner_user_id for item in done}
@@ -154,7 +156,7 @@ def overview(
             else None,
             courses=len(courses),
             open_assignments=sum(
-                1 for item in assignments if item.status != models.AssignmentStatus.completed
+                1 for item in assignments if item.status not in models.INACTIVE_ASSIGNMENT_STATUSES
             ),
         ),
         courses=rows,
@@ -181,7 +183,7 @@ def _risk_percent(
             service.remaining_hours(item)
             for item in assignments
             if item.owner_user_id == student
-            and item.status != models.AssignmentStatus.completed
+            and item.status not in models.INACTIVE_ASSIGNMENT_STATUSES
             and now <= _aware(item.due_at) < horizon
         )
         if due > daily.get(student, DEFAULT_DAILY_HOURS) * 7:

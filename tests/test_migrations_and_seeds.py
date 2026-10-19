@@ -27,6 +27,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
     run_module("alembic", database_url, "upgrade", "head")
     engine = create_engine(database_url)
     expected_tables = {
+        "agent_actions",
         "agent_runs",
         "agent_tool_calls",
         "alembic_version",
@@ -47,6 +48,7 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "institutions",
         "roles",
         "schedule_events",
+        "schedule_series",
         "semesters",
         "task_plan_items",
         "task_plans",

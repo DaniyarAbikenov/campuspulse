@@ -49,7 +49,7 @@ def plan_week(
         if (
             assignment is None
             or assignment.owner_user_id != actor.user.id
-            or assignment.status == models.AssignmentStatus.completed
+            or assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES
             or not can_read(session, actor, task)
         ):
             continue

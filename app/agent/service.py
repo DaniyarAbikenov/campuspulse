@@ -19,7 +19,7 @@ from app.auth.service import AuthenticatedUser
 from app.auth.tokens import create_access_token
 from app.core.config import Settings
 from app.db import models
-from app.product import campus, insight_agent, plans
+from app.product import actions, campus, insight_agent, plans
 
 
 def mint_agent_token(actor: AuthenticatedUser, settings: Settings, secret: str) -> str:
@@ -93,6 +93,7 @@ async def stream_chat(
 ) -> AsyncIterator[schemas.AgentChatStepRead | schemas.AgentChatRead]:
     """Yield each reasoning step live, then the recorded chat result."""
     title = payload.message.strip().replace("\n", " ")[:120]
+    started: datetime = models.utc_now()
     reply: AgentReply | None = None
     try:
         async for item in _gateway_stream(
@@ -136,7 +137,15 @@ async def stream_chat(
         reply=reply.text,
         run_id=run.id,
         steps=[step_read(step) for step in reply.steps],
+        actions=_proposed_actions(session, actor, started),
     )
+
+
+def _proposed_actions(
+    session: Session, actor: AuthenticatedUser, since: datetime
+) -> list[schemas.AgentActionRead]:
+    session.expire_all()  # the agent saved them through its own request
+    return actions.pending_since(session, actor, since)
 
 
 Result = TypeVar("Result")

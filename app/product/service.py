@@ -14,7 +14,7 @@ from app.db import models
 
 
 def remaining_hours(assignment: models.Assignment) -> float:
-    if assignment.status == models.AssignmentStatus.completed:
+    if assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES:
         return 0.0
     return round(assignment.estimated_hours * (100 - assignment.progress) / 100, 2)
 
@@ -54,7 +54,7 @@ def course_summaries(
         open_assignments = [
             assignment
             for assignment in assignments
-            if assignment.status != models.AssignmentStatus.completed
+            if assignment.status not in models.INACTIVE_ASSIGNMENT_STATUSES
         ]
         if has_open_assignments is not None and bool(open_assignments) != has_open_assignments:
             continue
@@ -179,7 +179,7 @@ def schedule_week(
                 models.Assignment.owner_user_id == actor.user.id,
                 models.Assignment.due_at >= start_at,
                 models.Assignment.due_at < end_at,
-                models.Assignment.status != models.AssignmentStatus.completed,
+                models.Assignment.status.not_in(models.INACTIVE_ASSIGNMENT_STATUSES),
             )
         ).all()
         if can_read(session, actor, item)
@@ -270,7 +270,7 @@ def workload(
         for item in session.scalars(
             select(models.Assignment).where(
                 models.Assignment.owner_user_id == actor.user.id,
-                models.Assignment.status != models.AssignmentStatus.completed,
+                models.Assignment.status.not_in(models.INACTIVE_ASSIGNMENT_STATUSES),
             )
         ).all()
         if can_read(session, actor, item)

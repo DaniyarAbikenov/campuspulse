@@ -22,6 +22,7 @@ from app.db.session import SessionLocal
 
 # Children before parents, so the order is correct even without ON DELETE CASCADE.
 ACADEMIC_TABLES: list[type[models.Base]] = [
+    models.AgentAction,
     models.AgentToolCall,
     models.AgentRun,
     models.ImportItem,
@@ -30,6 +31,7 @@ ACADEMIC_TABLES: list[type[models.Base]] = [
     models.TaskPlan,
     models.Insight,
     models.ScheduleEvent,
+    models.ScheduleSeries,
     models.CampusEventMatch,
     models.CampusEvent,
     models.DocumentFragment,

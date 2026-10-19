@@ -9,6 +9,7 @@ from app import schemas
 from app.auth.authorization import can_read
 from app.auth.service import AuthenticatedUser
 from app.db import models
+from app.product.manage import can_manage_event
 
 
 def knowledge_base(
@@ -93,6 +94,7 @@ def campus_events(session: Session, actor: AuthenticatedUser) -> list[schemas.Ca
             match_percent=matches[event.id].match_percent if event.id in matches else None,
             reason=matches[event.id].reason if event.id in matches else None,
             is_saved=matches[event.id].is_saved if event.id in matches else False,
+            can_edit=can_manage_event(actor, event),
         )
         for event in session.scalars(query).all()
     ]
@@ -108,7 +110,19 @@ def save_campus_event(
         )
     )
     if match is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        event = session.get(models.CampusEvent, event_id)
+        if event is None or (
+            event.institution_id != actor.user.institution_id
+            and "platform_admin" not in actor.roles
+        ):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+        match = models.CampusEventMatch(
+            event_id=event_id,
+            user_id=actor.user.id,
+            match_percent=50,
+            reason="Added to your list by you.",
+        )
+        session.add(match)
     match.is_saved = saved
     session.commit()
     return next(item for item in campus_events(session, actor) if item.id == event_id)

@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 from app.db.models import (
+    AgentActionKind,
     AgentRunKind,
     AgentRunStatus,
     AssignmentRelationType,
@@ -225,6 +226,12 @@ class AssignmentRead(AssignmentCreate, EntityRead):
     owner_user_id: UUID
 
 
+class AssignmentChangeRead(StrictSchema):
+    assignment: AssignmentRead
+    removed_tasks: StrictInt
+    removed_sessions: StrictInt
+
+
 class AssignmentRelationCreate(StrictSchema):
     source_assignment_id: UUID
     target_assignment_id: UUID
@@ -338,7 +345,43 @@ class ScheduleEventUpdate(StrictSchema):
 
 
 class ScheduleEventRead(ScheduleEventCreate, EntityRead):
-    pass
+    series_id: UUID | None = None
+
+
+class ScheduleSeriesCreate(StrictSchema):
+    """A repeating activity or semester subject: weekdays 0 (Monday) to 6, times as HH:MM."""
+
+    title: ShortText
+    kind: Literal["personal", "class_session"] = "personal"
+    weekdays: Annotated[list[Annotated[StrictInt, Field(ge=0, le=6)]], Field(min_length=1)]
+    start: Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
+    end: Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
+    starts_on: date
+    ends_on: date | None = None
+    location: Annotated[str, Field(min_length=1, max_length=240)] | None = None
+    course_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_times(self) -> "ScheduleSeriesCreate":
+        if self.end <= self.start:
+            raise ValueError("end must be after start")
+        if self.ends_on is not None and self.ends_on < self.starts_on:
+            raise ValueError("ends_on must not be before starts_on")
+        return self
+
+
+class ScheduleSeriesRead(StrictSchema):
+    id: UUID
+    title: str
+    kind: ScheduleEventKind
+    weekdays: list[int]
+    start: str
+    end: str
+    starts_on: date
+    ends_on: date
+    location: str | None
+    course_id: UUID | None
+    occurrences: StrictInt
 
 
 class AuditEventCreate(StrictSchema):
@@ -657,6 +700,73 @@ class CampusEventRead(StrictSchema):
     match_percent: StrictInt | None
     reason: str | None
     is_saved: StrictBool
+    can_edit: StrictBool = False
+
+
+class CampusEventCreate(StrictSchema):
+    title: ShortText
+    description: Annotated[str, Field(max_length=4000)] | None = None
+    category: CampusEventCategory
+    place: ShortText
+    starts_at: datetime
+    ends_at: datetime
+
+    @model_validator(mode="after")
+    def validate_range(self) -> "CampusEventCreate":
+        if self.ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at")
+        return self
+
+
+class CampusEventUpdate(StrictSchema):
+    title: ShortText | None = None
+    description: Annotated[str, Field(max_length=4000)] | None = None
+    category: CampusEventCategory | None = None
+    place: ShortText | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+
+
+class MaterialUpdate(StrictSchema):
+    name: Annotated[str, Field(min_length=1, max_length=255)] | None = None
+    kind: DocumentKind | None = None
+    course_id: UUID | None = None
+
+
+class AgentActionCreate(StrictSchema):
+    kind: AgentActionKind
+    title: ShortText
+    summary: Annotated[str, Field(max_length=1000)] = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentActionBatch(StrictSchema):
+    actions: Annotated[list[AgentActionCreate], Field(min_length=1, max_length=5)]
+
+
+class AgentActionRead(StrictSchema):
+    id: UUID
+    kind: AgentActionKind
+    title: str
+    summary: str
+    payload: dict[str, Any]
+    status: PlanStatus
+    created_at: datetime
+
+
+class AgentActionRejected(StrictSchema):
+    title: str
+    reason: str
+
+
+class AgentActionResult(StrictSchema):
+    created: list[AgentActionRead]
+    rejected: list[AgentActionRejected]
+
+
+class AgentActionApplyRead(StrictSchema):
+    action: AgentActionRead
+    detail: str
 
 
 class CampusEventSaveRequest(StrictSchema):
@@ -779,6 +889,7 @@ class AgentChatRead(StrictSchema):
     reply: str
     run_id: UUID
     steps: list[AgentChatStepRead]
+    actions: list[AgentActionRead] = Field(default_factory=list)
 
 
 class AgentStatusRead(StrictSchema):

@@ -45,6 +45,11 @@ class AssignmentStatus(StrEnum):
     todo = "todo"
     in_progress = "in_progress"
     completed = "completed"
+    cancelled = "cancelled"
+
+
+# Assignments that no longer count as open work, deadlines or workload.
+INACTIVE_ASSIGNMENT_STATUSES = frozenset({AssignmentStatus.completed, AssignmentStatus.cancelled})
 
 
 class Difficulty(StrEnum):
@@ -151,6 +156,14 @@ class PlanStatus(StrEnum):
     pending = "pending"
     applied = "applied"
     dismissed = "dismissed"
+
+
+class AgentActionKind(StrEnum):
+    create_study_session = "create_study_session"
+    create_calendar_activity = "create_calendar_activity"
+    create_task = "create_task"
+    update_task_status = "update_task_status"
+    cancel_assignment = "cancel_assignment"
 
 
 class Institution(TimestampMixin, Base):
@@ -435,6 +448,41 @@ class ScheduleEvent(TimestampMixin, Base):
     task_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    series_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("schedule_series.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+
+
+class ScheduleSeries(TimestampMixin, Base):
+    """A repeating activity (a workout, a job) or a semester subject; its occurrences are
+    materialised as schedule events so free time and workload treat them as busy."""
+
+    __tablename__ = "schedule_series"
+    __table_args__ = (
+        CheckConstraint("ends_on >= starts_on", name="ck_schedule_series_range"),
+        CheckConstraint("end_minute > start_minute", name="ck_schedule_series_time"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    course_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="SET NULL"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(String(240))
+    kind: Mapped[ScheduleEventKind] = mapped_column(
+        SqlEnum(
+            ScheduleEventKind,
+            native_enum=False,
+            create_constraint=True,
+            name="schedule_series_kind",
+        )
+    )
+    weekdays: Mapped[list[int]] = mapped_column(JSON)
+    start_minute: Mapped[int] = mapped_column(Integer)
+    end_minute: Mapped[int] = mapped_column(Integer)
+    starts_on: Mapped[date] = mapped_column(Date)
+    ends_on: Mapped[date] = mapped_column(Date)
+    location: Mapped[str | None] = mapped_column(String(240), nullable=True)
 
 
 class Insight(TimestampMixin, Base):
@@ -546,6 +594,9 @@ class CampusEvent(TimestampMixin, Base):
     place: Mapped[str] = mapped_column(String(240))
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class CampusEventMatch(TimestampMixin, Base):
@@ -715,3 +766,26 @@ class TaskPlanItem(TimestampMixin, Base):
     task_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
+
+
+class AgentAction(TimestampMixin, Base):
+    """A change the agent proposes in chat; nothing happens until the student applies it."""
+
+    __tablename__ = "agent_actions"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[AgentActionKind] = mapped_column(
+        SqlEnum(
+            AgentActionKind, native_enum=False, create_constraint=True, name="agent_action_kind"
+        )
+    )
+    title: Mapped[str] = mapped_column(String(240))
+    summary: Mapped[str] = mapped_column(Text, default="")
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    status: Mapped[PlanStatus] = mapped_column(
+        SqlEnum(PlanStatus, native_enum=False, create_constraint=True, name="agent_action_status"),
+        default=PlanStatus.pending,
+        index=True,
+    )
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
