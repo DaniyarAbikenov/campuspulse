@@ -25,9 +25,9 @@ campuspulse-backend  (FastAPI, PostgreSQL)  ──►  Vertex AI Agent Engine: c
 | Репозиторий | Роль |
 |---|---|
 | `campuspulse-frontend` | этот интерфейс |
-| [`campuspulse-backend`](https://github.com/DaniyarAbikenov/campuspulse-backend) | API, база, авторизация, шлюз к агенту |
-| [`campuspulse-agent`](https://github.com/DaniyarAbikenov/campuspulse-agent) | агент на Google ADK, деплой в Agent Engine |
-| [`campuspulse-mcp`](https://github.com/DaniyarAbikenov/campuspulse-mcp) | MCP-сервер Moodle (только чтение) |
+| [`backend`](../backend) | API, база, авторизация, шлюз к агенту |
+| [`agent`](../agent) | агент на Google ADK, деплой в Agent Engine |
+| [`mcp`](../mcp) | MCP-сервер Moodle (только чтение) |
 
 ## Что умеет интерфейс
 
@@ -68,7 +68,7 @@ Radix UI · Recharts · Sonner · Vitest + Testing Library · ESLint/Prettier.
 
 ## Быстрый старт
 
-Сначала запустите backend ([инструкция](https://github.com/DaniyarAbikenov/campuspulse-backend#readme)).
+Сначала запустите backend ([инструкция](../backend/README.md)).
 
 ```bash
 cp .env.example .env

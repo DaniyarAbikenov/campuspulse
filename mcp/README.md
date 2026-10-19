@@ -4,10 +4,9 @@ MCP (Model Context Protocol) servers that give the CampusPulse agent controlled 
 systems a student already uses. The first server is **Moodle**; GitHub and filesystem servers
 from the hackathon stack are consumed as-is and described in [`docs/design.md`](docs/design.md).
 
-The server is used by the CampusPulse agent ([`campuspulse-agent`](https://github.com/DaniyarAbikenov/campuspulse-agent))
+The server is used by the CampusPulse agent ([`agent`](../agent))
 over MCP streamable HTTP, and by any MCP client over stdio. Part of the CampusPulse system:
-[frontend](https://github.com/DaniyarAbikenov/pixel-true-design-recreation) ·
-[backend](https://github.com/DaniyarAbikenov/campuspulse-backend) · agent · this repository.
+[frontend](../frontend) · [backend](../backend) · [agent](../agent) · this module.
 
 Everything here is **read-only**: the agent can look at courses, deadlines and materials but can
 never submit work, change grades or write to Moodle.

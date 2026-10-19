@@ -29,7 +29,7 @@ Repository: https://github.com/DaniyarAbikenov/campuspulse-backend
 - Docker (dev с hot reload, production-образ для Cloud Run) и отдельный Compose для инфраструктуры.
 
 Реальных вызовов моделей из самого backend нет: он только передаёт сообщения агенту
-([`campuspulse-agent`](https://github.com/DaniyarAbikenov/campuspulse-agent)) и проверяет всё, что агент
+([`agent`](../agent)) и проверяет всё, что агент
 возвращает. OCR и векторный поиск не реализованы.
 
 ## Технологии
@@ -158,7 +158,7 @@ Compose переопределяет database URL на PostgreSQL и включ�
 
 ## AI-агент
 
-Backend не вызывает модель сам: он передаёт сообщение агенту ([`campuspulse-agent`](https://github.com/DaniyarAbikenov/campuspulse-agent),
+Backend не вызывает модель сам: он передаёт сообщение агенту ([`agent`](../agent),
 Gemini + Google ADK) и возвращает ответ вместе с трассой рассуждений (`thought`, `tool_call`,
 `tool_result`).
 
@@ -178,7 +178,7 @@ Gemini + Google ADK) и возвращает ответ вместе с трас
   - действия чата (`AgentAction`): ссылки на задания и задачи проверяются на принадлежность
     студенту при предложении и ещё раз при применении.
 - **Режимы.** `vertex` требует `pip install -e '.[agent]'` и доступ к Vertex AI;
-  `adk_server` — локальный `adk api_server` (см. `campuspulse-agent/scripts/run_local.sh`).
+  `adk_server` — локальный `adk api_server` (см. `agent/scripts/run_local.sh`).
 
 ## Запуск через Docker
 
@@ -276,7 +276,7 @@ CAMPUSPULSE_AGENT_RESOURCE=projects/.../reasoningEngines/...
 ```
 
 Подробный порядок (Cloud SQL, Moodle MCP, Agent Engine, права сервисного агента на секреты) описан
-в [`campuspulse-agent/docs/deployment.md`](https://github.com/DaniyarAbikenov/campuspulse-agent/blob/main/docs/deployment.md).
+в [`agent/docs/deployment.md`](../agent/docs/deployment.md).
 Миграция проверена на PostgreSQL (upgrade → downgrade → upgrade); автогенерируемые миграции
 нужно править вручную (дубли CHECK для enum, имена ограничений, `batch_alter_table` для SQLite).
 
