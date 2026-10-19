@@ -11,6 +11,7 @@ import {
   errorText,
 } from "@/lib/api";
 import { localize, useI18n } from "@/lib/i18n";
+import { StudyMaterial } from "@/components/app/StudyMaterial";
 import { AgentTrace } from "@/components/app/AgentTrace";
 import { traceOf } from "@/lib/agentSteps";
 
@@ -117,6 +118,7 @@ export function TaskPlanReview({
                       </span>
                     ) : null}
                   </div>
+                  <div className="mt-1.5"><StudyMaterial resources={item.resources} /></div>
                 </div>
                 <label className="flex shrink-0 items-center gap-1 text-[12px]">
                   <input

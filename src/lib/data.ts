@@ -62,6 +62,8 @@ export const findCourse = (id: string) => courses.find((c) => c.id === id) ?? ru
 export const courseOf = (id: string) => (() => { const course = findCourse(id); if (!course) throw new Error(`Unknown course: ${id}`); return course; })();
 export const assignmentOf = (id: string) => assignments.find((a) => a.id === id);
 
+export interface StudyResource { documentId: string; documentName: string; page: number; excerpt: string }
+
 export interface Task {
   id: string;
   backendId?: string;
@@ -75,6 +77,8 @@ export interface Task {
   column: "backlog" | "todo" | "progress" | "review" | "done";
   ai?: boolean;
   req?: string;
+  /** Passages from the student's own materials that help with this task. */
+  resources?: StudyResource[];
 }
 
 export const generatedTasks: Omit<Task, "id" | "column">[] = [

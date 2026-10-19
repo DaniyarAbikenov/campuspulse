@@ -8,6 +8,7 @@ import {
   type KnowledgeDoc,
   type Course,
   type Insight,
+  type StudyResource,
   type Task,
 } from "./data";
 import { currentLocale } from "./i18n";
@@ -94,7 +95,20 @@ interface ApiTask {
   status: string;
   is_ai_generated: boolean;
   source_requirement?: string | null;
+  resources?: ApiResource[];
 }
+interface ApiResource {
+  document_id: string;
+  document_name: string;
+  page: number;
+  excerpt: string;
+}
+const resourceOf = (item: ApiResource): StudyResource => ({
+  documentId: item.document_id,
+  documentName: item.document_name,
+  page: item.page,
+  excerpt: item.excerpt,
+});
 interface ApiKanban {
   columns: { tasks: ApiTask[] }[];
 }
@@ -634,6 +648,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
         ? { assignmentId: assignmentByBackend.get(item.assignment_id) ?? item.assignment_id }
         : {}),
       ...(item.source_requirement ? { req: item.source_requirement } : {}),
+      ...(item.resources?.length ? { resources: item.resources.map(resourceOf) } : {}),
     })),
   );
   const events = mapEvents(schedule.events, courseByBackend);
@@ -1100,6 +1115,7 @@ interface ApiPlanItem {
   estimated_hours: number;
   priority: string;
   selected: boolean;
+  resources?: ApiResource[];
 }
 interface ApiTaskPlan {
   id: string;
@@ -1122,6 +1138,7 @@ export interface PlanTask {
   estimatedHours: number;
   priority: string;
   selected: boolean;
+  resources?: StudyResource[];
 }
 export interface TaskPlan {
   id: string;
@@ -1149,6 +1166,7 @@ const taskPlan = (raw: ApiTaskPlan): TaskPlan => ({
     estimatedHours: item.estimated_hours,
     priority: item.priority,
     selected: item.selected,
+    resources: (item.resources ?? []).map(resourceOf),
   })),
 });
 /** Asks the agent to read the uploaded brief; resolves with its proposed plan (30–90 s). */
@@ -1615,3 +1633,26 @@ export const updateRemoteEvent = (
       ...(values.location ? { location: values.location } : {}),
     }),
   });
+
+export interface KnowledgeHit {
+  documentId: string;
+  documentName: string;
+  kind: string;
+  page: number;
+  excerpt: string;
+  score: number;
+}
+/** Passages of the student's materials that best match a question, ranked by meaning. */
+export async function searchKnowledge(query: string): Promise<KnowledgeHit[]> {
+  const hits = await request<
+    { document_id: string; document_name: string; kind: string; page: number; excerpt: string; score: number }[]
+  >(`/knowledge/search?q=${encodeURIComponent(query)}&limit=5`);
+  return hits.map((hit) => ({
+    documentId: hit.document_id,
+    documentName: hit.document_name,
+    kind: hit.kind,
+    page: hit.page,
+    excerpt: hit.excerpt,
+    score: hit.score,
+  }));
+}
