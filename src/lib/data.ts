@@ -112,6 +112,13 @@ export interface Insight {
   status: "New" | "Accepted" | "Applied" | "Dismissed" | "Snoozed";
   confidence: number;
   sources: string[];
+  /** Why the recommendation is made (agent-written insights). */
+  reasoning?: string;
+  /** Records and figures the recommendation rests on. */
+  evidence?: { kind: string; label: string; refId?: string }[];
+  generatedBy?: string;
+  /** True when accepting it can create something (for example a study session). */
+  applicable?: boolean;
 }
 
 export const initialInsights: Insight[] = [

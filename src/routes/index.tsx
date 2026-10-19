@@ -11,6 +11,7 @@ import { addDays, daysBetween, mondayOf, weekTitle, todayCampus } from "@/lib/we
 import { campusTime } from "@/lib/api";
 import { intlLocale } from "@/lib/i18n";
 import { WeekSwitcher } from "@/components/app/WeekSwitcher";
+import { RefreshInsightsButton } from "@/components/app/RefreshInsightsButton";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -100,6 +101,7 @@ function Overview() {
         <Link to="/insights" className="text-[12px] text-primary hover:underline">{localize("View all insights", locale)}</Link>
       </div>
       <div className="grid gap-2.5 lg:grid-cols-3">{localize(shown.map((i) => <InsightCard key={i.id} insight={i} compact />), locale)}</div>
+      {live && !shown.length ? <div className="panel flex flex-wrap items-center justify-between gap-3 p-4 text-[13px]"><span className="text-muted-foreground">{localize("No new insights. The agent can review your deadlines, workload and free time.", locale)}</span><RefreshInsightsButton variant="outline" /></div> : null}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1.85fr_1fr]">
         <Panel title={localize("Upcoming Assignments", locale)} subtitle={localize("Click a row to open the assignment", locale)} bodyClass="p-0" action={<Link to="/assignments" className="text-[12px] text-primary hover:underline">{localize("All", locale)}</Link>}>

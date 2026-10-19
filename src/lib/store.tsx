@@ -45,6 +45,7 @@ import {
   completeOnboardingRemote,
   fetchAgentEnabled,
   fetchFreeSlots,
+  refreshRemoteInsights,
   fetchAdminOverview,
   fetchWeekData,
   getApiWeek,
@@ -116,7 +117,7 @@ interface Store {
   };
   insights: Insight[];
   setInsightStatus: (id: string, s: Insight["status"]) => void;
-  applyInsight: (id: string) => void;
+  applyInsight: (id: string) => Promise<void>;
   activity: Activity[];
   knowledgeDocs: KnowledgeDoc[];
   documentFragments: DocumentFragment[];
@@ -141,6 +142,7 @@ interface Store {
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
   reloadWorkspace: () => Promise<void>;
   agentEnabled: boolean;
+  refreshInsights: () => Promise<number>;
   /** Monday (YYYY-MM-DD) of the week shown on the schedule, workload and overview pages. */
   weekStart: string;
   /** Today in the campus time zone (YYYY-MM-DD). */
@@ -191,6 +193,7 @@ export function StoreProvider({
   const [relations, setRelations] = useState<AssignmentRelation[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const [selectedWeek, setSelectedWeek] = useState(getApiWeek());
+  const reloadWorkspaceRef = useRef<() => Promise<void>>(async () => undefined);
   const [profile, setProfile] = useState<{ institution: string | null; semester: string | null }>({ institution: null, semester: null });
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
@@ -616,15 +619,21 @@ export function StoreProvider({
           console.warn("Insight sync failed", error),
         );
     },
-    applyInsight: (id) => {
+    applyInsight: async (id) => {
       const insight = insights.find((item) => item.id === id);
       setInsights((items) =>
         items.map((item) => (item.id === id ? { ...item, status: "Applied" } : item)),
       );
-      if (insight?.backendId)
-        void applyRemoteInsight(insight.backendId).catch((error) =>
-          console.warn("Insight apply failed", error),
+      if (!insight?.backendId) return;
+      try {
+        await applyRemoteInsight(insight.backendId);
+        await reloadWorkspaceRef.current();
+      } catch (error) {
+        setInsights((items) =>
+          items.map((item) => (item.id === id ? { ...item, status: insight.status } : item)),
         );
+        toast.error("Could not apply the recommendation", { description: String(error) });
+      }
     },
     activity,
     knowledgeDocs,
@@ -677,6 +686,11 @@ export function StoreProvider({
       setSettings(updated);
     },
     agentEnabled,
+    refreshInsights: async () => {
+      const result = await refreshRemoteInsights();
+      await reloadWorkspaceRef.current();
+      return result.count;
+    },
     weekStart: connection === "offline" ? FIXTURE_WEEK : selectedWeek,
     today: todayCampus(),
     profile,
@@ -736,6 +750,7 @@ export function StoreProvider({
       setRelations(workspace.relations);
       setFreeSlots(workspace.freeSlots);
       setEvents(workspace.events);
+      setInsights(workspace.insights);
       setRemoteWorkload(workspace.workload);
       setBaseDistribution(workspace.distribution);
     },
@@ -749,6 +764,7 @@ export function StoreProvider({
       return { assignmentId: created.assignmentId, extractionOk: created.extraction.status === "ok" };
     },
   };
+  reloadWorkspaceRef.current = value.reloadWorkspace;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

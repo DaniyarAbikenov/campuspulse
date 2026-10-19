@@ -196,6 +196,10 @@ interface ApiInsight {
   severity: string;
   status: string;
   cta: { label: string; action: string };
+  reasoning?: string;
+  evidence?: { kind: string; label: string; ref_id?: string | null }[];
+  generated_by?: string;
+  action_type?: string;
 }
 
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
@@ -509,12 +513,16 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
           item.severity
         ] ?? "Medium",
       courses: courseId ? [courseId] : [],
-      date: "Current week",
+      date: "Suggested for you",
       action: item.suggestion,
       primary: {
         label: item.cta.label,
         to: item.cta.action.startsWith("/") ? item.cta.action : "/insights",
       },
+      ...(item.reasoning ? { reasoning: item.reasoning } : {}),
+      evidence: (item.evidence ?? []).map((entry) => ({ kind: entry.kind, label: entry.label, ...(entry.ref_id ? { refId: entry.ref_id } : {}) })),
+      generatedBy: item.generated_by ?? "system",
+      applicable: (item.action_type ?? "none") !== "none",
       secondary: "Dismiss",
       status:
         (
@@ -527,7 +535,7 @@ export async function connectWorkspace(): Promise<WorkspaceData> {
           } as Record<string, Insight["status"]>
         )[item.status] ?? "New",
       confidence: item.confidence / 100,
-      sources: [],
+      sources: (item.evidence ?? []).map((entry) => entry.label),
     };
   });
   const weekday = new Intl.DateTimeFormat("en", { weekday: "short", timeZone: "UTC" });
@@ -1160,4 +1168,10 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
     highestRisk: raw.highest_risk_percent,
     activity: raw.activity,
   };
+}
+
+/** Asks the agent to review deadlines, workload and free time; resolves with the new insights. */
+export async function refreshRemoteInsights() {
+  const result = await request<{ created: unknown[]; steps: AgentStep[] }>("/insights/refresh", { method: "POST" });
+  return { count: result.created.length, steps: result.steps };
 }

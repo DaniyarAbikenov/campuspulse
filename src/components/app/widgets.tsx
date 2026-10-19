@@ -106,18 +106,41 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
         <span className="font-semibold text-ai">{localize("Suggested", locale)} </span>
         {localize(insight.action, locale)}
       </div>
+      {!compact && (insight.reasoning || insight.evidence?.length) ? (
+        <details className="mt-2 rounded-md border bg-card px-2 py-1.5 text-[11.5px]">
+          <summary className="cursor-pointer font-medium text-muted-foreground">{localize("Why am I seeing this?", locale)}</summary>
+          {insight.reasoning ? <p className="mt-1 leading-relaxed">{insight.reasoning}</p> : null}
+          {insight.evidence?.length ? (
+            <ul className="mt-1.5 space-y-0.5 text-muted-foreground">
+              {insight.evidence.map((entry, index) => (
+                <li key={`${entry.kind}-${index}`}>
+                  <span className="mr-1 rounded bg-secondary px-1 text-[10px] uppercase">{entry.kind.replace("_", " ")}</span>
+                  {entry.kind === "assignment" && entry.refId ? (
+                    <Link to="/assignments/$assignmentId" params={{ assignmentId: entry.refId }} className="text-primary hover:underline">{entry.label}</Link>
+                  ) : entry.label}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {insight.generatedBy === "agent" ? <p className="mt-1.5 text-[10.5px] text-muted-foreground">{localize("Written by the CampusPulse agent from your data. You decide whether to act on it.", locale)}</p> : null}
+        </details>
+      ) : null}
       <div className="mt-auto flex items-center gap-1.5 pt-2.5 flex-wrap">
         <Button
           size="sm"
           className="h-7 px-2.5 text-[12px]"
           onClick={() => {
             // Fixture insight "i2" (offline demo only) points at the prototype assignment.
+            if (insight.applicable && insight.status !== "Applied") {
+              void applyInsight(insight.id).then(() => toast.success(localize("Added to your calendar", locale)));
+              return;
+            }
             if (insight.id === "i2" && !insight.backendId)
               navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } });
             else navigate({ to: insight.primary.to });
           }}
         >
-          {localize(insight.primary.label, locale)}
+          {localize(insight.applicable && insight.status !== "Applied" ? "Add to calendar" : insight.primary.label, locale)}
         </Button>
         <Button
           disabled={insight.status === "Applied" && insight.secondary !== "Open Assignment"}
