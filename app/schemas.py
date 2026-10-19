@@ -307,6 +307,7 @@ class ScheduleEventCreate(StrictSchema):
     starts_at: datetime
     ends_at: datetime
     location: Annotated[str, Field(min_length=1, max_length=240)] | None = None
+    task_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_range(self) -> "ScheduleEventCreate":
@@ -323,6 +324,7 @@ class ScheduleEventUpdate(StrictSchema):
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     location: Annotated[str, Field(min_length=1, max_length=240)] | None = None
+    task_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_range(self) -> "ScheduleEventUpdate":
@@ -872,3 +874,35 @@ class TaskPlanApplyRead(StrictSchema):
 class AssignmentAnalysisRead(StrictSchema):
     plan: TaskPlanRead
     steps: list[AgentChatStepRead]
+
+
+class PlannedSessionRead(StrictSchema):
+    task_id: UUID
+    task_title: str
+    assignment_title: str
+    course_id: UUID
+    starts_at: datetime
+    ends_at: datetime
+    hours: StrictFloat
+
+
+class UnplacedTaskRead(StrictSchema):
+    task_id: UUID
+    task_title: str
+    assignment_title: str
+    due_at: datetime
+    hours: StrictFloat
+
+
+class StudyPlanRead(StrictSchema):
+    week_start: date
+    sessions: list[PlannedSessionRead]
+    unplaced: list[UnplacedTaskRead]
+    placed_hours: StrictFloat
+    unplaced_hours: StrictFloat
+    free_hours: StrictFloat
+
+
+class StudyPlanApplyRead(StrictSchema):
+    created: StrictInt
+    plan: StudyPlanRead

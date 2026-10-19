@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
 from app.documents import service as documents_service
-from app.product import campus, imports, plans, service
+from app.product import campus, imports, planner, plans, service
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -525,3 +525,18 @@ async def analyze_assignment(
         )
     except AgentUnavailableError as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+
+
+@router.get("/schedule/plan", response_model=schemas.StudyPlanRead, tags=["schedule"])
+def study_plan(
+    current: CurrentUserDep, session: SessionDep, week_start: date | None = None
+) -> schemas.StudyPlanRead:
+    """Preview: where the unscheduled work would go. Nothing is written."""
+    return planner.plan_week(session, current, week_start)
+
+
+@router.post("/schedule/plan/apply", response_model=schemas.StudyPlanApplyRead, tags=["schedule"])
+def apply_study_plan(
+    current: CurrentUserDep, session: SessionDep, week_start: date | None = None
+) -> schemas.StudyPlanApplyRead:
+    return planner.apply_plan(session, current, week_start)

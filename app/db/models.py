@@ -431,6 +431,9 @@ class ScheduleEvent(TimestampMixin, Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     location: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    task_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
 
 class Insight(TimestampMixin, Base):
