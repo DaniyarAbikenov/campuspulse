@@ -607,3 +607,80 @@ export const recordRemoteRun = (run: Omit<Activity, "id" | "time">) =>
       })),
     }),
   });
+
+interface ApiImportItem {
+  id: string;
+  external_id: string;
+  title: string;
+  description: string | null;
+  due_at: string;
+  external_course_code: string;
+  external_course_name: string;
+  course_id: string | null;
+  estimated_hours: number;
+  selected: boolean;
+  attachment_names: string[];
+}
+interface ApiImportProposal {
+  id: string;
+  source: string;
+  status: string;
+  items: ApiImportItem[];
+}
+export interface ImportItem {
+  id: string;
+  title: string;
+  description: string;
+  dueAt: string;
+  courseCode: string;
+  courseName: string;
+  /** Backend course id the assignment will be created in; null until the student chooses. */
+  courseId: string | null;
+  estimatedHours: number;
+  selected: boolean;
+  attachments: string[];
+}
+export interface ImportProposal {
+  id: string;
+  source: string;
+  items: ImportItem[];
+}
+const importProposal = (raw: ApiImportProposal): ImportProposal => ({
+  id: raw.id,
+  source: raw.source,
+  items: raw.items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description ?? "",
+    dueAt: item.due_at,
+    courseCode: item.external_course_code,
+    courseName: item.external_course_name,
+    courseId: item.course_id,
+    estimatedHours: item.estimated_hours,
+    selected: item.selected,
+    attachments: item.attachment_names,
+  })),
+});
+export const fetchImportProposals = async () =>
+  (await request<ApiImportProposal[]>("/imports/proposals?proposal_status=pending")).map(
+    importProposal,
+  );
+export const updateImportItem = (
+  proposalId: string,
+  itemId: string,
+  values: { selected?: boolean; courseId?: string; estimatedHours?: number },
+) =>
+  request(`/imports/proposals/${proposalId}/items/${itemId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      ...(values.selected === undefined ? {} : { selected: values.selected }),
+      ...(values.courseId === undefined ? {} : { course_id: values.courseId }),
+      ...(values.estimatedHours === undefined ? {} : { estimated_hours: values.estimatedHours }),
+    }),
+  });
+export const applyImportProposal = (id: string) =>
+  request<{ created: number; already_imported: number }>(`/imports/proposals/${id}/apply`, {
+    method: "POST",
+  });
+export const dismissImportProposal = (id: string) =>
+  request(`/imports/proposals/${id}/dismiss`, { method: "POST" });

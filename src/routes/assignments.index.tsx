@@ -6,6 +6,7 @@ import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel } from "@/components/app/common";
 import { AssignmentTable } from "@/components/app/widgets";
+import { ImportProposals } from "@/components/app/ImportProposals";
 import { useStore } from "@/lib/store";
 import { assignments } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ function Assignments() {
   return (
     <>
       <PageHeader title={localize("Assignments", locale)} subtitle={localize("Upload a brief and CampusPulse will extract requirements and plan the work.", locale)} actions={<Button size="sm" onClick={() => setUploadOpen(true)}><Upload className="h-3.5 w-3.5" /> {localize("Upload Assignment", locale)}</Button>} />
+      <ImportProposals />
       <div className="mb-3 flex flex-wrap gap-1">
         {localize(filters.map((x) => <Button variant="ghost" size="sm" aria-pressed={f === x} key={x} onClick={() => setF(x)} className={cn("rounded-md px-2.5 py-1 text-[12.5px]", f === x ? "bg-card font-medium shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground hover:text-foreground")}>{localize(x, locale)} <span className="text-muted-foreground">{localize(x === "All" ? assignments.length : assignments.filter((a) => a.status === x).length, locale)}</span></Button>), locale)}
       </div>

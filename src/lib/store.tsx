@@ -107,6 +107,7 @@ interface Store {
   setSidebarCollapsed: (c: boolean) => void;
   settings: RemoteSettings;
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
+  reloadWorkspace: () => Promise<void>;
   uploadAssignment: (input: {
     file: File;
     courseId: string;
@@ -553,6 +554,15 @@ export function StoreProvider({
     updateSettings: async (values) => {
       const updated = await updateRemoteSettings(values);
       setSettings(updated);
+    },
+    reloadWorkspace: async () => {
+      const workspace = await connectWorkspace();
+      setBaseCourses(workspace.courses);
+      setBaseAssignments(workspace.assignments);
+      setTasks(workspace.tasks);
+      setStatistics(workspace.statistics);
+      setRemoteWorkload(workspace.workload);
+      setBaseDistribution(workspace.distribution);
     },
     uploadAssignment: async (input) => {
       const course = baseCourses.find((item) => item.id === input.courseId);
