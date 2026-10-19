@@ -17,6 +17,16 @@ import {
   type Insight,
   type Activity,
   type CalEvent,
+  type CampusEvent,
+  type DocumentFragment,
+  type FreeSlot,
+  freeSlots as initialFreeSlots,
+  adminActivity as adminActivityFixture,
+  facultyCourseCatalog,
+  type KnowledgeDoc,
+  campusEvents as initialCampusEvents,
+  knowledgeDocs as initialKnowledgeDocs,
+  documentFragments as initialFragments,
   weekEvents,
   assignments as initialAssignments,
   courses as initialCourses,
@@ -24,28 +34,70 @@ import {
   demoClock,
   generatedStudySlots,
   summarizeCourses,
+  registerCourses,
   type Assignment,
   type Course,
 } from "./data";
+import { toast } from "sonner";
+import { signOutGoogle } from "./google-identity";
+import { FIXTURE_WEEK, todayCampus } from "./week";
 import {
+  completeOnboardingRemote,
+  fetchAgentEnabled,
+  fetchFreeSlots,
+  refreshRemoteInsights,
+  fetchAdminOverview,
+  fetchWeekData,
+  getApiWeek,
+  setApiWeek,
+  type AdminOverview,
+  type AssignmentRelation,
+  restoreSession,
+  signInDemo as signInDemoRemote,
+  signInWithGoogle as signInWithGoogleRemote,
+  signOutRemote,
+  type AuthState,
   applyRemoteInsight,
   connectWorkspace,
+  createRemoteEvent,
+  createRemoteTask,
+  recordRemoteRun,
+  saveRemoteEvent,
   moveRemoteTask,
   updateRemoteInsight,
   updateRemoteSettings,
   uploadRemoteAssignment,
   type RemoteSettings,
+  type RemoteStatistics,
+  type AgentStep,
+  errorText,
 } from "./api";
 
 type Role = "student" | "admin";
 
+export type ConnectionState = "connecting" | "online" | "offline";
+export type AuthStatus = "checking" | AuthState;
+
 interface Store {
   backendConnected: boolean;
+  connection: ConnectionState;
+  auth: AuthStatus;
+  signInWithGoogle: (credential: string) => Promise<void>;
+  signInDemo: () => Promise<void>;
+  completeOnboarding: (values: {
+    institutionId: string;
+    studentNumber: string;
+    program: string;
+    groupName?: string;
+    courseIds: string[];
+  }) => Promise<void>;
+  signOut: () => Promise<void>;
+  statistics: RemoteStatistics | null;
   role: Role;
   setRole: (r: Role) => void;
   tasks: Task[];
   moveTask: (id: string, column: Task["column"]) => void;
-  addTask: (t: Omit<Task, "id">) => void;
+  addTask: (t: Omit<Task, "id">) => Promise<void>;
   addGeneratedTasks: () => number;
   tasksGenerated: boolean;
   proposalApproved: boolean;
@@ -68,11 +120,16 @@ interface Store {
   };
   insights: Insight[];
   setInsightStatus: (id: string, s: Insight["status"]) => void;
-  applyInsight: (id: string) => void;
+  /** Resolves true when the change was made (always true for the offline demo). */
+  applyInsight: (id: string) => Promise<boolean>;
   activity: Activity[];
+  knowledgeDocs: KnowledgeDoc[];
+  documentFragments: DocumentFragment[];
+  campusEvents: CampusEvent[];
+  saveCampusEvent: (id: string, saved: boolean) => Promise<void>;
   log: (a: Omit<Activity, "id" | "time">) => void;
   events: CalEvent[];
-  addEvent: (e: Omit<CalEvent, "id">) => void;
+  addEvent: (e: Omit<CalEvent, "id">) => Promise<void>;
   chatOpen: boolean;
   setChatOpen: (o: boolean) => void;
   chatContext: string;
@@ -87,6 +144,26 @@ interface Store {
   setSidebarCollapsed: (c: boolean) => void;
   settings: RemoteSettings;
   updateSettings: (values: Partial<RemoteSettings>) => Promise<void>;
+  reloadWorkspace: () => Promise<void>;
+  agentEnabled: boolean;
+  refreshInsights: (onStep?: (step: AgentStep) => void) => Promise<number>;
+  /** Monday (YYYY-MM-DD) of the week shown on the schedule, workload and overview pages. */
+  weekStart: string;
+  /** Today in the campus time zone (YYYY-MM-DD). */
+  today: string;
+  selectWeek: (isoMonday: string) => Promise<void>;
+  profile: { institution: string | null; semester: string | null };
+  /** Backend roles of the signed-in user; the admin workspace needs an administrator role. */
+  roles: string[];
+  canAdminister: boolean;
+  adminOverview: AdminOverview | null;
+  adminError: string | null;
+  /** Anonymised faculty activity (counts only) or the offline demo feed. */
+  adminFeed: Activity[];
+  adminCourseOptions: { id: string; name: string; code: string }[];
+  loadAdminOverview: () => Promise<void>;
+  freeSlots: FreeSlot[];
+  relations: AssignmentRelation[];
   uploadAssignment: (input: {
     file: File;
     courseId: string;
@@ -94,7 +171,7 @@ interface Store {
     dueAt: string;
     description?: string;
     estimatedHours: number;
-  }) => Promise<void>;
+  }) => Promise<{ assignmentId: string; extractionOk: boolean }>;
 }
 
 // Fast Refresh can keep the mounted provider while re-evaluating this module.
@@ -113,7 +190,24 @@ export function StoreProvider({
   onRoleChange?: (role: Role) => void;
 }) {
   const [role, setRole] = useState<Role>("student");
-  const [backendConnected, setBackendConnected] = useState(false);
+  const [connection, setConnection] = useState<ConnectionState>("connecting");
+  const [auth, setAuth] = useState<AuthStatus>("checking");
+  const [agentEnabled, setAgentEnabled] = useState(false);
+  const [freeSlots, setFreeSlots] = useState<FreeSlot[]>(initialFreeSlots);
+  const [relations, setRelations] = useState<AssignmentRelation[]>([]);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState(getApiWeek());
+  const reloadWorkspaceRef = useRef<() => Promise<void>>(async () => undefined);
+  const [profile, setProfile] = useState<{ institution: string | null; semester: string | null }>({
+    institution: null,
+    semester: null,
+  });
+  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const backendConnected = connection === "online";
+  const connectionRef = useRef<ConnectionState>("connecting");
+  connectionRef.current = connection;
+  const [statistics, setStatistics] = useState<RemoteStatistics | null>(null);
   const [baseAssignments, setBaseAssignments] = useState<Assignment[]>(initialAssignments);
   const [baseCourses, setBaseCourses] = useState<Course[]>(initialCourses);
   const [baseDistribution, setBaseDistribution] = useState(weeklyWorkload);
@@ -150,6 +244,9 @@ export function StoreProvider({
   const [generatedScheduled, setGeneratedScheduled] = useState(false);
   const [insights, setInsights] = useState<Insight[]>(initialInsights);
   const [activity, setActivity] = useState<Activity[]>(initialActivity);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>(initialKnowledgeDocs);
+  const [documentFragments, setDocumentFragments] = useState<DocumentFragment[]>(initialFragments);
+  const [campusEvents, setCampusEvents] = useState<CampusEvent[]>(initialCampusEvents);
   const [events, setEvents] = useState<CalEvent[]>(weekEvents);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState("Overview");
@@ -158,32 +255,67 @@ export function StoreProvider({
   const [workloadPlanApplied, setWorkloadPlanApplied] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  /** Replace every piece of server-backed state with a fresh snapshot, so no screen is left stale. */
+  const applyWorkspace = useCallback((workspace: Awaited<ReturnType<typeof connectWorkspace>>) => {
+    setBaseCourses(workspace.courses);
+    setBaseAssignments(workspace.assignments);
+    setTasks(workspace.tasks);
+    setEvents(workspace.events);
+    setInsights(workspace.insights);
+    setBaseDistribution(workspace.distribution);
+    setRemoteWorkload(workspace.workload);
+    setSettings(workspace.settings);
+    setStatistics(workspace.statistics);
+    setKnowledgeDocs(workspace.knowledge.docs);
+    setDocumentFragments(workspace.knowledge.fragments);
+    setCampusEvents(workspace.campusEvents);
+    setActivity(workspace.activity);
+    setFreeSlots(workspace.freeSlots);
+    setRelations(workspace.relations);
+    setRoles(workspace.roles);
+    setProfile(workspace.profile);
+  }, []);
+
+  const hydrate = useCallback(async () => {
+    applyWorkspace(await connectWorkspace());
+    setSelectedWeek(getApiWeek());
+    setConnection("online");
+    fetchAgentEnabled()
+      .then(setAgentEnabled)
+      .catch(() => setAgentEnabled(false));
+  }, [applyWorkspace]);
+
+  const enter = useCallback(
+    async (state: AuthState) => {
+      setAuth(state);
+      if (state === "signed_in") await hydrate();
+      else setConnection("online");
+    },
+    [hydrate],
+  );
+
   useEffect(() => {
     let active = true;
-    connectWorkspace()
-      .then((workspace) => {
-        if (!active) return;
-        setBaseCourses(workspace.courses);
-        setBaseAssignments(workspace.assignments);
-        setTasks(workspace.tasks);
-        setEvents(workspace.events);
-        setInsights(workspace.insights);
-        setBaseDistribution(workspace.distribution);
-        setRemoteWorkload(workspace.workload);
-        setSettings(workspace.settings);
-        setBackendConnected(true);
-      })
+    restoreSession()
+      .then((state) => (active ? enter(state) : undefined))
       .catch((error: unknown) => {
-        console.warn("CampusPulse API is unavailable; using local demo data.", error);
-        setBackendConnected(false);
+        console.warn("CampusPulse API is unavailable; using local demo data.", errorText(error));
+        if (!active) return;
+        // Offline prototype mode keeps the fixture workspace usable without an account.
+        setAuth("signed_in");
+        setConnection("offline");
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [enter]);
 
   const log = useCallback((a: Omit<Activity, "id" | "time">) => {
     setActivity((prev) => [{ ...a, id: crypto.randomUUID(), time: now() }, ...prev]);
+    if (connectionRef.current === "online")
+      void recordRemoteRun(a).catch((error) =>
+        console.warn("Activity sync failed", errorText(error)),
+      );
   }, []);
 
   const addGeneratedTasks = useCallback(() => {
@@ -206,8 +338,11 @@ export function StoreProvider({
     return proposalTasks.length;
   }, [proposalTasks, log]);
 
+  // With a live backend its numbers are authoritative; the prototype adjustments below only
+  // keep the offline fixture workspace coherent.
+  const live = connection === "online";
   const liveAssignments = baseAssignments.map((assignment) => {
-    if (assignment.id !== "se-a3") return assignment;
+    if (live || assignment.id !== "se-a3") return assignment;
     const board = tasks.filter((task) => task.assignmentId === assignment.id);
     const done = board.filter((task) => task.column === "done").length;
     return {
@@ -221,7 +356,7 @@ export function StoreProvider({
           : "To Do") as Assignment["status"],
     };
   });
-  const liveCourses = summarizeCourses(liveAssignments).map((summary) => {
+  const catalogCourses = (live ? [] : summarizeCourses(liveAssignments)).map((summary) => {
     const remote = baseCourses.find((course) => course.id === summary.id);
     const course = remote
       ? {
@@ -233,7 +368,8 @@ export function StoreProvider({
           nextDeadline: summary.nextDeadline,
         }
       : summary;
-    return course.id === "se" &&
+    return !live &&
+      course.id === "se" &&
       liveAssignments.find((assignment) => assignment.id === "se-a3")?.status !== "Completed"
       ? {
           ...course,
@@ -245,20 +381,44 @@ export function StoreProvider({
         }
       : course;
   });
+  const catalogIds = new Set(catalogCourses.map((course) => course.id));
+  const extraCourses = baseCourses
+    .filter((course) => !catalogIds.has(course.id) && course.backendId)
+    .map((course) => {
+      const rows = liveAssignments.filter((assignment) => assignment.courseId === course.id);
+      const open = rows.filter((assignment) => assignment.status !== "Completed");
+      const upcoming = open.map((assignment) => assignment.deadline)[0];
+      return {
+        ...course,
+        docs: knowledgeDocs.filter((doc) => doc.courseId === course.id).length,
+        assignments: rows.length,
+        completed: rows.length - open.length,
+        progress: rows.length
+          ? Math.round(rows.reduce((sum, assignment) => sum + assignment.progress, 0) / rows.length)
+          : 0,
+        remaining: open.reduce((sum, assignment) => sum + assignment.estimate, 0),
+        nextDeadline: upcoming ?? "—",
+      };
+    });
+  const liveCourses = [...catalogCourses, ...extraCourses];
+  // Idempotent lookup table so course tags resolve backend-only courses during this render.
+  registerCourses(liveCourses);
   const proposalDelta = proposalTasks.reduce((sum, task) => sum + task.estimate, 0) - 8.5;
   const completedHours = tasks
     .filter((task) => task.column === "done" && task.ai)
     .reduce((sum, task) => sum + task.estimate, 0);
-  const distribution = baseDistribution.map((day, index) => ({
-    ...day,
-    required: Math.max(
-      0,
-      day.required +
-        (index === 2 ? proposalDelta : 0) -
-        (completedHours * day.required) / 21.5 +
-        (workloadPlanApplied ? (index === 0 ? 2 : index === 2 ? -2 : 0) : 0),
-    ),
-  }));
+  const distribution = live
+    ? baseDistribution
+    : baseDistribution.map((day, index) => ({
+        ...day,
+        required: Math.max(
+          0,
+          day.required +
+            (index === 2 ? proposalDelta : 0) -
+            (completedHours * day.required) / 21.5 +
+            (workloadPlanApplied ? (index === 0 ? 2 : index === 2 ? -2 : 0) : 0),
+        ),
+      }));
   const required = Math.round(distribution.reduce((sum, day) => sum + day.required, 0) * 100) / 100;
   const scheduledHours = events
     .filter(
@@ -270,6 +430,20 @@ export function StoreProvider({
 
   const value: Store = {
     backendConnected,
+    connection,
+    auth,
+    signInWithGoogle: async (credential) => enter(await signInWithGoogleRemote(credential)),
+    signInDemo: async () => enter(await signInDemoRemote()),
+    completeOnboarding: async (values) => {
+      await completeOnboardingRemote(values);
+      await enter("signed_in");
+    },
+    signOut: async () => {
+      await signOutRemote();
+      signOutGoogle();
+      window.location.reload();
+    },
+    statistics,
     role,
     setRole: (next) => {
       onRoleChange?.(next);
@@ -291,7 +465,8 @@ export function StoreProvider({
     distribution,
     workload:
       remoteWorkload && !workloadPlanApplied
-        ? remoteWorkload
+        ? // The by-course total always comes from the same course list the page draws.
+          { ...remoteWorkload, allRemaining: liveCourses.reduce((sum, course) => sum + course.remaining, 0) }
         : {
             required,
             available: baseDistribution.reduce((sum, day) => sum + day.available, 0),
@@ -409,14 +584,35 @@ export function StoreProvider({
       const task = tasks.find((item) => item.id === id);
       setTasks((p) => p.map((t) => (t.id === id ? { ...t, column } : t)));
       if (task?.backendId)
-        void moveRemoteTask(task.backendId, column).catch((error) =>
-          console.warn("Task sync failed", error),
-        );
+        void moveRemoteTask(task.backendId, column)
+          .then(() => reloadWorkspaceRef.current()) // progress of the assignment changes with it
+          .catch((error) => {
+            setTasks((p) => p.map((t) => (t.id === id ? { ...t, column: task.column } : t)));
+            toast.error("The task was not moved", { description: errorText(error) });
+          });
     },
-    addTask: (t) => setTasks((p) => [{ ...t, id: crypto.randomUUID() }, ...p]),
+    addTask: async (t) => {
+      const localId = crypto.randomUUID();
+      const assignment =
+        (t.assignmentId ? baseAssignments.find((item) => item.id === t.assignmentId) : undefined) ??
+        baseAssignments.find(
+          (item) => item.courseId === t.courseId && item.status !== "Completed" && item.backendId,
+        );
+      const task = { ...t, ...(assignment ? { assignmentId: assignment.id } : {}) };
+      setTasks((p) => [{ ...task, id: localId }, ...p]);
+      if (!backendConnected || !assignment?.backendId) return;
+      try {
+        const backendId = await createRemoteTask(task, assignment.backendId);
+        setTasks((p) => p.map((item) => (item.id === localId ? { ...item, backendId } : item)));
+        await reloadWorkspaceRef.current();
+      } catch (error) {
+        setTasks((p) => p.filter((item) => item.id !== localId));
+        toast.error("Task was not saved", { description: errorText(error) });
+      }
+    },
     addGeneratedTasks,
     insights: insights.map((insight) =>
-      insight.id === "i2"
+      !live && insight.id === "i2"
         ? {
             ...insight,
             description: `${proposalTasks.length} tasks · ${proposalTasks.reduce((sum, task) => sum + task.estimate, 0)}h · ${tasksGenerated ? (generatedScheduled ? "imported and scheduled" : "imported, not scheduled") : proposalApproved ? "approved, not imported" : "generated, not imported"}. Extends Assignment 2.`,
@@ -440,23 +636,67 @@ export function StoreProvider({
       setInsights((p) => p.map((i) => (i.id === id ? { ...i, status: s } : i)));
       if (insight?.backendId)
         void updateRemoteInsight(insight.backendId, s).catch((error) =>
-          console.warn("Insight sync failed", error),
+          console.warn("Insight sync failed", errorText(error)),
         );
     },
-    applyInsight: (id) => {
+    applyInsight: async (id) => {
       const insight = insights.find((item) => item.id === id);
       setInsights((items) =>
         items.map((item) => (item.id === id ? { ...item, status: "Applied" } : item)),
       );
-      if (insight?.backendId)
-        void applyRemoteInsight(insight.backendId).catch((error) =>
-          console.warn("Insight apply failed", error),
+      if (!insight?.backendId) return true;
+      try {
+        await applyRemoteInsight(insight.backendId);
+        await reloadWorkspaceRef.current();
+        return true;
+      } catch (error) {
+        setInsights((items) =>
+          items.map((item) => (item.id === id ? { ...item, status: insight.status } : item)),
         );
+        toast.error("Could not apply the recommendation", {
+          description: errorText(error),
+          duration: 10000,
+        });
+        void reloadWorkspaceRef.current().catch(() => undefined); // a failed suggestion may have become advice
+        return false;
+      }
     },
     activity,
+    knowledgeDocs,
+    documentFragments,
+    campusEvents,
+    saveCampusEvent: async (id, saved) => {
+      const event = campusEvents.find((item) => item.id === id);
+      setCampusEvents((items) => items.map((item) => (item.id === id ? { ...item, saved } : item)));
+      if (!event?.backendId || !backendConnected) return;
+      try {
+        await saveRemoteEvent(event.backendId, saved);
+      } catch (error) {
+        setCampusEvents((items) =>
+          items.map((item) => (item.id === id ? { ...item, saved: !saved } : item)),
+        );
+        toast.error("Event was not saved", { description: errorText(error) });
+      }
+    },
     log,
     events,
-    addEvent: (e) => setEvents((p) => [...p, { ...e, id: crypto.randomUUID() }]),
+    addEvent: async (e) => {
+      const localId = crypto.randomUUID();
+      setEvents((p) => [...p, { ...e, id: localId }]);
+      if (!backendConnected) return;
+      try {
+        const course = e.courseId ? baseCourses.find((item) => item.id === e.courseId) : undefined;
+        const backendId = await createRemoteEvent(e, course?.backendId);
+        setEvents((p) => p.map((item) => (item.id === localId ? { ...item, backendId } : item)));
+        // The backend recomputes the remaining free windows around the new session.
+        void fetchFreeSlots()
+          .then(setFreeSlots)
+          .catch(() => undefined);
+      } catch (error) {
+        setEvents((p) => p.filter((item) => item.id !== localId));
+        toast.error("Event was not saved", { description: errorText(error) });
+      }
+    },
     chatOpen,
     setChatOpen,
     chatContext,
@@ -473,15 +713,90 @@ export function StoreProvider({
       const updated = await updateRemoteSettings(values);
       setSettings(updated);
     },
+    agentEnabled,
+    refreshInsights: async (onStep) => {
+      const result = await refreshRemoteInsights(onStep);
+      await reloadWorkspaceRef.current();
+      return result.count;
+    },
+    weekStart: connection === "offline" ? FIXTURE_WEEK : selectedWeek,
+    today: todayCampus(),
+    profile,
+    selectWeek: async (isoMonday) => {
+      setApiWeek(isoMonday);
+      setSelectedWeek(isoMonday);
+      if (connectionRef.current !== "online") return;
+      try {
+        const week = await fetchWeekData(baseCourses);
+        if (getApiWeek() !== isoMonday) return; // a newer selection already replaced it
+        setEvents(week.events);
+        setBaseDistribution(week.distribution);
+        setRemoteWorkload(week.workload);
+        setFreeSlots(week.freeSlots);
+      } catch (error) {
+        toast.error("Could not load that week", { description: errorText(error) });
+      }
+    },
+    roles,
+    // The fixture demo (offline) keeps the admin switch; a live backend needs a real role.
+    canAdminister:
+      connection !== "online" ||
+      roles.some((r) => r === "academic_admin" || r === "platform_admin"),
+    adminOverview,
+    adminError,
+    adminFeed:
+      connection === "online" && adminOverview
+        ? adminOverview.activity.map((item) => ({
+            id: item.kind,
+            time: "7 days",
+            title: item.title,
+            detail:
+              item.count === null
+                ? `Fewer than ${adminOverview.minCohort} students: withheld`
+                : `${item.count} in the last 7 days`,
+            kind: item.kind as Activity["kind"],
+            status: "success" as const,
+          }))
+        : connection === "online"
+          ? []
+          : adminActivityFixture,
+    adminCourseOptions:
+      connection === "online" && adminOverview
+        ? adminOverview.courses.map((course) => ({
+            id: course.id,
+            name: course.name,
+            code: course.code,
+          }))
+        : facultyCourseCatalog.map((course) => ({
+            id: course.id,
+            name: course.name,
+            code: course.code ?? "",
+          })),
+    loadAdminOverview: async () => {
+      try {
+        setAdminOverview(await fetchAdminOverview());
+        setAdminError(null);
+      } catch (error) {
+        setAdminError(errorText(error));
+      }
+    },
+    freeSlots,
+    relations,
+    reloadWorkspace: async () => {
+      applyWorkspace(await connectWorkspace());
+    },
     uploadAssignment: async (input) => {
       const course = baseCourses.find((item) => item.id === input.courseId);
       if (!course?.backendId) throw new Error("The selected course is not connected to the API");
-      await uploadRemoteAssignment({ ...input, courseId: course.backendId });
-      const workspace = await connectWorkspace();
-      setBaseCourses(workspace.courses);
-      setBaseAssignments(workspace.assignments);
+      const created = await uploadRemoteAssignment({ ...input, courseId: course.backendId });
+      applyWorkspace(await connectWorkspace());
+      return {
+        assignmentId: created.assignmentId,
+        extractionOk: created.extraction.status === "ok",
+      };
     },
   };
+  reloadWorkspaceRef.current = value.reloadWorkspace;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

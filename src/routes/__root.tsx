@@ -18,8 +18,11 @@ import { StoreProvider, useStore } from "@/lib/store";
 import { workspaceDestination, type WorkspaceRole } from "@/lib/workspace-access";
 import { Sidebar } from "@/components/app/Sidebar";
 import { Topbar } from "@/components/app/Topbar";
+import { SignIn } from "@/components/app/SignIn";
+import { Onboarding } from "@/components/app/Onboarding";
 import { ChatDrawer } from "@/components/app/ChatDrawer";
 import { UploadDialog } from "@/components/app/UploadDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageInitialization } from "@/lib/i18n";
@@ -103,21 +106,71 @@ function RootComponent() {
       <LanguageInitialization />
       <StoreProvider onRoleChange={(workspaceRole) => router.update({ context: { ...router.options.context, queryClient, workspaceRole } })}>
         <TooltipProvider delayDuration={200}>
+          <AuthGate>
           <div className="flex min-h-screen">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar />
               <main className="mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-3 py-4 sm:px-5">
+                <ConnectionBanner />
                 <WorkspaceContent />
               </main>
             </div>
           </div>
           <ChatDrawer />
           <UploadDialog />
+          </AuthGate>
           <Toaster position="bottom-right" />
         </TooltipProvider>
       </StoreProvider>
     </QueryClientProvider>
+  );
+}
+
+/** Shows sign-in or onboarding instead of the workspace until the student is ready. */
+function AuthGate({ children }: { children: ReactNode }) {
+  const { locale } = useI18n();
+  const { auth, connection } = useStore();
+  // Until the account's data has arrived nothing may be drawn: the fixtures belong to offline mode only.
+  if (auth === "checking" || (auth === "signed_in" && connection === "connecting")) return <WorkspaceSkeleton label={localize("Loading…", locale)} />;
+  if (auth === "signed_out") return <SignIn />;
+  if (auth === "needs_onboarding") return <Onboarding />;
+  return <>{children}</>;
+}
+
+function WorkspaceSkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-label={label} className="mx-auto max-w-[1440px] space-y-4 p-5">
+      <Skeleton className="h-8 w-56" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-20" />)}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <Skeleton className="h-64" />
+        <Skeleton className="h-64" />
+      </div>
+      <span className="sr-only">{label}</span>
+    </div>
+  );
+}
+
+function ConnectionBanner() {
+  const { locale } = useI18n();
+  const { connection } = useStore();
+  if (connection === "online") return null;
+  const offline = connection === "offline";
+  return (
+    <div
+      role={offline ? "alert" : "status"}
+      className="mb-3 rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[13px]"
+    >
+      {localize(
+        offline
+          ? "Offline demo mode: the CampusPulse API is unavailable, showing sample data. Changes are not saved."
+          : "Connecting to the CampusPulse API…",
+        locale,
+      )}
+    </div>
   );
 }
 

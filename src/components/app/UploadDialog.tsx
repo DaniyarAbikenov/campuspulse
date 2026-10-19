@@ -1,7 +1,7 @@
 import { localize, useI18n } from "@/lib/i18n";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { UploadCloud, FileText, Sparkles, CheckCircle2, Link2 } from "lucide-react";
+import { UploadCloud, FileText, Sparkles, CheckCircle2, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -22,7 +22,12 @@ import {
 } from "@/components/ui/select";
 import { useStore } from "@/lib/store";
 import { requirements } from "@/lib/data";
+import { addDays, todayCampus } from "@/lib/week";
 import { AnalysisProgress } from "./AnalysisProgress";
+import { TaskPlanReview } from "./TaskPlanReview";
+import { analyzeRemoteAssignment, type AgentStep, type TaskPlan, errorText } from "@/lib/api";
+import { applyStep, type TraceItem } from "@/lib/agentSteps";
+import { AgentTrace } from "@/components/app/AgentTrace";
 
 const steps = [
   "Reading PDF",
@@ -48,17 +53,34 @@ export function UploadDialog() {
     courses,
     uploadAssignment,
     backendConnected,
+    agentEnabled,
+    reloadWorkspace,
   } = useStore();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<"form" | "running" | "result">("form");
-  const [course, setCourse] = useState("se");
-  const [title, setTitle] = useState("Assignment 3 — Authentication");
+  const [phase, setPhase] = useState<"form" | "running" | "result" | "plan" | "failed">("form");
+  const [realRun, setRealRun] = useState(false);
+  const [plan, setPlan] = useState<TaskPlan | null>(null);
+  const [planSteps, setPlanSteps] = useState<AgentStep[]>([]);
+  const [liveSteps, setLiveSteps] = useState<TraceItem[]>([]);
+  const [failure, setFailure] = useState("");
+  // Live workspace: start empty with the student's first course; the offline demo keeps its sample.
+  const [course, setCourse] = useState(backendConnected ? (courses[0]?.id ?? "") : "se");
+  const [title, setTitle] = useState(backendConnected ? "" : "Assignment 3 — Authentication");
   const [file, setFile] = useState<File | null>(null);
-  const [deadline, setDeadline] = useState("2026-10-23");
+  const [deadline, setDeadline] = useState(backendConnected ? addDays(todayCampus(), 7) : "2026-10-23");
   const [drag, setDrag] = useState(false);
+
+  useEffect(() => {
+    if (backendConnected && !courses.some((item) => item.id === course) && courses[0]) setCourse(courses[0].id);
+  }, [backendConnected, courses, course]);
 
   const reset = () => {
     setPhase("form");
+    setRealRun(false);
+    setPlan(null);
+    setPlanSteps([]);
+    setLiveSteps([]);
+    setFailure("");
     setFile(null);
     setTitle("");
   };
@@ -81,19 +103,41 @@ export function UploadDialog() {
   const beginAnalysis = async () => {
     if (!file) return;
     if (backendConnected) {
+      let uploaded: { assignmentId: string; extractionOk: boolean };
       try {
-        await uploadAssignment({
+        uploaded = await uploadAssignment({
           file,
           courseId: course,
           title,
-          dueAt: `${deadline}T23:59:00Z`,
-          estimatedHours: 8.5,
+          // End of the due day in the campus time zone; the estimate comes from the analysis.
+          dueAt: `${deadline}T23:59:00+05:00`,
+          estimatedHours: 0,
         });
         toast.success(localize("Assignment and file saved", locale));
       } catch (error) {
         toast.error(localize("Upload failed", locale), {
-          description: error instanceof Error ? error.message : String(error),
+          description: errorText(error),
         });
+        return;
+      }
+      if (agentEnabled) {
+        if (!uploaded.extractionOk) {
+          setFailure("The file was saved, but no text could be read from it (for example a scanned PDF), so the agent has nothing to analyze.");
+          setPhase("failed");
+          return;
+        }
+        setRealRun(true);
+        setLiveSteps([]);
+        setPhase("running");
+        try {
+          const result = await analyzeRemoteAssignment(uploaded.assignmentId, (step) => setLiveSteps((items) => applyStep(items, step)));
+          setPlan(result.plan);
+          setPlanSteps(result.steps);
+          setPhase("plan");
+        } catch (error) {
+          setFailure(errorText(error));
+          setPhase("failed");
+        }
         return;
       }
     }
@@ -111,20 +155,31 @@ export function UploadDialog() {
 
   return (
     <Dialog open={uploadOpen} onOpenChange={close}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-h-[92vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[16px]">
-            {localize(phase === "result" ? "Analysis complete" : "Upload assignment", locale)}
+            {localize(
+              phase === "result" || phase === "plan"
+                ? "Analysis complete"
+                : phase === "failed"
+                  ? "Analysis unavailable"
+                  : "Upload assignment",
+              locale,
+            )}
           </DialogTitle>
           <DialogDescription className="text-[12.5px]">
             {localize(
               phase === "form" &&
-                "The file and assignment metadata are saved by the API. The analysis result below still uses the Assignment 3 demo fixture.",
+                (agentEnabled
+                  ? "The agent reads your document and proposes tasks with quotes and page numbers. Nothing is added until you approve."
+                  : "The file and assignment metadata are saved by the API. The analysis result below still uses the Assignment 3 demo fixture."),
               locale,
             )}
             {localize(
               phase === "running" &&
-                "Simulated analysis — no real AI model is called in this prototype.",
+                (realRun
+                  ? "The CampusPulse agent is reading your document. This usually takes under a minute; after a quiet period the first run can take a few minutes."
+                  : "Simulated analysis — no real AI model is called in this prototype."),
               locale,
             )}
             {localize(
@@ -237,10 +292,12 @@ export function UploadDialog() {
                 )}
             </label>
             <div className="flex items-center justify-between pt-1">
-                <Button variant="ghost" size="sm" onClick={useDemo}>
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />{" "}
-                  {localize("Use Demo Assignment", locale)}
-                </Button>
+                {backendConnected ? <span /> : (
+                  <Button variant="ghost" size="sm" onClick={useDemo}>
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />{" "}
+                    {localize("Use Demo Assignment", locale)}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   disabled={!file || !title || !deadline}
@@ -255,13 +312,43 @@ export function UploadDialog() {
         )}
 
         {localize(
-          phase === "running" && (
+          phase === "running" && !realRun && (
             <div className="py-2">
               <AnalysisProgress running onDone={done} steps={steps} />
             </div>
           ),
           locale,
         )}
+
+        {phase === "running" && realRun ? (
+          <div role="status" aria-live="polite" className="space-y-3 py-3 text-[13px]">
+            <p className="text-muted-foreground">{localize("Reading the document, extracting requirements and estimating tasks…", locale)}</p>
+            <AgentTrace items={liveSteps} live />
+          </div>
+        ) : null}
+
+        {phase === "plan" && plan ? (
+          <TaskPlanReview
+            initial={plan}
+            steps={planSteps}
+            onDismissed={() => close(false)}
+            onApplied={(created) => {
+              void reloadWorkspace();
+              toast.success(`${created} ${localize("tasks added to Kanban", locale)}`);
+              close(false);
+              navigate({ to: "/kanban" });
+            }}
+          />
+        ) : null}
+
+        {phase === "failed" ? (
+          <div className="space-y-3 text-[13px]">
+            <p role="alert" className="break-words text-destructive">{localize(failure, locale)}</p>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => close(false)}>{localize("Close", locale)}</Button>
+            </div>
+          </div>
+        ) : null}
 
         {localize(
           phase === "result" && (

@@ -8,6 +8,7 @@ const listeners = new Set<() => void>();
 let locale: Locale = "en";
 const storageKey = "campuspulse.locale";
 const phrasePatterns = Object.keys(messages).filter((key) => key.length >= 3).sort((a, b) => b.length - a.length).map((key) => ({ key, pattern: new RegExp(`(?<![\\p{L}\\p{N}_])${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`, "gu") }));
+export const currentLocale = (): Locale => locale;
 export const intlLocale = (language: Locale) => ({ en: "en-US", ru: "ru-RU", kk: "kk-KZ" })[language];
 export function setLocale(next: Locale) {
   locale = next;

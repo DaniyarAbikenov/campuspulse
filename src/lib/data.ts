@@ -1,4 +1,4 @@
-export type Status = "To Do" | "In Progress" | "Review" | "Completed" | "Upcoming";
+export type Status = "To Do" | "In Progress" | "Review" | "Completed" | "Upcoming" | "Cancelled";
 export type Priority = "High" | "Medium" | "Low";
 
 export interface Course {
@@ -30,8 +30,11 @@ export interface Assignment {
   id: string;
   backendId?: string;
   title: string;
+  description?: string;
   courseId: string;
   deadline: string;
+  /** ISO due date from the API; absent for fixture assignments. */
+  dueAt?: string;
   estimate: number;
   actual?: number;
   progress: number;
@@ -52,7 +55,11 @@ export const assignments: Assignment[] = [
   { id: "adb-a3", title: "Assignment 3 — Indexing", courseId: "adb", deadline: "Oct 8", estimate: 5, actual: 4.5, progress: 100, status: "Completed" },
 ];
 
-export const courseOf = (id: string) => (() => { const course = courses.find((c) => c.id === id); if (!course) throw new Error(`Unknown course: ${id}`); return course; })();
+// Courses created from the backend (for example imported from Moodle) are not in the fixture catalog.
+const runtimeCourses = new Map<string, Course>();
+export const registerCourses = (items: Course[]) => { runtimeCourses.clear(); items.forEach((course) => runtimeCourses.set(course.id, course)); };
+export const findCourse = (id: string) => courses.find((c) => c.id === id) ?? runtimeCourses.get(id);
+export const courseOf = (id: string) => (() => { const course = findCourse(id); if (!course) throw new Error(`Unknown course: ${id}`); return course; })();
 export const assignmentOf = (id: string) => assignments.find((a) => a.id === id);
 
 export interface Task {
@@ -105,6 +112,13 @@ export interface Insight {
   status: "New" | "Accepted" | "Applied" | "Dismissed" | "Snoozed";
   confidence: number;
   sources: string[];
+  /** Why the recommendation is made (agent-written insights). */
+  reasoning?: string;
+  /** Records and figures the recommendation rests on. */
+  evidence?: { kind: string; label: string; refId?: string }[];
+  generatedBy?: string;
+  /** True when accepting it can create something (for example a study session). */
+  applicable?: boolean;
 }
 
 export const initialInsights: Insight[] = [
@@ -125,7 +139,7 @@ export const weeklyWorkload = [
   { day: "Sun", required: 0, available: 0 },
 ];
 
-export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event"; room?: string; courseId?: string; }
+export interface Slot { start: string; end: string; title: string; kind: "lecture" | "free" | "study" | "event" | "personal"; room?: string; courseId?: string; }
 
 export const tomorrowSchedule: Slot[] = [
   { start: "09:00", end: "11:00", title: "Advanced Databases", kind: "lecture", room: "C1.204", courseId: "adb" },
@@ -135,7 +149,7 @@ export const tomorrowSchedule: Slot[] = [
 ];
 
 // Weekly calendar: day index 0=Mon
-export interface CalEvent { id: string; backendId?: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; }
+export interface CalEvent { id: string; backendId?: string; day: number; start: number; end: number; title: string; kind: Slot["kind"]; courseId?: string; taskId?: string; seriesId?: string; location?: string; }
 export const weekEvents: CalEvent[] = [
   { id: "c1", day: 0, start: 9, end: 11, title: "Advanced Databases", kind: "lecture", courseId: "adb" },
   { id: "c2", day: 0, start: 11, end: 13, title: "Software Engineering", kind: "lecture", courseId: "se" },
@@ -150,13 +164,15 @@ export const weekEvents: CalEvent[] = [
   { id: "c11", day: 1, start: 18, end: 20, title: "Study: Aggregation pipeline", kind: "study", courseId: "adb" },
 ];
 
-export const freeSlots = [
+export interface FreeSlot { id: string; day: number; start: number; end: number; label: string; }
+export const freeSlots: FreeSlot[] = [
   { id: "f1", day: 0, start: 13, end: 15, label: "Mon 13:00–15:00" },
   { id: "f2", day: 2, start: 15, end: 18, label: "Wed 15:00–18:00" },
   { id: "f3", day: 4, start: 13, end: 17, label: "Fri 13:00–17:00" },
 ];
 
-export interface Activity { id: string; time: string; title: string; detail: string; kind: "analysis" | "task" | "dependency" | "forecast" | "insight" | "index" | "schedule"; status: "success" | "running" | "warning"; }
+export interface AgentTool { name: string; summary: string; }
+export interface Activity { id: string; time: string; title: string; detail: string; kind: "analysis" | "task" | "dependency" | "forecast" | "insight" | "index" | "schedule"; status: "success" | "running" | "warning"; tools?: AgentTool[]; }
 export const initialActivity: Activity[] = [
   { id: "a1", time: "09:46", title: "New recommendation created", detail: "Workload warning for Oct 22–24", kind: "insight", status: "success" },
   { id: "a2", time: "09:45", title: "Workload forecast updated", detail: "Week 43 total: 21.5h required vs 12h available", kind: "forecast", status: "warning" },
@@ -176,7 +192,9 @@ export const requirements = [
   { id: "R6", text: "Document authentication workflow.", detail: "Add a README section with a sequence diagram of login and refresh.", page: 4, done: false },
 ];
 
-export const knowledgeDocs = [
+export interface KnowledgeDoc { id: string; title: string; courseId: string; type: string; pages: number; indexed: string; concepts: string[]; kind?: string; assignmentId?: string | null; }
+export interface CampusEvent { id: string; backendId?: string; title: string; date: string; time: string; place: string; category: string; match: number; reason: string; saved?: boolean; slot?: { day: number; start: number; end: number } | null; startsAt?: string; endsAt?: string; description?: string; canEdit?: boolean; }
+export const knowledgeDocs: KnowledgeDoc[] = [
   { id: "d1", title: "Assignment_3.pdf", courseId: "se", type: "Assignment", pages: 4, indexed: "Today 09:42", concepts: ["JWT", "Spring Security", "RBAC"] },
   { id: "d2", title: "Assignment_2.pdf", courseId: "se", type: "Assignment", pages: 3, indexed: "Oct 2", concepts: ["JPA", "PostgreSQL", "Repositories"] },
   { id: "d3", title: "Lecture 6 — Security in Web APIs.pdf", courseId: "se", type: "Lecture", pages: 38, indexed: "Oct 14", concepts: ["OAuth2", "Tokens", "CORS"] },
@@ -187,7 +205,7 @@ export const knowledgeDocs = [
   { id: "d8", title: "Week 6 — Linear Regression.pdf", courseId: "stat", type: "Lecture", pages: 28, indexed: "Oct 12", concepts: ["OLS", "Residuals", "R²"] },
 ];
 
-export const campusEvents = [
+export const campusEvents: CampusEvent[] = [
   { id: "e1", title: "AI Society Meetup: LLM Agents", date: "Thu, Oct 22", time: "16:00–18:00", place: "Main Hall C1", category: "Tech", match: 94, reason: "Matches your SE coursework and fits Thursday after OS Lab." },
   { id: "e2", title: "Career Fair — Software Roles", date: "Fri, Oct 23", time: "13:00–17:00", place: "Expo Center", category: "Career", match: 82, reason: "Falls inside your Friday free slot." },
   { id: "e3", title: "Hackathon Info Session", date: "Mon, Oct 19", time: "13:15–14:00", place: "Room B2.204", category: "Tech", match: 76, reason: "Short session during your Monday free block." },

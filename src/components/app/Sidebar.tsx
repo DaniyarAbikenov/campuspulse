@@ -2,7 +2,7 @@ import { localize, useI18n } from "@/lib/i18n";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, CalendarDays, Sparkles, BookOpen, ClipboardList, KanbanSquare, Library, PartyPopper,
-  Gauge, BarChart3, Activity, Settings, ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Shield, GraduationCap, Check, Users,
+  Gauge, BarChart3, Activity, Settings, ChevronsUpDown, PanelLeftClose, PanelLeftOpen, Shield, GraduationCap, Check, Users, LogOut,
 } from "lucide-react";
 import { useEffect } from "react";
 import { useRouterState } from "@tanstack/react-router";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
+import { initialsOf } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -51,7 +52,8 @@ const adminNav = [
 
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const { locale } = useI18n();
-  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen } = useStore();
+  const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected, canAdminister, profile } = useStore();
+  const initials = initialsOf(settings.full_name);
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
   const newCount = insights.filter((i) => i.status === "New").length;
@@ -75,10 +77,10 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       {localize(!collapsed && (
         <div className="px-3 pb-2">
           <div className="flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">{localize("AITU", locale)}</div>
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-[10px] font-semibold">{backendConnected && profile.institution ? profile.institution.split(/\s+/).map((word) => word[0]).join("").slice(0, 4).toUpperCase() : localize("AITU", locale)}</div>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-[12.5px] font-medium">{localize("Astana IT University", locale)}</div>
-              <div className="text-[11px] text-muted-foreground">{localize("Fall Semester 2026", locale)}</div>
+              <div className="truncate text-[12.5px] font-medium">{backendConnected && profile.institution ? profile.institution : localize("Astana IT University", locale)}</div>
+              <div className="text-[11px] text-muted-foreground">{backendConnected ? (profile.semester ?? "") : localize("Fall Semester 2026", locale)}</div>
             </div>
             </div>
         </div>
@@ -116,11 +118,11 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
       <div className="border-t p-2">
         <DropdownMenu>
           <DropdownMenuTrigger aria-label={localize("Switch workspace", locale)} className={cn("flex w-full items-center gap-2 rounded-md p-1.5 text-left hover:bg-secondary", collapsed && "justify-center")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{localize(role === "admin" ? "AA" : "DS", locale)}</div>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">{localize(role === "admin" ? "AA" : initials || "ST", locale)}</div>
             {localize(!collapsed && (
               <div className="min-w-0 flex-1 leading-tight">
-                <div className="truncate text-[12.5px] font-medium">{localize(role === "admin" ? "Academic Admin" : "Demo Student", locale)}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{localize(role === "admin" ? "Faculty of Computing" : "Software Engineering · SE-2429", locale)}</div>
+                <div className="truncate text-[12.5px] font-medium">{role === "admin" ? localize("Academic Admin", locale) : settings.full_name}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{role === "admin" ? localize("Faculty of Computing", locale) : [settings.program, settings.group_name].filter(Boolean).join(" · ")}</div>
               </div>
             ), locale)}
             {localize(!collapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />, locale)}
@@ -130,11 +132,14 @@ function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             <DropdownMenuItem onClick={() => { setRole("student"); navigate({ to: "/" }); }}>
               <GraduationCap className="h-4 w-4" /> {localize("Student Workspace", locale)} {localize(role === "student" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setRole("admin"); navigate({ to: "/admin" }); }}>
-              <Users className="h-4 w-4" /> {localize("Academic Administrator Demo", locale)} {localize(role === "admin" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
-            </DropdownMenuItem>
+            {canAdminister ? (
+              <DropdownMenuItem onClick={() => { setRole("admin"); navigate({ to: "/admin" }); }}>
+                <Users className="h-4 w-4" /> {localize(backendConnected ? "Academic Administrator" : "Academic Administrator Demo", locale)} {localize(role === "admin" && <Check className="ml-auto h-3.5 w-3.5" />, locale)}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}><Settings className="h-4 w-4" /> {localize("Settings", locale)}</DropdownMenuItem>
+            {backendConnected ? <DropdownMenuItem onClick={() => void signOut()}><LogOut className="h-4 w-4" /> {localize("Sign out", locale)}</DropdownMenuItem> : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -30,7 +30,8 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, withoutIds } from "@/lib/utils";
+import { describeToolResult, toolLabel } from "@/lib/agentSteps";
 import { useStore } from "@/lib/store";
 import { assignments, courseOf, weeklyWorkload, type Insight, type Activity } from "@/lib/data";
 import { CourseTag, PriorityIndicator, ProgressBar, StatusBadge } from "./common";
@@ -106,17 +107,42 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
         <span className="font-semibold text-ai">{localize("Suggested", locale)} </span>
         {localize(insight.action, locale)}
       </div>
+      {!compact && (insight.reasoning || insight.evidence?.length) ? (
+        <details className="mt-2 rounded-md border bg-card px-2 py-1.5 text-[11.5px]">
+          <summary className="cursor-pointer font-medium text-muted-foreground">{localize("Why am I seeing this?", locale)}</summary>
+          {insight.reasoning ? <p className="mt-1 leading-relaxed">{insight.reasoning}</p> : null}
+          {insight.evidence?.length ? (
+            <ul className="mt-1.5 space-y-0.5 text-muted-foreground">
+              {insight.evidence.map((entry, index) => (
+                <li key={`${entry.kind}-${index}`}>
+                  <span className="mr-1 rounded bg-secondary px-1 text-[10px] uppercase">{entry.kind.replace("_", " ")}</span>
+                  {entry.kind === "assignment" && entry.refId ? (
+                    <Link to="/assignments/$assignmentId" params={{ assignmentId: entry.refId }} className="text-primary hover:underline">{entry.label}</Link>
+                  ) : entry.label}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {insight.generatedBy === "agent" ? <p className="mt-1.5 text-[10.5px] text-muted-foreground">{localize("Written by the CampusPulse agent from your data. You decide whether to act on it.", locale)}</p> : null}
+        </details>
+      ) : null}
+      {insight.status === "Accepted" && insight.applicable ? <p className="mt-2 text-[11.5px] text-muted-foreground">{localize("Accepted, but not added yet.", locale)}</p> : null}
       <div className="mt-auto flex items-center gap-1.5 pt-2.5 flex-wrap">
         <Button
           size="sm"
           className="h-7 px-2.5 text-[12px]"
           onClick={() => {
-            if (insight.id === "i2")
+            // Fixture insight "i2" (offline demo only) points at the prototype assignment.
+            if (insight.applicable && insight.status !== "Applied") {
+              void applyInsight(insight.id).then((ok) => { if (ok) toast.success(localize("Added to your calendar", locale)); });
+              return;
+            }
+            if (insight.id === "i2" && !insight.backendId)
               navigate({ to: "/assignments/$assignmentId", params: { assignmentId: "se-a3" } });
             else navigate({ to: insight.primary.to });
           }}
         >
-          {localize(insight.primary.label, locale)}
+          {localize(insight.applicable && insight.status !== "Applied" ? "Add to calendar" : insight.primary.label, locale)}
         </Button>
         <Button
           disabled={insight.status === "Applied" && insight.secondary !== "Open Assignment"}
@@ -298,7 +324,24 @@ export function AssignmentTable({ ids }: { ids?: string[] }) {
   const { assignments: liveAssignments } = useStore();
   const rows = ids ? liveAssignments.filter((a) => ids.includes(a.id)) : liveAssignments;
   return (
-    <div className="overflow-x-auto">
+    <>
+    <ul className="divide-y md:hidden">
+      {rows.map((a) => (
+        <li key={a.id} className="space-y-1.5 px-3.5 py-3 text-[12.5px]">
+          <div className="flex items-start justify-between gap-2">
+            <Link to="/assignments/$assignmentId" params={{ assignmentId: a.id }} className="font-medium hover:text-primary">{localize(a.title, locale)}</Link>
+            <StatusBadge status={a.status} />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+            <CourseTag id={a.courseId} />
+            <span>{localize("Due", locale)} {localize(a.deadline, locale)}</span>
+            <span className="tabular-nums">{a.estimate}{localize("h", locale)}</span>
+          </div>
+          <div className="flex items-center gap-2"><ProgressBar value={a.progress} /><span className="w-9 text-right text-[11.5px] tabular-nums text-muted-foreground">{a.progress}%</span></div>
+        </li>
+      ))}
+    </ul>
+    <div className="hidden overflow-x-auto md:block">
       <table className="min-w-[640px] w-full text-[12.5px]">
         <thead>
           <tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground">
@@ -365,6 +408,7 @@ export function AssignmentTable({ ids }: { ids?: string[] }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -378,7 +422,7 @@ const actIcon: Record<Activity["kind"], typeof Bot> = {
   schedule: CalendarClock,
 };
 
-export function ActivityFeed({ items }: { items: Activity[] }) {
+export function ActivityFeed({ items, technical = false }: { items: Activity[]; technical?: boolean }) {
   const { locale } = useI18n();
   return (
     <ol className="relative space-y-2.5 before:absolute before:left-[11px] before:top-1 before:h-[calc(100%-8px)] before:w-px before:bg-border">
@@ -397,15 +441,34 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
               </span>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[12.5px]">
-                  <span className="font-medium">{localize(a.title, locale)}</span>
+                  <span className="font-medium">{localize(withoutIds(a.title), locale)}</span>
                   {localize(
                     a.status === "success" && <CheckCircle2 className="h-3 w-3 text-success" />,
                     locale,
                   )}
                 </div>
                 <div className="truncate text-[11.5px] text-muted-foreground">
-                  {localize(a.detail, locale)}
+                  {localize(withoutIds(a.detail), locale)}
             </div>
+                {a.tools?.length ? (
+                  <ul aria-label={localize("Tool calls", locale)} className="mt-1 space-y-0.5">
+                    {a.tools.map((tool, index) => {
+                      const outcome = describeToolResult(tool.name, tool.summary);
+                      return (
+                        <li key={`${tool.name}-${index}`} className="text-[11px] text-muted-foreground">
+                          {localize(toolLabel(tool.name), locale)}
+                          {outcome ? <span> — {localize(outcome, locale)}</span> : null}
+                          {technical && tool.summary ? (
+                            <details className="mt-0.5">
+                              <summary className="cursor-pointer select-none text-[10.5px]">{localize("Technical details", locale)}</summary>
+                              <div className="break-words font-mono text-[10px]">{tool.name} → {tool.summary}</div>
+                            </details>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
               </div>
               <span className="font-mono text-[11px] text-muted-foreground">
                 {localize(a.time, locale)}

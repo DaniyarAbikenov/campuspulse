@@ -1,199 +1,181 @@
 # CampusPulse Frontend
 
-Dashboard-first интерфейс CampusPulse AI для студентов и академических администраторов. Приложение объединяет курсы, задания, Kanban, расписание, workload, statistics, knowledge, campus events, proactive insights и настройки в CRM-подобной рабочей области.
+Веб-интерфейс **CampusPulse AI** — умного помощника студента для планирования учёбы. Студент видит
+курсы, задания, дедлайны, нагрузку и свободное время в одном месте, а ИИ-агент (Gemini) читает
+документы, предлагает план работы и показывает каждый шаг своих рассуждений. Агент только
+предлагает: любое изменение (задачи, события календаря, отмена задания) происходит после явного
+подтверждения студентом.
 
-Repository: https://github.com/DaniyarAbikenov/pixel-true-design-recreation
-Lovable preview: https://pixel-true-design-recreation.lovable.app
+- Repository: https://github.com/DaniyarAbikenov/pixel-true-design-recreation
+- Lovable preview: https://pixel-true-design-recreation.lovable.app
+- Развёрнутый сайт (Cloud Run): https://campuspulse-web-694651486934.us-central1.run.app
 
-## Текущее состояние
+## Как устроена вся система
 
-Frontend подключён к локальному FastAPI, но остаётся гибридным MVP-прототипом:
+```text
+Браузер (этот репозиторий)
+   │  HTTPS, Bearer JWT, SSE
+   ▼
+campuspulse-backend  (FastAPI, PostgreSQL)  ──►  Vertex AI Agent Engine: campuspulse-agent (Gemini + ADK)
+                                                         │ MCP по HTTP
+                                                         ▼
+                                                  campuspulse-mcp  ──►  Moodle
+```
 
-- реальные HTTP requests, bearer/refresh tokens и server mutations уже работают;
-- backend данные локально создаются демонстрационным сидером;
-- при недоступности API Store сохраняет исходные fixtures как visual fallback;
-- часть страниц и вложенных блоков всё ещё использует `src/lib/data.ts`;
-- AI-анализ файла и AI chat пока симулируются;
-- Lovable deployment не может обращаться к локальному `127.0.0.1:8000`.
+| Репозиторий | Роль |
+|---|---|
+| `campuspulse-frontend` | этот интерфейс |
+| [`campuspulse-backend`](https://github.com/DaniyarAbikenov/campuspulse-backend) | API, база, авторизация, шлюз к агенту |
+| [`campuspulse-agent`](https://github.com/DaniyarAbikenov/campuspulse-agent) | агент на Google ADK, деплой в Agent Engine |
+| [`campuspulse-mcp`](https://github.com/DaniyarAbikenov/campuspulse-mcp) | MCP-сервер Moodle (только чтение) |
+
+## Что умеет интерфейс
+
+| Сценарий | Где |
+|---|---|
+| Вход через Google, выбор вуза и курсов при первом входе | экран входа, onboarding |
+| Обзор недели: дедлайны, нагрузка, свободные окна, insights | `/` |
+| Чат с ассистентом: ответ приходит вместе с **шагами агента в реальном времени** (вызовы инструментов, результаты, ошибки) | кнопка «Ask CampusPulse» |
+| Предложения агента в чате (событие в календарь, задача, смена статуса, отмена задания) открываются окном **«Apply: …»** и выполняются только после подтверждения | чат |
+| Загрузка условия задания (PDF/DOCX/TXT): агент находит требования с цитатами и страницами, предлагает 5–8 подзадач; в Kanban они попадают только после подтверждения | Upload Assignment, страница задания |
+| Ручное добавление задания (в том числе внутри курса), **отмена** (подзадачи и будущие учебные сессии исчезают), возврат, удаление | курс, список заданий, страница задания |
+| Kanban подзадач, новая задача | `/kanban` |
+| Календарь недели, **Add to calendar**: учебная сессия (сначала задание, затем подзадача), разовое занятие, **повторяющееся** (тренировки, работа) и **семестровые предметы** | `/schedule` |
+| План на неделю: предпросмотр и применение (идемпотентно) | `/workload` |
+| «Review my week»: агент анализирует дедлайны, нагрузку и окна и создаёт insights с причиной и источниками; применение — отдельным шагом | `/insights` |
+| События кампуса: добавление, правка и удаление своих событий, сохранение | `/events` |
+| База знаний: загрузка лекций, силлабусов и других материалов, правка, удаление; поиск по понятиям, фрагменты по страницам | `/knowledge` |
+| Импорт заданий из Moodle через предложение → подтверждение | `/assignments` |
+| История работы агента с вызовами инструментов | `/activity` |
+| Статистика точности оценок | `/statistics` |
+| Анонимные агрегаты факультета (роль `academic_admin`, минимальный размер когорты) | `/admin*` |
+
+Интерфейс доступен на английском, русском и казахском. Перевод применяется на render boundary;
+статусы и идентификаторы остаются каноническими.
+
+## Режимы работы
+
+- **Live** — есть API: данные, мутации и агент настоящие. Для входа нужен Google или (только в
+  разработке) demo-аккаунт.
+- **Offline demo** — API недоступен: явный баннер и данные из `src/lib/data.ts`. Здесь функции,
+  требующие сервера (повторяющиеся занятия, загрузка материалов, CRUD событий), скрыты или
+  отключены.
 
 ## Стек
 
-- React 19
-- TypeScript с strict configuration
-- TanStack Start и TanStack Router
-- Vite 8 / Nitro
-- Tailwind CSS 4
-- Radix UI primitives
-- Recharts
-- Sonner
-- Vitest, Testing Library и ESLint
-- Bun lockfile; npm также поддерживается
+React 19 · TypeScript (strict) · TanStack Start/Router · Vite 8 + Nitro · Tailwind CSS 4 ·
+Radix UI · Recharts · Sonner · Vitest + Testing Library · ESLint/Prettier.
 
-## Основные страницы
+## Быстрый старт
 
-| Route | Назначение | Источник данных сейчас |
-|---|---|---|
-| `/` | Dashboard, deadlines, workload, tomorrow schedule, insights, activity | Смешанный: API Store + fixtures для activity |
-| `/courses` | Course cards, поиск и progress | API |
-| `/courses/:courseId` | Course overview, assignments и materials | Смешанный |
-| `/assignments` | Assignment table, status/search/course filters | API dataset, фильтрация в UI |
-| `/assignments/:assignmentId` | Requirements, relations, generated task proposal | Смешанный; analysis fixture |
-| `/kanban` | Пять колонок, filters и generated proposals | API для существующих задач; часть create/import flows локальная |
-| `/schedule` | Weekly calendar и study planning | API events; некоторые free-slot helpers остаются fixture |
-| `/workload` | Required/available hours и recommendation | API расчёт + локальный apply visualization |
-| `/statistics` | Estimate/actual analytics | Пока в основном fixtures |
-| `/insights` | Proactive recommendations и CTA | API |
-| `/knowledge` | Indexed materials and fragments | Fixtures |
-| `/events` | Campus activities | Fixtures |
-| `/activity` | Agent activity feed | Fixtures |
-| `/settings` | Profile, availability, AI и notifications | API |
-| `/admin*` | Faculty dashboard, courses и cohort statistics | Fixtures |
-
-Интерфейс доступен на английском, русском и казахском. Перевод применяется только на render boundary: canonical statuses и IDs остаются неизменными.
-
-## Реальная API-интеграция
-
-`src/lib/api.ts` отвечает за demo-session, refresh retry, загрузку workspace и mutations. `src/lib/store.tsx` гидратирует React context данными backend и оставляет fixtures как fallback.
-
-Реально подключены:
-
-- `GET /courses/overview`
-- `GET /assignments/overview`
-- `GET /kanban`
-- `PATCH /kanban/tasks/{id}/move`
-- `GET /schedule`
-- `GET /workload`
-- `GET /insights`
-- `PATCH /insights/{id}`
-- `POST /insights/{id}/apply`
-- `GET/PATCH /settings`
-- `POST /assignments/upload`
-- `POST /auth/demo`
-- `POST /auth/refresh`
-
-В UI подтверждена сквозная запись Settings в PostgreSQL. Профиль `Alex Morgan`, availability и server switches появляются после гидратации, а Kanban получает восемь серверных задач.
-
-## Что пока остаётся локальным
-
-- Create Task из интерфейса не сохраняется через generic task CRUD.
-- Ручное создание schedule event не сохраняется.
-- Generated task proposal, approval, import и scheduling частично живут в Store.
-- Workload plan изменяет визуальную модель; server insight apply вызывается только из соответствующего insight flow.
-- Knowledge documents/fragments, campus events, agent activity, semester trend и admin cohort — fixtures.
-- Requirements и historical hours на assignment detail — fixtures.
-- Upload сохраняет файл и assignment, но показанный analysis result не основан на содержимом файла.
-- Topbar search/chat остаются прототипными.
-
-## Локальный запуск
-
-Сначала запустите backend и PostgreSQL по инструкции в соседнем `campuspulse-backend/README.md`.
+Сначала запустите backend ([инструкция](https://github.com/DaniyarAbikenov/campuspulse-backend#readme)).
 
 ```bash
 cp .env.example .env
-bun install
-bun run dev -- --host 127.0.0.1 --port 5173
-```
-
-Откройте http://127.0.0.1:5173.
-
-Для npm:
-
-```bash
 npm install
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-## Environment
+Откройте http://127.0.0.1:5173. Bun тоже поддерживается (`bun install`, `bun run dev`).
 
-```dotenv
-VITE_API_URL=http://127.0.0.1:8000/api/v1
+### Переменные окружения
+
+Все значения `VITE_*` вшиваются на этапе сборки.
+
+| Переменная | Назначение | Пример |
+|---|---|---|
+| `VITE_API_URL` | Базовый URL API | `http://127.0.0.1:8000/api/v1` |
+| `VITE_GOOGLE_CLIENT_ID` | Web client ID для Google Identity Services | `….apps.googleusercontent.com` |
+| `VITE_ENABLE_DEMO_LOGIN` | Кнопка/автовход в demo-аккаунт; в продакшене `false` | `true` |
+
+Если задан `VITE_GOOGLE_CLIENT_ID`, показывается экран входа с кнопкой Google: credential
+обменивается на токены через `/auth/google`, новый пользователь проходит onboarding, сессия
+восстанавливается по refresh-токену, выход его отзывает. Без Client ID и при
+`VITE_ENABLE_DEMO_LOGIN` ≠ `false` приложение входит в demo-аккаунт автоматически (`/auth/demo`,
+этот endpoint включён на backend только для разработки).
+
+## Деплой в Cloud Run
+
+```bash
+PROJECT=<gcp-project>; REGION=us-central1
+IMG=$REGION-docker.pkg.dev/$PROJECT/cloud-run-source-deploy/campuspulse-web:v1
+
+# Vite вшивает VITE_* при сборке, поэтому образ собирается через Cloud Build с build-args
+gcloud builds submit --config cloudbuild.yaml --project $PROJECT \
+  --substitutions=_IMAGE=$IMG,_API_URL=https://<backend>/api/v1,_GOOGLE_CLIENT_ID=<client-id> .
+
+gcloud run deploy campuspulse-web --image $IMG --region $REGION --project $PROJECT --allow-unauthenticated
 ```
 
-В текущем local flow frontend вызывает скрытый backend endpoint `/auth/demo`. Он включён Docker Compose backend только для разработки. Production frontend должен получать Google credential через официальный GIS button и обменивать его через `/auth/google`.
+После деплоя:
 
-## Архитектура frontend
+1. добавьте адрес сайта в `CAMPUSPULSE_CORS_ORIGINS` backend;
+2. добавьте его в **Authorized JavaScript origins** OAuth-клиента Google;
+3. если OAuth consent screen в режиме Testing, добавьте тестовых пользователей.
+
+`Dockerfile` собирает Nitro в режиме `node-server` (`NITRO_PRESET`), `.dockerignore` исключает
+`node_modules` и `.env`.
+
+## Структура
 
 ```text
 src/
-  components/app/   shell, widgets, Kanban, chat and upload flows
-  components/ui/    shared Radix/Tailwind components
-  lib/api.ts        typed FastAPI adapter and response mapping
-  lib/data.ts       canonical fixture dataset and display helpers
-  lib/store.tsx     shared workspace state and backend hydration
-  lib/i18n.tsx      locale subscription and translation catalog
-  routes/           TanStack file routes
-  test/             Store, routing and localization regression tests
+  components/app/   оболочка, виджеты, Kanban, чат, диалоги (календарь, задания, события,
+                    материалы, действия агента), AgentTrace
+  components/ui/    общие Radix/Tailwind компоненты
+  lib/api.ts        типизированный адаптер FastAPI: токены, SSE-стрим агента, мутации, маппинг
+  lib/agentSteps.ts шаги агента → строки трассы (вызов ↔ результат)
+  lib/store.tsx     общее состояние workspace и гидратация данными backend
+  lib/week.ts       календарные хелперы (зона Asia/Almaty)
+  lib/data.ts       фикстуры offline-режима и типы отображения
+  lib/i18n.tsx      локаль и каталог переводов (lib/locales/catalog.json)
+  routes/           файловые маршруты TanStack
+  test/             регрессионные тесты
 ```
 
-App shell находится в `src/routes/__root.tsx`. Sidebar, topbar, chat drawer и upload dialog общие для всех страниц. Role хранится в router context и используется guards для student/admin routes; настоящая безопасность всегда остаётся на backend.
+Оболочка (sidebar, topbar, чат, диалог загрузки) смонтирована в `src/routes/__root.tsx`. Роль
+хранится в router context и используется guard’ами; настоящая авторизация — только на backend.
 
-API UUID преобразуются в стабильные prototype IDs (`se`, `adb`, `se-a3` и т. п.), потому что существующие визуальные компоненты и deep links используют эти IDs. Это временный compatibility layer; в production routes должны работать с server IDs или стабильными slugs.
+### Как показываются шаги агента
 
-## Assignment upload
+Чат, анализ задания и «Review my week» вызывают `…/stream`-эндпоинты backend
+(Server-Sent Events). `streamRequest` в `api.ts` читает поток: событие `step` приходит на каждый
+вызов инструмента и результат, `done` — итог, `error` — причина отказа. `AgentTrace` рисует вызов
+как «крутящуюся» строку, которая становится галочкой при получении результата; ошибки
+инструмента отмечаются предупреждением.
 
-Диалог принимает PDF, DOCX и TXT до 20 MB, course, title и deadline. При доступном API файл отправляется multipart-запросом, после чего список assignments повторно загружается.
-
-Экран явно сообщает, что текущий analysis является simulated fixture. Нельзя показывать имя загруженного файла как доказательство реального parsing.
-
-## Основные команды
+## Команды
 
 ```bash
-bun run dev       # development server
-bun run build     # production client/SSR/Nitro build
-bun run preview   # preview production build
-bun run test      # Vitest regression suite
-bun run lint      # ESLint and Prettier rules
-bun run format    # apply Prettier
+npm run dev       # dev-сервер
+npm run build     # production-сборка client/SSR/Nitro
+npm run preview   # предпросмотр сборки
+npm run test      # Vitest
+npm run lint      # ESLint + Prettier
+npx tsc --noEmit  # строгая проверка типов
 ```
 
-Точечная строгая проверка типов:
+Перед публикацией: `npx tsc --noEmit && npm run test && npm run build`.
 
-```bash
-bun x tsc --noEmit
-```
+## Lovable
 
-## Lovable workflow
-
-Репозиторий подключён к Lovable. Не используйте force push, rebase, amend или squash уже опубликованной истории: это может удалить историю проекта со стороны Lovable. Обычные commits в `main` синхронизируются с editor.
-
-Публичный Lovable preview использует собранный frontend, но локальный API `127.0.0.1:8000` ему недоступен. Для настоящего deployment необходимо:
-
-1. развернуть backend на публичном HTTPS URL;
-2. установить production `VITE_API_URL`;
-3. добавить frontend origin в CORS;
-4. создать Google Web OAuth client и разрешить Lovable/custom domain;
-5. выключить demo-auth;
-6. реализовать login и onboarding UI.
+Репозиторий связан с Lovable: коммиты в подключённую ветку синхронизируются с редактором. Не
+используйте force push, rebase, amend и squash для уже опубликованной истории — Lovable потеряет
+историю проекта. Публичный Lovable preview не может обратиться к локальному API.
 
 ## UX-инварианты
 
-- Просмотр, принятие, применение и отклонение recommendation — разные действия.
-- Generated proposals не должны появляться в Kanban до explicit approval/import.
-- Scheduling выполняется отдельно от импорта и должен быть идемпотентным.
-- Course/assignment totals выводятся из сущностей, а не поддерживаются вручную.
-- Completion уменьшает remaining work; schedule allocation только распределяет работу.
-- Mobile sidebar открывается в Sheet, широкие таблицы и доски прокручиваются внутри layout.
-- Frontend role switch предназначен для демонстрации интерфейсов и не заменяет backend authorization.
+- Просмотр, принятие, применение и отклонение рекомендации — разные действия.
+- Предложения (план задач, импорт, действия чата, insights) ничего не меняют до явного
+  подтверждения; повторное применение безопасно (идемпотентно).
+- Итоги по курсам и заданиям выводятся из сущностей, а не хранятся вручную.
+- Завершение работы уменьшает остаток; расписание лишь распределяет работу по времени.
+- Отменённое задание не входит в дедлайны и нагрузку.
+- Мобильное меню открывается в Sheet; широкие таблицы и доска прокручиваются внутри layout.
 
-## Проверки
+## Известные ограничения
 
-Перед публикацией:
-
-```bash
-bun x tsc --noEmit
-bun run test
-bun run build
-```
-
-Текущий regression suite проверяет localization, route access, workload invariants, proposal approval/import/scheduling и Store transitions.
-
-## Следующие шаги
-
-1. Добавить настоящий Google GIS login и onboarding pages.
-2. Убрать silent fallback или явно показывать offline/demo mode.
-3. Подключить create/edit/delete task и schedule event.
-4. Перевести Statistics, Knowledge, Events, Activity и Admin routes на API.
-5. Использовать server IDs/slugs без title-based compatibility mapping.
-6. Добавить query cache, loading/error/empty states и mutation rollback.
-7. Реализовать настоящий document ingestion и source-grounded analysis.
-8. Добавить end-to-end tests против контейнерного backend.
+- Refresh-токен хранится в `localStorage` (для продакшена нужна HttpOnly cookie).
+- Вход через Google нельзя проверить во встроенных браузерах без загрузки скрипта GIS.
+- Новые тексты интерфейса переведены на ru/kk, но переводы не вычитывались носителем.
+- Offline-фикстуры остаются в коде как запасной режим.

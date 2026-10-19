@@ -38,10 +38,10 @@ export function Panel({ title, subtitle, action, children, className, bodyClass,
   );
 }
 
-export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "default" }: { label: string; value: string; sub: string; icon: LucideIcon; trend?: { dir: "up" | "down"; text: string; good?: boolean }; tone?: "default" | "warning" }) {
+export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "default" }: { label: string; value: string; sub: string; icon: LucideIcon; trend?: { dir: "up" | "down"; text: string; good?: boolean }; tone?: "default" | "warning" | "success" }) {
   const { locale } = useI18n();
   return (
-    <div className={cn("panel relative overflow-hidden px-3.5 py-3", tone === "warning" && "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-warning")}>
+    <div className={cn("panel relative overflow-hidden px-3.5 py-3", tone === "warning" && "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-warning", tone === "success" && "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-success")}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
         <span className="eyebrow">{localize(label, locale)}</span>
         <Icon className={cn("h-3.5 w-3.5 text-muted-foreground", tone === "warning" && "text-warning")} />
@@ -55,7 +55,7 @@ export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "defau
           </span>
         ), locale)}
       </div>
-      <p className="mt-1.5 truncate text-[11.5px] text-muted-foreground">{localize(sub, locale)}</p>
+      <p className="mt-1.5 line-clamp-2 text-[11.5px] text-muted-foreground">{localize(sub, locale)}</p>
     </div>
   );
 }
@@ -66,6 +66,7 @@ const statusStyles: Record<string, string> = {
   Review: "bg-warning-soft text-warning border-warning/20",
   Completed: "bg-success-soft text-success border-success/20",
   Upcoming: "bg-secondary text-muted-foreground border-border",
+  Cancelled: "bg-destructive/10 text-destructive border-destructive/20",
   New: "bg-primary-soft text-primary border-primary/20",
   Applied: "bg-info-soft text-info border-info/20",
   Accepted: "bg-success-soft text-success border-success/20",
@@ -121,13 +122,14 @@ export function ProgressBar({ value, className }: { value: number; className?: s
   );
 }
 
-export function EmptyState({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+export function EmptyState({ icon: Icon, title, text, action }: { icon: LucideIcon; title: string; text: string; action?: ReactNode }) {
   const { locale } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
       <div className="mb-3 rounded-lg border bg-secondary p-2.5"><Icon className="h-5 w-5 text-muted-foreground" /></div>
       <p className="text-[13px] font-medium">{localize(title, locale)}</p>
       <p className="mt-1 max-w-xs text-[12px] text-muted-foreground">{localize(text, locale)}</p>
+      {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }

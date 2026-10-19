@@ -1,12 +1,19 @@
 import { localize, useI18n } from "@/lib/i18n";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock, Sparkles, Plus } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Pencil, Trash2 } from "lucide-react";
+import { deleteRemoteTask, errorText, updateRemoteTask } from "@/lib/api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
-import { assignments, type Task } from "@/lib/data";
+import { type Task } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { CourseTag, PriorityIndicator } from "./common";
 
@@ -18,14 +25,58 @@ const dot: Record<Task["column"], string> = { backlog: "bg-muted-foreground/40",
 
 export function KanbanBoard({ courseId, filter }: { courseId?: string | undefined; filter?: ((t: Task) => boolean) | undefined }) {
   const { locale } = useI18n();
-  const { tasks, moveTask } = useStore();
+  const { tasks, moveTask, assignments, backendConnected, reloadWorkspace } = useStore();
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [draft, setDraft] = useState({ title: "", description: "", estimate: "1", priority: "Medium" as Task["priority"] });
+  const startEdit = (task: Task) => { setDraft({ title: task.title, description: task.description, estimate: String(task.estimate), priority: task.priority }); setEditing(true); };
+  const saveEdit = async () => {
+    if (!open?.backendId) return;
+    const hours = Number(draft.estimate);
+    if (!draft.title.trim() || !Number.isFinite(hours) || hours < 0) return;
+    try {
+      await updateRemoteTask(open.backendId, { title: draft.title.trim(), description: draft.description.trim(), estimatedHours: hours, priority: draft.priority });
+      await reloadWorkspace();
+      setOpen({ ...open, title: draft.title.trim(), description: draft.description.trim(), estimate: hours, priority: draft.priority });
+      setEditing(false);
+      toast.success(localize("Task updated", locale));
+    } catch (error) {
+      toast.error(localize("Could not save the task", locale), { description: errorText(error) });
+    }
+  };
+  const removeTask = async () => {
+    if (!open?.backendId) return;
+    try {
+      await deleteRemoteTask(open.backendId);
+      await reloadWorkspace();
+      setOpen(null);
+      toast.success(localize("Task deleted", locale));
+    } catch (error) {
+      toast.error(localize("Could not delete", locale), { description: errorText(error) });
+    } finally {
+      setConfirmDelete(false);
+    }
+  };
   const [over, setOver] = useState<string | null>(null);
   const [open, setOpen] = useState<Task | null>(null);
+  useEffect(() => { setEditing(false); setConfirmDelete(false); }, [open?.id]);
+  // On phones one column is shown at a time, chosen with tabs.
+  const [mobileColumn, setMobileColumn] = useState<Task["column"]>("todo");
   const list = tasks.filter((t) => (!courseId || t.courseId === courseId) && (!filter || filter(t)));
 
   return (
     <>
-      <div className="max-w-full overflow-x-auto"><div className="grid min-w-[1000px] grid-cols-5 gap-2.5">
+      <div role="tablist" aria-label={localize("Board columns", locale)} className="mb-2 flex gap-1 overflow-x-auto md:hidden">
+        {columns.map((col) => {
+          const count = list.filter((t) => t.column === col.id).length;
+          return (
+            <Button key={col.id} role="tab" aria-selected={mobileColumn === col.id} variant="ghost" size="sm" onClick={() => setMobileColumn(col.id)} className={cn("shrink-0 rounded-md border px-2.5 text-[12.5px]", mobileColumn === col.id ? "border-primary bg-primary-soft text-primary" : "text-muted-foreground")}>
+              {localize(col.label, locale)} <span className="ml-1 tabular-nums">{count}</span>
+            </Button>
+          );
+        })}
+      </div>
+      <div className="max-w-full md:overflow-x-auto"><div className="grid grid-cols-1 gap-2.5 md:min-w-[1000px] md:grid-cols-5">
         {localize(columns.map((col) => {
   
           const items = list.filter((t) => t.column === col.id);
@@ -35,7 +86,7 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
               onDragOver={(e) => { e.preventDefault(); setOver(col.id); }}
               onDragLeave={() => setOver(null)}
               onDrop={(e) => { const id = e.dataTransfer.getData("text/plain"); moveTask(id, col.id); setOver(null); toast.success(localize(`Moved to ${col.label}`, locale)); }}
-              className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", over === col.id && "bg-primary-soft ring-primary/40")}
+              className={cn("flex min-h-[420px] flex-col rounded-lg bg-secondary/70 p-1.5 transition-colors ring-1 ring-transparent", col.id !== mobileColumn && "hidden md:flex", over === col.id && "bg-primary-soft ring-primary/40")}
             >
               <div className="mb-1.5 flex h-7 items-center gap-1.5 px-1.5 text-[12px] font-semibold">
                 <span className={cn("h-2 w-2 rounded-full", dot[col.id])} />{localize(col.label, locale)}<span className="text-[11px] font-normal tabular-nums text-muted-foreground">{localize(items.length, locale)}</span>
@@ -72,7 +123,33 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
                 <SheetDescription>{localize(open.ai ? "Generated by CampusPulse from the assignment brief" : "Created manually", locale)}</SheetDescription>
               </SheetHeader>
               <div className="space-y-4 px-4 text-[13px]">
-                <p className="text-muted-foreground">{localize(open.description, locale)}</p>
+                {editing ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="task-title" className="text-[12px]">{localize("Title", locale)}</Label>
+                    <Input id="task-title" value={draft.title} maxLength={240} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                    <Label htmlFor="task-description" className="text-[12px]">{localize("Description (optional)", locale)}</Label>
+                    <Textarea id="task-description" rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label htmlFor="task-estimate" className="text-[12px]">{localize("Estimate (h)", locale)}</Label><Input id="task-estimate" type="number" min={0} step={0.25} value={draft.estimate} onChange={(e) => setDraft({ ...draft, estimate: e.target.value })} /></div>
+                      <div><Label htmlFor="task-priority" className="text-[12px]">{localize("Priority", locale)}</Label>
+                        <Select value={draft.priority} onValueChange={(v) => setDraft({ ...draft, priority: v as Task["priority"] })}>
+                          <SelectTrigger id="task-priority"><SelectValue /></SelectTrigger>
+                          <SelectContent>{(["High", "Medium", "Low"] as const).map((p) => <SelectItem key={p} value={p}>{localize(p, locale)}</SelectItem>)}</SelectContent>
+                        </Select></div>
+                    </div>
+                    <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => setEditing(false)}>{localize("Cancel", locale)}</Button><Button size="sm" onClick={() => void saveEdit()}>{localize("Save changes", locale)}</Button></div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground">{localize(open.description, locale)}</p>
+                    {backendConnected && open.backendId ? (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => startEdit(open)}><Pencil className="h-3.5 w-3.5" /> {localize("Edit", locale)}</Button>
+                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => setConfirmDelete(true)}><Trash2 className="h-3.5 w-3.5" /> {localize("Delete", locale)}</Button>
+                      </div>
+                    ) : null}
+                  </>
+                )}
                 <dl className="grid grid-cols-[110px_1fr] gap-y-2.5">
                   <dt className="text-muted-foreground">{localize("Course", locale)}</dt><dd><CourseTag id={open.courseId} /></dd>
                   <dt className="text-muted-foreground">{localize("Assignment", locale)}</dt><dd>{localize(assignments.find((a) => a.id === open.assignmentId)?.title ?? "—", locale)}</dd>
@@ -94,6 +171,18 @@ export function KanbanBoard({ courseId, filter }: { courseId?: string | undefine
           ), locale)}
         </SheetContent>
       </Sheet>
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{localize("Delete this task?", locale)}</AlertDialogTitle>
+            <AlertDialogDescription>{localize("The task and the study sessions still ahead for it are removed.", locale)}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{localize("Keep it", locale)}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void removeTask()}>{localize("Delete", locale)}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -101,6 +190,59 @@ const tasksColumn = (t: Task) => t.column;
 
 export function NewTaskButton() {
   const { locale } = useI18n();
-  const { addTask } = useStore();
-  return <Button size="sm" variant="outline" onClick={() => { addTask({ title: "New task", description: "Describe the work.", courseId: "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog", locale)); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>;
+  const { addTask, backendConnected, courses, assignments } = useStore();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assignmentId, setAssignmentId] = useState("");
+  const [estimate, setEstimate] = useState("1");
+  const [priority, setPriority] = useState<Task["priority"]>("Medium");
+  const openAssignments = assignments.filter((item) => item.status !== "Completed");
+
+  const reset = () => { setTitle(""); setDescription(""); setAssignmentId(""); setEstimate("1"); setPriority("Medium"); };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    const hours = Number(estimate);
+    if (!assignment || !title.trim() || !Number.isFinite(hours) || hours < 0) return;
+    await addTask({ title: title.trim(), description: description.trim(), courseId: assignment.courseId, assignmentId: assignment.id, estimate: hours, priority, due: assignment.deadline, column: "backlog" });
+    toast(localize("Task added to Backlog", locale));
+    reset();
+    setOpen(false);
+  };
+
+  // The offline demo keeps its one-click placeholder; a live workspace asks for real details.
+  if (!backendConnected)
+    return <Button size="sm" variant="outline" onClick={() => { void addTask({ title: "New task", description: "Describe the work.", courseId: courses[0]?.id ?? "se", estimate: 1, priority: "Low", due: "Oct 25", column: "backlog" }); toast(localize("Task added to Backlog", locale)); }}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>;
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Plus className="h-3.5 w-3.5" /> {localize("New Task", locale)}</Button>
+      <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="text-[16px]">{localize("New task", locale)}</DialogTitle><DialogDescription className="text-[12.5px]">{localize("Tasks belong to an assignment so their hours count toward its workload.", locale)}</DialogDescription></DialogHeader>
+          <form onSubmit={(event) => void submit(event)} className="space-y-3">
+            <div className="space-y-1.5"><Label htmlFor="task-title" className="text-[12px]">{localize("Title", locale)}</Label><Input id="task-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={240} required /></div>
+            <div className="space-y-1.5"><Label htmlFor="task-description" className="text-[12px]">{localize("Description", locale)}</Label><Input id="task-description" value={description} onChange={(event) => setDescription(event.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignment" className="text-[12px]">{localize("Assignment", locale)}</Label>
+              <select id="task-assignment" className="w-full rounded-md border bg-background px-2 py-2 text-[13px]" value={assignmentId} onChange={(event) => setAssignmentId(event.target.value)} required>
+                <option value="">{localize("Choose…", locale)}</option>
+                {openAssignments.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label htmlFor="task-estimate" className="text-[12px]">{localize("Estimate (h)", locale)}</Label><Input id="task-estimate" type="number" min={0} step={0.25} value={estimate} onChange={(event) => setEstimate(event.target.value)} required /></div>
+              <div className="space-y-1.5">
+                <Label htmlFor="task-priority" className="text-[12px]">{localize("Priority", locale)}</Label>
+                <select id="task-priority" className="w-full rounded-md border bg-background px-2 py-2 text-[13px]" value={priority} onChange={(event) => setPriority(event.target.value as Task["priority"])}>
+                  {(["High", "Medium", "Low"] as const).map((value) => <option key={value} value={value}>{localize(value, locale)}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>{localize("Cancel", locale)}</Button><Button type="submit" size="sm" disabled={!assignmentId || !title.trim()}>{localize("Add task", locale)}</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
