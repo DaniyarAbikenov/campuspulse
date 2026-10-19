@@ -166,7 +166,7 @@ export function UploadDialog() {
             {localize(
               phase === "running" &&
                 (realRun
-                  ? "The CampusPulse agent is reading your document. This usually takes 30–90 seconds."
+                  ? "The CampusPulse agent is reading your document. This usually takes under a minute; after a quiet period the first run can take a few minutes."
                   : "Simulated analysis — no real AI model is called in this prototype."),
               locale,
             )}
