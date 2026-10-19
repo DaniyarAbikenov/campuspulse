@@ -69,6 +69,7 @@ Frontend подключён к локальному FastAPI, но остаётс
 - `GET /campus-events`, `PATCH /campus-events/{id}/save`
 - `GET /agent/activity`, `POST /agent/runs`
 - `POST /tasks`, `POST /schedule-events`
+- `GET /agent/status`, `POST /agent/chat` (AI chat with reasoning trace when the agent is configured)
 - `GET/PATCH/POST /imports/proposals…` (review and approve assignments found in Moodle)
 - `PATCH /insights/{id}`
 - `POST /insights/{id}/apply`

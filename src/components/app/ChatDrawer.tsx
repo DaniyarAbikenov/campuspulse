@@ -7,8 +7,12 @@ import { useStore } from "@/lib/store";
 import { generatedTasks, workloadTotals, adminCourses } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { fetchAgentEnabled, sendAgentMessage, type AgentStep } from "@/lib/api";
 
-interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[] }
+interface Msg { role: "user" | "ai"; text: string; sources?: string[]; list?: string[]; steps?: AgentStep[]; error?: boolean }
+
+const stepLabel = (step: AgentStep) =>
+  step.kind === "tool_call" ? `→ ${step.name}(${step.detail})` : step.kind === "tool_result" ? `← ${step.name}: ${step.detail}` : `… ${step.detail}`;
 
 const contextFor = (path: string) => {
   if (path.startsWith("/assignments")) return "Assignment 3 — JWT Authentication";
@@ -46,7 +50,9 @@ const prompts = ["Why did you create these tasks?", "Why is this week overloaded
 
 export function ChatDrawer() {
   const { locale } = useI18n();
-  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload } = useStore();
+  const { chatOpen, setChatOpen, tasksGenerated, role, tasks, workload, backendConnected } = useStore();
+  const [agentEnabled, setAgentEnabled] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -54,12 +60,27 @@ export function ChatDrawer() {
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
+  useEffect(() => {
+    if (!backendConnected || !chatOpen) return;
+    fetchAgentEnabled().then(setAgentEnabled).catch(() => setAgentEnabled(false));
+  }, [backendConnected, chatOpen]);
+  const useAgent = agentEnabled && role === "student";
 
   const send = (q: string) => {
     if (!q.trim()) return;
     setMsgs((m) => [...m, { role: "user", text: q }]);
     setInput("");
     setTyping(true);
+    if (useAgent) {
+      sendAgentMessage(q, sessionId)
+        .then((reply) => {
+          setSessionId(reply.sessionId);
+          setMsgs((m) => [...m, { role: "ai", text: reply.reply || "The agent returned no answer.", steps: reply.steps }]);
+        })
+        .catch(() => setMsgs((m) => [...m, { role: "ai", text: "The agent is unavailable right now. Try again in a moment.", error: true }]))
+        .finally(() => setTyping(false));
+      return;
+    }
     setTimeout(() => { setMsgs((m) => [...m, role === "admin" ? { role: "ai", text: `Faculty demo: ${adminCourses.length} courses tracked in this view. Advanced Databases has the highest course overload risk at 22%. These are anonymised cohort aggregates, not individual student records.`, sources: ["Faculty course aggregates"] } : q.toLowerCase().match(/workload|overload|week/) ? { role: "ai", text: `Week 43: ${workload.required}h required, ${workload.available}h capacity, ${workload.scheduled}h scheduled and ${workload.unscheduled}h not yet scheduled.`, sources: ["Live workspace"] } : answer(q, tasksGenerated)]); setTyping(false); }, 900);
   };
 
@@ -69,7 +90,7 @@ export function ChatDrawer() {
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ai-soft"><Sparkles className="h-4 w-4 text-ai" /></div>
           <div className="flex-1">
-            <SheetTitle className="text-[14px]">{localize("CampusPulse Assistant", locale)}</SheetTitle><SheetDescription className="sr-only">{localize("Simulated academic assistant", locale)}</SheetDescription>
+            <SheetTitle className="text-[14px]">{localize("CampusPulse Assistant", locale)}</SheetTitle><SheetDescription className="sr-only">{localize(useAgent ? "AI academic assistant" : "Simulated academic assistant", locale)}</SheetDescription>
             <p className="text-[11.5px] text-muted-foreground">{localize("Context:", locale)} {localize(role === "admin" ? "Faculty of Computing" : contextFor(path), locale)}</p>
           </div>
           <Button variant="ghost" size="icon" aria-label={localize("Close assistant", locale)} onClick={() => setChatOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></Button>
@@ -77,14 +98,22 @@ export function ChatDrawer() {
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {localize(msgs.length === 0 && (
             <div className="rounded-lg border bg-secondary/50 p-3 text-[12.5px] text-muted-foreground">
-              {localize("I have access to your courses, assignments, schedule and generated tasks. Responses in this prototype are simulated from demo data.", locale)}
+              {localize(useAgent ? "I can read your assignments, workload, free time, campus events, indexed materials and Moodle. I cannot submit work or change grades." : "I have access to your courses, assignments, schedule and generated tasks. Responses in this prototype are simulated from demo data.", locale)}
             </div>
           ), locale)}
           {localize(msgs.map((m, i) => (
             <div key={i} className={cn("max-w-[90%] text-[13px]", m.role === "user" ? "ml-auto rounded-lg bg-primary px-3 py-2 text-primary-foreground" : "")}>
               {localize(m.role === "ai" ? (
                 <div className="rounded-lg border bg-card p-3">
-                  <p className="leading-relaxed">{localize(m.text, locale)}</p>
+                  {m.steps?.length ? (
+                    <details className="mb-2 rounded border bg-secondary/40 px-2 py-1 text-[11.5px] text-muted-foreground">
+                      <summary className="cursor-pointer">{localize("Reasoning", locale)} · {m.steps.filter((s) => s.kind === "tool_call").length} {localize("tool calls", locale)}</summary>
+                      <ol className="mt-1 space-y-0.5 font-mono text-[10.5px]">
+                        {m.steps.map((s, n) => <li key={n} className="break-words">{stepLabel(s)}</li>)}
+                      </ol>
+                    </details>
+                  ) : null}
+                  <p className={cn("leading-relaxed", m.error && "text-destructive")}>{localize(m.text, locale)}</p>
                   {localize(m.list && <ol className="mt-2 space-y-1 border-l-2 border-ai/30 pl-3 text-[12px] text-muted-foreground">{localize(m.list.map((l) => <li key={l}>{localize(l, locale)}</li>), locale)}</ol>, locale)}
                   {localize(m.sources && <div className="mt-2 flex flex-wrap gap-1">{localize(m.sources.map((s) => <span key={s} className="inline-flex items-center gap-1 rounded border bg-secondary px-1.5 py-0.5 text-[10.5px] text-muted-foreground"><FileText className="h-3 w-3" />{localize(s, locale)}</span>), locale)}</div>, locale)}
                 </div>

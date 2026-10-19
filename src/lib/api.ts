@@ -694,3 +694,29 @@ export const applyImportProposal = (id: string) =>
   });
 export const dismissImportProposal = (id: string) =>
   request(`/imports/proposals/${id}/dismiss`, { method: "POST" });
+
+export interface AgentStep {
+  kind: "thought" | "tool_call" | "tool_result";
+  name: string | null;
+  detail: string;
+}
+export interface AgentChatReply {
+  sessionId: string;
+  reply: string;
+  steps: AgentStep[];
+}
+export const fetchAgentEnabled = async () =>
+  (await request<{ enabled: boolean }>("/agent/status")).enabled;
+export const sendAgentMessage = async (
+  message: string,
+  sessionId: string | null,
+): Promise<AgentChatReply> => {
+  const reply = await request<{ session_id: string; reply: string; steps: AgentStep[] }>(
+    "/agent/chat",
+    {
+      method: "POST",
+      body: JSON.stringify({ message, ...(sessionId ? { session_id: sessionId } : {}) }),
+    },
+  );
+  return { sessionId: reply.session_id, reply: reply.reply, steps: reply.steps };
+};
