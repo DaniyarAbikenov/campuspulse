@@ -1,0 +1,228 @@
+import asyncio
+from pathlib import Path
+from typing import Any
+from uuid import UUID
+
+import pytest
+from fastapi.testclient import TestClient
+from reportlab.pdfgen import canvas
+
+from app.agent.gateway import AgentReply, AgentStep
+from app.core.config import settings
+from app.main import app
+from app.product.router import get_agent_gateway
+
+SE_COURSE = "00000000-0000-0000-0000-0000000000c8"
+BRIEF = [
+    ["Assignment 3: Authentication", "R1 Implement JWT-based authentication using HS256."],
+    ["R2 Secure the /api/orders endpoints with a valid token."],
+]
+
+
+def make_pdf(path: Path) -> None:
+    pdf = canvas.Canvas(str(path))
+    for lines in BRIEF:
+        y = 800
+        for line in lines:
+            pdf.drawString(40, y, line)
+            y -= 18
+        pdf.showPage()
+    pdf.save()
+
+
+@pytest.fixture
+def uploaded(student: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    monkeypatch.setattr(settings, "upload_directory", str(tmp_path / "uploads"))
+    brief = tmp_path / "brief.pdf"
+    make_pdf(brief)
+    response = student.post(
+        "/api/v1/assignments/upload",
+        data={"course_id": SE_COURSE, "title": "Assignment 3", "due_at": "2026-10-23T18:59:00Z"},
+        files={"file": ("brief.pdf", brief.read_bytes(), "application/pdf")},
+    )
+    return str(response.json()["assignment"]["id"])
+
+
+def plan_body(assignment_id: str, **overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "assignment_id": assignment_id,
+        "summary": "Two requirements.",
+        "items": [
+            {
+                "requirement_id": "R1",
+                "requirement_text": "Implement JWT-based authentication.",
+                "quote": "Implement JWT-based authentication using HS256",
+                "page": 1,
+                "title": "Implement JWT token generation",
+                "estimated_hours": 1.5,
+                "priority": "high",
+            },
+            {
+                "requirement_id": "R2",
+                "requirement_text": "Secure order endpoints.",
+                "quote": "Secure the /api/orders endpoints",
+                "page": 1,  # actually on page 2: the backend must correct it
+                "title": "Secure endpoints",
+                "estimated_hours": 2.0,
+            },
+        ],
+    }
+    body.update(overrides)
+    return body
+
+
+def test_agent_reads_the_extracted_text(student: TestClient, uploaded: str) -> None:
+    body = student.get(f"/api/v1/assignments/{uploaded}/text").json()
+    assert body["title"] == "Assignment 3" and [p["page"] for p in body["pages"]] == [1, 2]
+    assert "HS256" in body["pages"][0]["text"]
+
+
+def test_text_is_404_without_a_readable_document(student: TestClient) -> None:
+    seeded = student.get("/api/v1/assignments/overview").json()["items"][0]["id"]
+    assert student.get(f"/api/v1/assignments/{seeded}/text").status_code == 404
+
+
+def test_citations_are_verified_and_pages_corrected(student: TestClient, uploaded: str) -> None:
+    plan = student.post("/api/v1/task-plans", json=plan_body(uploaded)).json()
+    first, second = plan["items"]
+    assert first["quote_verified"] is True and first["page"] == 1
+    assert second["quote_verified"] is True and second["page"] == 2
+
+
+def test_invented_quotes_are_flagged_not_trusted(student: TestClient, uploaded: str) -> None:
+    body = plan_body(uploaded)
+    body["items"][0]["quote"] = "Deploy the service to Kubernetes"
+    plan = student.post("/api/v1/task-plans", json=body).json()
+    assert (
+        plan["items"][0]["quote_verified"] is False and plan["items"][1]["quote_verified"] is True
+    )
+
+
+def test_nothing_reaches_the_board_until_approval(student: TestClient, uploaded: str) -> None:
+    before = student.get("/api/v1/kanban").json()["total_tasks"]
+    student.post("/api/v1/task-plans", json=plan_body(uploaded))
+    assert student.get("/api/v1/kanban").json()["total_tasks"] == before
+
+
+def test_approving_creates_ai_tasks_with_provenance_once(
+    student: TestClient, uploaded: str
+) -> None:
+    plan = student.post("/api/v1/task-plans", json=plan_body(uploaded)).json()
+    student.patch(
+        f"/api/v1/task-plans/{plan['id']}/items/{plan['items'][1]['id']}",
+        json={"estimated_hours": 3.0},
+    )
+    dropped = plan["items"][0]
+    student.patch(
+        f"/api/v1/task-plans/{plan['id']}/items/{dropped['id']}", json={"selected": False}
+    )
+
+    applied = student.post(f"/api/v1/task-plans/{plan['id']}/apply").json()
+    assert applied["created"] == 1 and applied["plan"]["status"] == "applied"
+    tasks = [
+        task
+        for column in student.get("/api/v1/kanban").json()["columns"]
+        for task in column["tasks"]
+        if task["assignment_id"] == uploaded
+    ]
+    assert [
+        (t["title"], t["estimated_hours"], t["is_ai_generated"], t["source_requirement"])
+        for t in tasks
+    ] == [("Secure endpoints", 3.0, True, "R2")]
+    assert "page 2" in tasks[0]["description"]
+    assignment = next(
+        a
+        for a in student.get("/api/v1/assignments/overview").json()["items"]
+        if a["id"] == uploaded
+    )
+    assert assignment["estimated_hours"] == 3.0
+
+    again = student.post(f"/api/v1/task-plans/{plan['id']}/apply").json()
+    assert again["created"] == 0
+    assert student.get("/api/v1/kanban").json()["total_tasks"] == len(tasks) + 8
+
+
+def test_dismissed_plans_cannot_be_applied(student: TestClient, uploaded: str) -> None:
+    plan = student.post("/api/v1/task-plans", json=plan_body(uploaded)).json()
+    assert student.post(f"/api/v1/task-plans/{plan['id']}/dismiss").json()["status"] == "dismissed"
+    assert student.post(f"/api/v1/task-plans/{plan['id']}/apply").status_code == 409
+    assert student.get(f"/api/v1/assignments/{uploaded}/task-plan").status_code == 404
+
+
+def test_a_new_plan_replaces_the_pending_one(student: TestClient, uploaded: str) -> None:
+    first = student.post("/api/v1/task-plans", json=plan_body(uploaded)).json()
+    second = student.post("/api/v1/task-plans", json=plan_body(uploaded, summary="v2")).json()
+    latest = student.get(f"/api/v1/assignments/{uploaded}/task-plan").json()
+    assert latest["id"] == second["id"] != first["id"] and latest["summary"] == "v2"
+
+
+def test_related_assignment_becomes_a_relation_on_approval(
+    student: TestClient, uploaded: str
+) -> None:
+    related = student.get("/api/v1/assignments/overview").json()["items"][0]["id"]
+    body = plan_body(uploaded, related_assignment_id=related, relation_type="extends")
+    plan = student.post("/api/v1/task-plans", json=body).json()
+    assert plan["related_assignment_title"]
+    student.post(f"/api/v1/task-plans/{plan['id']}/apply")
+    relations = student.get("/api/v1/assignment-relations")
+    assert relations.status_code in {200, 403}
+
+
+class PlanningGateway:
+    """Stands in for the agent: like the real one it calls the API with the token it is given."""
+
+    def __init__(self, client: TestClient, assignment_id: str, *, propose: bool = True) -> None:
+        self.client = client
+        self.assignment_id = assignment_id
+        self.propose = propose
+
+    async def chat(
+        self, *, user_id: str, session_id: str | None, message: str, agent_token: str
+    ) -> AgentReply:
+        assert self.assignment_id in message
+        headers = {"Authorization": f"Bearer {agent_token}"}
+        text = await asyncio.to_thread(
+            self.client.get, f"/api/v1/assignments/{self.assignment_id}/text", headers=headers
+        )
+        assert text.status_code == 200
+        if self.propose:
+            created = await asyncio.to_thread(
+                self.client.post,
+                "/api/v1/task-plans",
+                json=plan_body(self.assignment_id),
+                headers=headers,
+            )
+            assert created.status_code == 201
+        return AgentReply(
+            session_id="s1",
+            text="Planned.",
+            steps=[AgentStep("tool_call", "get_assignment_text", "{}")],
+        )
+
+
+def test_analysis_runs_the_agent_and_returns_the_proposed_plan(
+    student: TestClient, uploaded: str
+) -> None:
+    app.dependency_overrides[get_agent_gateway] = lambda: PlanningGateway(student, uploaded)
+    body = student.post(f"/api/v1/assignments/{uploaded}/analysis").json()
+    assert body["plan"]["status"] == "pending" and len(body["plan"]["items"]) == 2
+    assert [s["name"] for s in body["steps"]] == ["get_assignment_text"]
+
+
+def test_analysis_fails_cleanly_when_the_agent_proposes_nothing(
+    student: TestClient, uploaded: str
+) -> None:
+    app.dependency_overrides[get_agent_gateway] = lambda: PlanningGateway(
+        student, uploaded, propose=False
+    )
+    assert student.post(f"/api/v1/assignments/{uploaded}/analysis").status_code == 502
+
+
+def test_analysis_needs_a_configured_agent_and_extracted_text(
+    student: TestClient, uploaded: str
+) -> None:
+    assert student.post(f"/api/v1/assignments/{uploaded}/analysis").status_code == 503
+    seeded = student.get("/api/v1/assignments/overview").json()["items"][0]["id"]
+    app.dependency_overrides[get_agent_gateway] = lambda: PlanningGateway(student, seeded)
+    assert student.post(f"/api/v1/assignments/{seeded}/analysis").status_code == 404
+    assert UUID(uploaded)

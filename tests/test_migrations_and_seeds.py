@@ -48,6 +48,8 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "roles",
         "schedule_events",
         "semesters",
+        "task_plan_items",
+        "task_plans",
         "tasks",
         "user_roles",
         "users",

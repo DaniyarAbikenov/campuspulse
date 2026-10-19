@@ -26,6 +26,7 @@ from app.db.models import (
     InsightActionType,
     InsightSeverity,
     InsightStatus,
+    PlanStatus,
     Priority,
     ScheduleEventKind,
     TaskStatus,
@@ -768,3 +769,80 @@ class OnboardingInstitutionRead(StrictSchema):
 
 class OnboardingOptionsRead(StrictSchema):
     institutions: list[OnboardingInstitutionRead]
+
+
+class AssignmentPageRead(StrictSchema):
+    page: StrictInt
+    text: str
+
+
+class AssignmentTextRead(StrictSchema):
+    assignment_id: UUID
+    title: str
+    course_name: str
+    due_at: datetime
+    pages: list[AssignmentPageRead]
+
+
+class TaskPlanItemCreate(StrictSchema):
+    requirement_id: Annotated[str, Field(min_length=1, max_length=16)]
+    requirement_text: Annotated[str, Field(min_length=1, max_length=1000)]
+    quote: Annotated[str, Field(min_length=1, max_length=1500)]
+    page: Annotated[StrictInt, Field(ge=1)]
+    title: ShortText
+    description: Annotated[str, Field(max_length=2000)] = ""
+    estimated_hours: Annotated[StrictFloat, Field(gt=0, le=40)]
+    priority: Priority = Priority.medium
+
+
+class TaskPlanCreate(StrictSchema):
+    assignment_id: UUID
+    summary: Annotated[str, Field(max_length=2000)] = ""
+    related_assignment_id: UUID | None = None
+    relation_type: AssignmentRelationType | None = None
+    items: Annotated[list[TaskPlanItemCreate], Field(min_length=1, max_length=30)]
+
+
+class TaskPlanItemRead(StrictSchema):
+    id: UUID
+    position: StrictInt
+    requirement_id: str
+    requirement_text: str
+    quote: str
+    page: StrictInt
+    quote_verified: StrictBool
+    title: str
+    description: str
+    estimated_hours: StrictFloat
+    priority: Priority
+    selected: StrictBool
+    task_id: UUID | None
+
+
+class TaskPlanRead(StrictSchema):
+    id: UUID
+    assignment_id: UUID
+    status: PlanStatus
+    summary: str
+    related_assignment_id: UUID | None
+    related_assignment_title: str | None
+    relation_type: AssignmentRelationType | None
+    created_at: datetime
+    applied_at: datetime | None
+    items: list[TaskPlanItemRead]
+
+
+class TaskPlanItemUpdate(StrictSchema):
+    selected: StrictBool | None = None
+    estimated_hours: Annotated[StrictFloat, Field(gt=0, le=40)] | None = None
+    title: ShortText | None = None
+
+
+class TaskPlanApplyRead(StrictSchema):
+    plan: TaskPlanRead
+    created: StrictInt
+
+
+class AssignmentAnalysisRead(StrictSchema):
+    plan: TaskPlanRead
+    steps: list[AgentChatStepRead]

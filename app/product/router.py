@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
 from app.documents import service as documents_service
-from app.product import campus, imports, service
+from app.product import campus, imports, plans, service
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -436,6 +436,92 @@ async def agent_chat(
             payload,
             settings=settings,
             secret=get_jwt_secret(),
+        )
+    except AgentUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+
+
+@router.get(
+    "/assignments/{assignment_id}/text",
+    response_model=schemas.AssignmentTextRead,
+    tags=["analysis"],
+)
+def assignment_text(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.AssignmentTextRead:
+    return plans.assignment_text(session, current, assignment_id)
+
+
+@router.post(
+    "/task-plans",
+    response_model=schemas.TaskPlanRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["analysis"],
+)
+def create_task_plan(
+    payload: schemas.TaskPlanCreate, current: CurrentUserDep, session: SessionDep
+) -> schemas.TaskPlanRead:
+    return plans.create_plan(session, current, payload)
+
+
+@router.get(
+    "/assignments/{assignment_id}/task-plan", response_model=schemas.TaskPlanRead, tags=["analysis"]
+)
+def latest_task_plan(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.TaskPlanRead:
+    return plans.latest_plan(session, current, assignment_id)
+
+
+@router.patch(
+    "/task-plans/{plan_id}/items/{item_id}",
+    response_model=schemas.TaskPlanRead,
+    tags=["analysis"],
+)
+def update_task_plan_item(
+    plan_id: UUID,
+    item_id: UUID,
+    payload: schemas.TaskPlanItemUpdate,
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> schemas.TaskPlanRead:
+    return plans.update_item(session, current, plan_id, item_id, payload)
+
+
+@router.post(
+    "/task-plans/{plan_id}/apply", response_model=schemas.TaskPlanApplyRead, tags=["analysis"]
+)
+def apply_task_plan(
+    plan_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.TaskPlanApplyRead:
+    return plans.apply(session, current, plan_id)
+
+
+@router.post(
+    "/task-plans/{plan_id}/dismiss", response_model=schemas.TaskPlanRead, tags=["analysis"]
+)
+def dismiss_task_plan(
+    plan_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.TaskPlanRead:
+    return plans.dismiss(session, current, plan_id)
+
+
+@router.post(
+    "/assignments/{assignment_id}/analysis",
+    response_model=schemas.AssignmentAnalysisRead,
+    tags=["analysis"],
+)
+async def analyze_assignment(
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep, gateway: AgentGatewayDep
+) -> schemas.AssignmentAnalysisRead:
+    """Ask the agent to read the uploaded brief and propose a task plan for approval."""
+    if gateway is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Agent is not configured"
+        )
+    try:
+        return await agent_service.analyze_assignment(
+            session, current, gateway, assignment_id, settings=settings, secret=get_jwt_secret()
         )
     except AgentUnavailableError as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error

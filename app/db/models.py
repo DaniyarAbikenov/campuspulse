@@ -146,6 +146,12 @@ class ImportStatus(StrEnum):
     dismissed = "dismissed"
 
 
+class PlanStatus(StrEnum):
+    pending = "pending"
+    applied = "applied"
+    dismissed = "dismissed"
+
+
 class Institution(TimestampMixin, Base):
     __tablename__ = "institutions"
 
@@ -637,4 +643,65 @@ class ImportItem(TimestampMixin, Base):
     attachment_names: Mapped[list[str]] = mapped_column(JSON, default=list)
     assignment_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class TaskPlan(TimestampMixin, Base):
+    """A task breakdown the agent proposes for an assignment; nothing exists until approved."""
+
+    __tablename__ = "task_plans"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    assignment_id: Mapped[UUID] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[PlanStatus] = mapped_column(
+        SqlEnum(PlanStatus, native_enum=False, create_constraint=True, name="plan_status"),
+        default=PlanStatus.pending,
+        index=True,
+    )
+    summary: Mapped[str] = mapped_column(Text, default="")
+    related_assignment_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True
+    )
+    relation_type: Mapped[AssignmentRelationType | None] = mapped_column(
+        SqlEnum(
+            AssignmentRelationType,
+            native_enum=False,
+            create_constraint=True,
+            name="task_plan_relation_type",
+        ),
+        nullable=True,
+    )
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TaskPlanItem(TimestampMixin, Base):
+    __tablename__ = "task_plan_items"
+    __table_args__ = (
+        CheckConstraint("estimated_hours >= 0", name="ck_task_plan_item_hours"),
+        CheckConstraint("page >= 1", name="ck_task_plan_item_page"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    plan_id: Mapped[UUID] = mapped_column(
+        ForeignKey("task_plans.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    requirement_id: Mapped[str] = mapped_column(String(16))
+    requirement_text: Mapped[str] = mapped_column(Text)
+    quote: Mapped[str] = mapped_column(Text)
+    page: Mapped[int] = mapped_column(Integer, default=1)
+    quote_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    title: Mapped[str] = mapped_column(String(240))
+    description: Mapped[str] = mapped_column(Text, default="")
+    estimated_hours: Mapped[float] = mapped_column(Float, default=1.0)
+    priority: Mapped[Priority] = mapped_column(
+        SqlEnum(Priority, native_enum=False, create_constraint=True, name="task_plan_priority"),
+        default=Priority.medium,
+    )
+    selected: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    task_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
