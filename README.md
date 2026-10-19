@@ -88,7 +88,7 @@ Google flow подробно описан в [`docs/authentication.md`](docs/aut
 | Campus events | `GET /api/v1/campus-events`, `PATCH /api/v1/campus-events/{id}/save` |
 | Agent activity | `GET /api/v1/agent/activity`, `POST /api/v1/agent/runs` |
 | Imports | `POST/GET /api/v1/imports/proposals`, item `PATCH`, `POST .../apply`, `POST .../dismiss` |
-| Agent chat | `GET /api/v1/agent/status`, `POST /api/v1/agent/chat` |
+| Agent chat | `GET /api/v1/agent/status`, `POST /api/v1/agent/chat`, `POST /api/v1/agent/chat/stream` (SSE: `step` events, then `done` or `error`; the same for `/assignments/{id}/analysis/stream` and `/insights/refresh/stream`) |
 | Agent insights | `POST /api/v1/insights/refresh` (student triggers), `POST /api/v1/agent/insights` (agent writes; sources verified) |
 | Settings | `GET/PATCH /api/v1/settings` |
 | Insights | `GET/POST /api/v1/insights` |
