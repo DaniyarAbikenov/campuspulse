@@ -113,6 +113,32 @@ async def get_free_time(tool_context: ToolContext, week_start: str | None = None
     )
 
 
+async def get_schedule(
+    tool_context: ToolContext, week_start: str | None = None
+) -> list[dict[str, Any]]:
+    """Everything already in the student's calendar for a week: classes, activities, study
+    sessions. Use it to place an activity so that it does not overlap anything.
+
+    Args:
+        week_start: Monday of the week as YYYY-MM-DD. Defaults to the current week.
+    """
+    week = await _call(
+        tool_context,
+        "GET",
+        "/schedule",
+        params={"week_start": week_start} if week_start else None,
+    )
+    return [
+        {
+            "title": item["title"],
+            "kind": item["kind"],
+            "starts_at": item["starts_at"],
+            "ends_at": item["ends_at"],
+        }
+        for item in week["events"]
+    ]
+
+
 async def list_campus_events(tool_context: ToolContext, limit: int = 5) -> list[dict[str, Any]]:
     """Upcoming campus events ranked by how well they fit this student.
 
@@ -457,6 +483,7 @@ CAMPUSPULSE_TOOLS = [
     get_workload,
     list_assignments,
     get_free_time,
+    get_schedule,
     list_campus_events,
     search_knowledge,
     propose_assignment_import,

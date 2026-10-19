@@ -137,6 +137,22 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
                     "rejected": [{"title": "x", "reason": "No verifiable source"}],
                 },
             )
+        if path == "/api/v1/schedule":
+            return httpx.Response(
+                200,
+                json={
+                    "events": [
+                        {
+                            "id": "e1",
+                            "title": "Databases",
+                            "kind": "class_session",
+                            "starts_at": "2026-10-20T09:00:00+05:00",
+                            "ends_at": "2026-10-20T11:00:00+05:00",
+                            "user_id": "u",
+                        }
+                    ]
+                },
+            )
         if path == "/api/v1/agent/actions":
             return httpx.Response(
                 201,
@@ -328,3 +344,18 @@ async def test_propose_actions_sends_only_the_filled_fields(
 
     declaration = FunctionTool(tools.propose_actions)._get_declaration()
     assert declaration is not None and declaration.name == "propose_actions"
+
+
+async def test_get_schedule_returns_only_what_is_needed_to_avoid_overlaps(
+    backend: list[httpx.Request],
+) -> None:
+    events = await tools.get_schedule(context(), "2026-10-19")
+    assert events == [
+        {
+            "title": "Databases",
+            "kind": "class_session",
+            "starts_at": "2026-10-20T09:00:00+05:00",
+            "ends_at": "2026-10-20T11:00:00+05:00",
+        }
+    ]
+    assert backend[0].url.params["week_start"] == "2026-10-19"
