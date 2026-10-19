@@ -37,3 +37,18 @@ creates the enrollments atomically.
 Role assignment itself is intentionally not exposed as generic CRUD. Initial administrative roles
 must be provisioned through trusted database operations until a dedicated administration workflow
 is implemented.
+
+## Administrator analytics and privacy
+
+`GET /api/v1/admin/overview` is the only faculty-wide view the product uses. It reports course
+load, estimate accuracy, overload risk, weekly cohort hours and activity counts as **aggregates**:
+
+- every figure is computed over distinct students and withheld (`null`) when the group is smaller
+  than `CAMPUSPULSE_ADMIN_MIN_COHORT_SIZE` (default 5), so a small course cannot expose one person;
+- the response contains no names, emails, identifiers or per-student rows;
+- the personal screens (assignments, Kanban, courses, knowledge, statistics) always show only the
+  caller's own records, even for administrators.
+
+Administrator roles are granted from the command line, never through the API:
+`python -m app.roles grant someone@example.com academic_admin` (the person must sign in once and
+finish onboarding first). `python -m app.seeds --cohort` adds anonymous demo students for demos.

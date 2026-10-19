@@ -98,3 +98,16 @@ def test_roles_are_granted_and_revoked_idempotently(student: TestClient) -> None
         set_role(session, STUDENT_EMAIL, "root", grant=True)
     with pytest.raises(SystemExit):
         set_role(session, "nobody@example.com", "student", grant=True)
+
+
+def test_an_administrators_personal_views_contain_only_their_own_records(
+    with_cohort: TestClient,
+) -> None:
+    mine = with_cohort.get("/api/v1/assignments/overview").json()
+    assert mine["total"] == 9 and all(
+        not item["title"].startswith("Demo cohort") for item in mine["items"]
+    )
+    board = with_cohort.get("/api/v1/kanban").json()
+    assert board["total_tasks"] == 8
+    courses = with_cohort.get("/api/v1/courses/overview").json()
+    assert sum(c["assignment_count"] for c in courses) == 9

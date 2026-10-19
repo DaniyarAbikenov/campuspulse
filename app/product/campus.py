@@ -21,6 +21,7 @@ def knowledge_base(
         ).all()
         if (course_id is None or document.course_id == course_id)
         and can_read(session, actor, document)
+        and _own_or_course_material(session, actor, document)
     ]
     readable_ids = {document.id for document in documents}
     fragments = [
@@ -56,6 +57,16 @@ def knowledge_base(
         ],
         fragments=[schemas.DocumentFragmentRead.model_validate(item) for item in fragments],
     )
+
+
+def _own_or_course_material(
+    session: Session, actor: AuthenticatedUser, document: models.Document
+) -> bool:
+    """Briefs belong to the student who uploaded them; administrators do not browse them."""
+    if document.assignment_id is None:
+        return True
+    assignment = session.get(models.Assignment, document.assignment_id)
+    return assignment is not None and assignment.owner_user_id == actor.user.id
 
 
 def campus_events(session: Session, actor: AuthenticatedUser) -> list[schemas.CampusEventRead]:

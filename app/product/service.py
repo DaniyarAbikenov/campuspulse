@@ -87,10 +87,14 @@ def assignment_summaries(
     due_to: datetime | None = None,
 ) -> list[schemas.AssignmentSummaryRead]:
     normalized_query = query.casefold().strip() if query else None
+    # "My" views: even an administrator sees only their own assignments here. Faculty-wide
+    # numbers come from the anonymised admin overview, never from individual records.
     assignments = [
         item
         for item in session.scalars(
-            select(models.Assignment).order_by(models.Assignment.due_at)
+            select(models.Assignment)
+            .where(models.Assignment.owner_user_id == actor.user.id)
+            .order_by(models.Assignment.due_at)
         ).all()
         if can_read(session, actor, item)
     ]
@@ -209,7 +213,7 @@ def kanban_board(
         if not can_read(session, actor, task):
             continue
         assignment = session.get(models.Assignment, task.assignment_id)
-        if assignment is None:
+        if assignment is None or assignment.owner_user_id != actor.user.id:
             continue
         if course_id is not None and assignment.course_id != course_id:
             continue
