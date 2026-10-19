@@ -741,3 +741,12 @@ def test_the_status_snapshot_agrees_with_the_board(student: TestClient) -> None:
     assert snapshot["scheduled_hours"] == 1.0 and snapshot["unscheduled_hours"] == 3.5
     assert len(snapshot["study_sessions"]) == 1
     assert student.get(f"{API}/assignments/{assignment}").json()["estimated_hours"] == 6.0
+
+
+def test_the_status_snapshot_speaks_in_campus_time(student: TestClient) -> None:
+    assignment = make_assignment(student)
+    task = add_task(student, assignment)
+    assert study_event(student, task, far_day(62), 1.0).status_code == 201
+    snapshot = student.get(f"{API}/assignments/{assignment}/status").json()
+    assert snapshot["study_sessions"][0]["starts_at"].endswith("+05:00")
+    assert snapshot["due_at"].endswith("+05:00")

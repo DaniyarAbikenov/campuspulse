@@ -815,11 +815,12 @@ def assignment_status(
         )
     ]
     by_id = {task.id: task for task in tasks}
+    zone = _user_timezone(session, actor.user)  # times read in the student's own clock
     return schemas.AssignmentStatusRead(
         id=assignment.id,
         title=assignment.title,
         status=assignment.status,
-        due_at=assignment.due_at,
+        due_at=_aware(assignment.due_at).astimezone(zone),
         progress_percent=assignment.progress,
         estimated_hours=float(assignment.estimated_hours),
         completed_hours=float(
@@ -848,8 +849,8 @@ def assignment_status(
         study_sessions=[
             schemas.StatusSessionRead(
                 task_title=by_id[e.task_id].title if e.task_id in by_id else None,
-                starts_at=e.starts_at,
-                ends_at=e.ends_at,
+                starts_at=_aware(e.starts_at).astimezone(zone),
+                ends_at=_aware(e.ends_at).astimezone(zone),
             )
             for e in sessions
         ],
