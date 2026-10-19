@@ -15,8 +15,8 @@ from app.documents.embeddings import Embedder, EmbeddingError
 
 logger = logging.getLogger(__name__)
 
-MIN_SEARCH_SCORE = 0.45
-MIN_RESOURCE_SCORE = 0.55
+MIN_SEARCH_SCORE = 0.52
+MIN_RESOURCE_SCORE = 0.58
 KEYWORD_WEIGHT = 0.8  # a word match is weaker evidence than a close meaning
 EXCERPT_CHARS = 420
 STUDY_KINDS = (models.DocumentKind.lecture, models.DocumentKind.syllabus, models.DocumentKind.other)
