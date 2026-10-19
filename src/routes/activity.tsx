@@ -32,7 +32,7 @@ function ActivityPage() {
         <MetricCard label={localize("Permissions", locale)} value="Read-only" sub={localize("No submissions on your behalf", locale)} icon={ShieldCheck} />
       </div>
       <div className="mt-4">
-        <Panel title={localize("Timeline", locale)}><ActivityFeed items={activity} /></Panel>
+        <Panel title={localize("Timeline", locale)}><ActivityFeed items={activity} technical={role === "student"} /></Panel>
 
       </div>
     </>

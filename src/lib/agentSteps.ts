@@ -95,3 +95,35 @@ export function applyStep(items: TraceItem[], step: AgentStep): TraceItem[] {
 
 /** The full trace for a finished list of steps. */
 export const traceOf = (steps: AgentStep[]): TraceItem[] => steps.reduce(applyStep, []);
+
+const parse = (raw: string): Record<string, unknown> | null => {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+};
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+/** One readable line about what a tool achieved, or null when its name already says it.
+ *  Raw tool output (JSON, ids, notes meant for the model) is never shown to people. */
+export function describeToolResult(name: string | null, raw: string): string | null {
+  if (!raw) return null;
+  if (failed(raw)) return "It did not work";
+  const data = parse(raw);
+  switch (name) {
+    case "propose_actions": {
+      const count = Number(data?.["proposed"] ?? 0);
+      return count ? `Proposed ${plural(count, "change", "changes")} for you to confirm` : "Nothing to propose";
+    }
+    case "propose_insights":
+      return `Saved ${plural(Number(data?.["saved"] ?? 0), "insight", "insights")}`;
+    case "propose_task_plan":
+      return "Proposed a task plan for your approval";
+    case "propose_assignment_import":
+      return "Prepared an import for your approval";
+    default:
+      return null;
+  }
+}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Bell, Search, Sparkles, ChevronRight, CalendarRange, Menu } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { initialsOf } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -17,10 +18,28 @@ const labels: Record<string, string> = {
   statistics: "Study Statistics", activity: "Agent Activity", settings: "Settings", admin: "Academic Overview",
 };
 
+type Notice = { id: string; title: string; detail: string; to: "/insights" | "/assignments/$assignmentId"; params?: { assignmentId: string } };
+
+/** What needs attention now: new insights and deadlines within two days. */
+function buildNotifications(insights: { status: string }[], assignments: { id: string; title: string; status: string; dueAt?: string | undefined }[]): Notice[] {
+  const notices: Notice[] = [];
+  const fresh = insights.filter((item) => item.status === "New").length;
+  if (fresh) notices.push({ id: "insights", title: `${fresh} new AI ${fresh === 1 ? "insight" : "insights"}`, detail: "Review the recommendations", to: "/insights" });
+  const now = Date.now();
+  for (const item of assignments) {
+    if (!item.dueAt || item.status === "Completed" || item.status === "Cancelled") continue;
+    const hours = (Date.parse(item.dueAt) - now) / 3_600_000;
+    if (hours < 0 || hours > 48) continue;
+    notices.push({ id: item.id, title: item.title, detail: hours < 24 ? "Due within 24 hours" : "Due within 2 days", to: "/assignments/$assignmentId", params: { assignmentId: item.id } });
+  }
+  return notices.slice(0, 6);
+}
+
 export function Topbar() {
   const { locale } = useI18n();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { openChat, activity, setUploadOpen, role, setMobileNavOpen, courses, assignments, adminFeed, adminCourseOptions, backendConnected, weekStart, profile } = useStore();
+  const { openChat, setUploadOpen, role, setMobileNavOpen, courses, assignments, adminCourseOptions, backendConnected, weekStart, profile, insights, settings } = useStore();
+  const notifications = buildNotifications(role === "student" ? insights : [], role === "student" ? assignments : []);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const parts = path.split("/").filter(Boolean);
@@ -66,28 +85,28 @@ export function Topbar() {
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 relative rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label={localize("Notifications", locale)}>
               <Bell className="h-4 w-4" />
-              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+              {notifications.length ? <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive" aria-hidden /> : null}
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0">
+          <PopoverContent align="end" className="w-80 p-0" aria-label={localize("Notifications", locale)}>
             <div className="border-b px-3 py-2 text-[13px] font-semibold">{localize("Notifications", locale)}</div>
-            {localize((role === "admin" ? adminFeed : activity).slice(0, 5).map((a) => (
-              <div key={a.id} className="border-b px-3 py-2 last:border-0">
-                <div className="text-[12.5px] font-medium">{localize(a.title, locale)}</div>
-                <div className="text-[11.5px] text-muted-foreground">{localize(a.time, locale)} {localize("·", locale)} {localize(a.detail, locale)}</div>
-              </div>
-            )), locale)}
-            <Link to="/activity" className="block px-3 py-2 text-center text-[12px] text-primary hover:bg-secondary">{localize("View all activity", locale)}</Link>
+            {notifications.length ? notifications.map((item) => (
+              <Link key={item.id} to={item.to} params={item.params as never} className="block border-b px-3 py-2 last:border-0 hover:bg-secondary">
+                <div className="text-[12.5px] font-medium">{localize(item.title, locale)}</div>
+                <div className="text-[11.5px] text-muted-foreground">{localize(item.detail, locale)}</div>
+              </Link>
+            )) : <p className="px-3 py-4 text-[12.5px] text-muted-foreground">{localize("You are all caught up: nothing is due soon and there are no new insights.", locale)}</p>}
+            <Link to="/activity" className="block px-3 py-2 text-center text-[12px] text-primary hover:bg-secondary">{localize("View agent activity", locale)}</Link>
           </PopoverContent>
         </Popover>
         <Button size="sm" variant="outline" className="h-8 w-8 gap-1.5 px-0 sm:w-auto sm:px-3" aria-label={localize("Ask CampusPulse", locale)} onClick={() => openChat()}>
           <Sparkles className="h-3.5 w-3.5 text-primary" /> <span className="hidden sm:inline">{localize("Ask CampusPulse", locale)}</span>
         </Button>
-        <div className="hidden h-7 w-7 shrink-0 sm:flex items-center justify-center rounded-full bg-primary-soft text-[11px] font-semibold text-primary">{localize(role === "admin" ? "AA" : "DS", locale)}</div>
+        <div className="hidden h-7 w-7 shrink-0 sm:flex items-center justify-center rounded-full bg-primary-soft text-[11px] font-semibold text-primary">{localize(role === "admin" ? "AA" : initialsOf(settings.full_name), locale)}</div>
       </div>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder={localize("Search courses, assignments, pages…", locale)} />
+        <CommandInput aria-label={localize("Search courses, assignments, pages", locale)} placeholder={localize("Search courses, assignments, pages…", locale)} />
         <CommandList>
           <CommandEmpty>{localize("No results found.", locale)}</CommandEmpty>
           <CommandGroup heading={localize("Courses", locale)}>

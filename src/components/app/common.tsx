@@ -38,10 +38,10 @@ export function Panel({ title, subtitle, action, children, className, bodyClass,
   );
 }
 
-export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "default" }: { label: string; value: string; sub: string; icon: LucideIcon; trend?: { dir: "up" | "down"; text: string; good?: boolean }; tone?: "default" | "warning" }) {
+export function MetricCard({ label, value, sub, icon: Icon, trend, tone = "default" }: { label: string; value: string; sub: string; icon: LucideIcon; trend?: { dir: "up" | "down"; text: string; good?: boolean }; tone?: "default" | "warning" | "success" }) {
   const { locale } = useI18n();
   return (
-    <div className={cn("panel relative overflow-hidden px-3.5 py-3", tone === "warning" && "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-warning")}>
+    <div className={cn("panel relative overflow-hidden px-3.5 py-3", tone === "warning" && "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-warning", tone === "success" && "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-success")}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
         <span className="eyebrow">{localize(label, locale)}</span>
         <Icon className={cn("h-3.5 w-3.5 text-muted-foreground", tone === "warning" && "text-warning")} />

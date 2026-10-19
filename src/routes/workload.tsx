@@ -33,7 +33,7 @@ function Workload() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label={localize("Required", locale)} value={`${workloadTotals.required}h`} sub={localize("This week", locale)} icon={Hourglass} />
         <MetricCard label={localize("Available", locale)} value={`${workloadTotals.available}h`} sub={localize("Free study time", locale)} icon={Clock} />
-        <MetricCard label={localize("Overload", locale)} value={`${workloadTotals.required - workloadTotals.available}h`} sub={localize("Weekly capacity gap", locale)} icon={AlertTriangle} tone="warning" />
+        <MetricCard label={localize(workloadTotals.required > workloadTotals.available ? "Overload" : "Spare capacity", locale)} value={`${Math.round(Math.abs(workloadTotals.required - workloadTotals.available) * 100) / 100}h`} sub={localize(workloadTotals.required > workloadTotals.available ? "Weekly capacity gap" : "Free study time beyond the work due", locale)} icon={AlertTriangle} tone={workloadTotals.required > workloadTotals.available ? "warning" : "success"} />
         <MetricCard label={localize("Peak day", locale)} value={peak.day} sub={localize(`${peak.required}h required · ${peak.available}h free`, locale)} icon={TrendingUp} />
       </div>
       <div className="mt-3 flex flex-wrap gap-4 border-b pb-3 text-[13px]" aria-live="polite"><span>{localize("Scheduled study:", locale)} <b>{localize(workloadTotals.scheduled, locale)}{localize("h", locale)}</b></span><span>{localize("Not yet scheduled:", locale)} <b>{localize(workloadTotals.unscheduled, locale)}{localize("h", locale)}</b></span><span>{localize("Scheduling allocates work; completing tasks reduces required hours.", locale)}</span></div>

@@ -13,6 +13,7 @@ export function Onboarding() {
   const [institutionId, setInstitutionId] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
   const [program, setProgram] = useState("");
+  const [group, setGroup] = useState("");
   const [courseIds, setCourseIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,7 +35,7 @@ export function Onboarding() {
     event.preventDefault();
     setBusy(true);
     setError(null);
-    completeOnboarding({ institutionId, studentNumber: studentNumber.trim(), program: program.trim(), courseIds })
+    completeOnboarding({ institutionId, studentNumber: studentNumber.trim(), program: program.trim(), ...(group.trim() ? { groupName: group.trim() } : {}), courseIds })
       .catch((cause: unknown) => setError(String(cause)))
       .finally(() => setBusy(false));
   };
@@ -69,7 +70,11 @@ export function Onboarding() {
           </label>
           <label className="block text-[12.5px]">
             {localize("Program", locale)}
-            <Input className="mt-1" value={program} onChange={(event) => setProgram(event.target.value)} required maxLength={200} />
+            <Input className="mt-1" value={program} placeholder={localize("e.g. Software Engineering", locale)} onChange={(event) => setProgram(event.target.value)} required maxLength={200} />
+          </label>
+          <label className="block text-[12.5px]">
+            {localize("Group (optional)", locale)}
+            <Input className="mt-1" value={group} placeholder="SE-2429" onChange={(event) => setGroup(event.target.value)} maxLength={100} />
           </label>
         </div>
         <fieldset>

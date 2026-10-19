@@ -22,6 +22,7 @@ import { SignIn } from "@/components/app/SignIn";
 import { Onboarding } from "@/components/app/Onboarding";
 import { ChatDrawer } from "@/components/app/ChatDrawer";
 import { UploadDialog } from "@/components/app/UploadDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageInitialization } from "@/lib/i18n";
@@ -129,12 +130,28 @@ function RootComponent() {
 /** Shows sign-in or onboarding instead of the workspace until the student is ready. */
 function AuthGate({ children }: { children: ReactNode }) {
   const { locale } = useI18n();
-  const { auth } = useStore();
-  if (auth === "checking")
-    return <p role="status" className="p-6 text-[13px] text-muted-foreground">{localize("Loading…", locale)}</p>;
+  const { auth, connection } = useStore();
+  // Until the account's data has arrived nothing may be drawn: the fixtures belong to offline mode only.
+  if (auth === "checking" || (auth === "signed_in" && connection === "connecting")) return <WorkspaceSkeleton label={localize("Loading…", locale)} />;
   if (auth === "signed_out") return <SignIn />;
   if (auth === "needs_onboarding") return <Onboarding />;
   return <>{children}</>;
+}
+
+function WorkspaceSkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-label={label} className="mx-auto max-w-[1440px] space-y-4 p-5">
+      <Skeleton className="h-8 w-56" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-20" />)}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <Skeleton className="h-64" />
+        <Skeleton className="h-64" />
+      </div>
+      <span className="sr-only">{label}</span>
+    </div>
+  );
 }
 
 function ConnectionBanner() {

@@ -50,6 +50,8 @@ function AssignmentDetails({ a }: { a: Assignment }) {
   const { assignments, tasks, relations, statistics, backendConnected, agentEnabled, reloadWorkspace, openChat } = useStore();
   const [pages, setPages] = useState<DocumentPage[] | null>(null);
   const [plan, setPlan] = useState<(TaskPlan & { status: string; createdAt: string }) | null>(null);
+  // The plan whose tasks are on the board; a newer proposal may be waiting beside it.
+  const [appliedPlan, setAppliedPlan] = useState<(TaskPlan & { status: string; createdAt: string }) | null>(null);
   const [steps, setSteps] = useState<AgentStep[]>([]);
   const [liveSteps, setLiveSteps] = useState<TraceItem[]>([]);
   const [page, setPage] = useState(search.page ?? 1);
@@ -61,11 +63,12 @@ function AssignmentDetails({ a }: { a: Assignment }) {
   const load = useCallback(async () => {
     if (!backendConnected || !a.backendId) { setLoaded(true); return; }
     try {
-      const [text, latest] = await Promise.all([fetchAssignmentText(a.backendId), fetchTaskPlan(a.backendId)]);
+      const [text, latest, applied] = await Promise.all([fetchAssignmentText(a.backendId), fetchTaskPlan(a.backendId), fetchTaskPlan(a.backendId, true)]);
       setPages(text?.pages ?? null);
       const first = text?.pages[0]?.page;
       if (first !== undefined) setPage((current) => (text?.pages.some((item) => item.page === current) ? current : first));
       setPlan(latest);
+      setAppliedPlan(applied);
     } catch (error) {
       console.warn("Assignment details unavailable", error);
     } finally {
@@ -75,7 +78,9 @@ function AssignmentDetails({ a }: { a: Assignment }) {
   useEffect(() => { void load(); }, [load]);
 
   const own = tasks.filter((task) => task.assignmentId === a.id);
-  const requirements = plan ? [...new Map(plan.items.map((item) => [item.requirementId, item])).values()] : [];
+  // Requirements and citations describe the plan behind the board; a pending re-analysis is shown only when nothing is on the board yet.
+  const shown = appliedPlan ?? plan;
+  const requirements = shown ? [...new Map(shown.items.map((item) => [item.requirementId, item])).values()] : [];
   const open = requirements.find((item) => item.requirementId === openReq);
   const related = relations.filter((item) => item.sourceId === a.id || item.targetId === a.id);
   const titleOf = (id: string) => assignments.find((item) => item.id === id)?.title ?? id;
@@ -190,7 +195,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
             ) : <p className="text-[12.5px] text-muted-foreground">{localize("No related assignments were detected.", locale)}</p>}
           </Panel>
 
-          <Panel ai title={localize("Task breakdown", locale)} subtitle={pending ? localize("Proposed, not imported", locale) : `${own.length} ${localize("tasks", locale)} · ${Math.round(own.reduce((sum, task) => sum + task.estimate, 0) * 100) / 100}${localize("h", locale)}`} bodyClass="p-0" action={pending ? <Button size="sm" className="h-7 text-[12px]" onClick={() => setReview(true)}>{localize("Review plan", locale)}</Button> : own.length ? <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => void navigate({ to: "/kanban" })}>{localize("Open Kanban", locale)}</Button> : undefined}>
+          <Panel ai title={localize("Task breakdown", locale)} subtitle={pending ? (own.length ? `${own.length} ${localize("tasks on the board · a new proposal is waiting", locale)}` : localize("Proposed, not imported", locale)) : `${own.length} ${localize("tasks", locale)} · ${Math.round(own.reduce((sum, task) => sum + task.estimate, 0) * 100) / 100}${localize("h", locale)}`} bodyClass="p-0" action={pending ? <Button size="sm" className="h-7 text-[12px]" onClick={() => setReview(true)}>{localize("Review plan", locale)}</Button> : own.length ? <Button size="sm" variant="ghost" className="h-7 text-[12px]" onClick={() => void navigate({ to: "/kanban" })}>{localize("Open Kanban", locale)}</Button> : undefined}>
             {own.length ? (
               <table className="w-full text-[12.5px]">
                 <thead><tr className="border-b bg-secondary/50 text-left text-[10.5px] uppercase tracking-wider text-muted-foreground"><th scope="col" className="px-3.5 py-1.5 font-medium">{localize("Task", locale)}</th><th scope="col" className="font-medium">{localize("Priority", locale)}</th><th scope="col" className="font-medium">{localize("Requirement", locale)}</th><th scope="col" className="font-medium">{localize("Status", locale)}</th><th scope="col" className="px-4 text-right font-medium">{localize("Estimate", locale)}</th></tr></thead>
@@ -233,8 +238,8 @@ function AssignmentDetails({ a }: { a: Assignment }) {
               {[
                 [localize("Requirements extracted", locale), String(requirements.length)],
                 [localize("Related assignments", locale), String(related.length)],
-                [localize("Citations verified", locale), plan ? `${plan.items.filter((item) => item.quoteVerified).length}/${plan.items.length}` : "—"],
-                [localize("Last analyzed", locale), plan ? new Date(plan.createdAt).toLocaleString() : localize("Not analyzed", locale)],
+                [localize("Citations verified", locale), shown ? `${shown.items.filter((item) => item.quoteVerified).length}/${shown.items.length}` : "—"],
+                [localize("Last analyzed", locale), plan ? new Date(plan.createdAt).toLocaleString() : shown ? new Date(shown.createdAt).toLocaleString() : localize("Not analyzed", locale)],
               ].map(([label, value]) => <div key={label} className="flex justify-between"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium">{value}</dd></div>)}
             </dl>
             {analyzing ? <div role="status" className="mt-3 border-t pt-3"><AgentTrace items={liveSteps} live /></div> : null}
@@ -247,6 +252,7 @@ function AssignmentDetails({ a }: { a: Assignment }) {
           <DialogHeader>
             <DialogTitle className="text-[16px]">{localize("Proposed task plan", locale)}</DialogTitle>
             <DialogDescription className="text-[12.5px]">{localize("Review, edit and approve. Nothing is added to the board until you approve.", locale)}</DialogDescription>
+            {own.some((task) => task.ai && task.column !== "done" && task.column !== "progress" && task.column !== "review") ? <p role="status" className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2 text-[12px]">{localize("Approving replaces the unstarted tasks from the earlier analysis, together with their future study sessions. Tasks you started or finished stay.", locale)}</p> : null}
           </DialogHeader>
           {plan ? (
             <TaskPlanReview

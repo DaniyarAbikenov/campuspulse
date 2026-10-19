@@ -27,14 +27,15 @@ function Stats() {
   const actual = done.reduce((sum, a) => sum + (a.actual ?? 0), 0);
   const estimate = done.reduce((sum, a) => sum + a.estimate, 0);
   const reported = statistics?.reportedHours ?? actual;
-  const accuracy = statistics?.estimateAccuracy ?? Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100);
+  // Unknown (not 100%) until something has been completed to compare against.
+  const accuracy: number | null = statistics ? statistics.estimateAccuracy : actual > 0 && estimate > 0 ? Math.round(Math.min(actual, estimate) / Math.max(actual, estimate) * 100) : null;
   const completedCount = statistics?.completedAssignments ?? assignments.filter((a) => a.status === "Completed").length;
   return (
     <>
       <PageHeader title={localize("Study Statistics", locale)} subtitle={trend.length ? `${trend[0]?.week} – ${trend[trend.length - 1]?.week}` : ""} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label={localize("Reported study time", locale)} value={`${reported}h`} sub={localize("Completed assignments", locale)} icon={Timer} />
-        <MetricCard label={localize("Estimate accuracy", locale)} value={`${accuracy}%`} sub={localize("Actual vs. AI estimate", locale)} icon={Target} />
+        <MetricCard label={localize("Estimate accuracy", locale)} value={accuracy === null ? "N/A" : `${accuracy}%`} sub={localize(accuracy === null ? "Complete an assignment to compare estimate and actual" : "Actual vs. AI estimate", locale)} icon={Target} />
         <MetricCard label={localize("Completed", locale)} value={String(completedCount)} sub={localize("Assignments & labs", locale)} icon={CheckCircle2} />
         <MetricCard label={localize("Tasks done", locale)} value={`${doneTasks}/${tasks.length}`} sub={localize("On your Kanban board", locale)} icon={ListChecks} />
       </div>

@@ -36,6 +36,9 @@ function Insights() {
           </Button>
         )), locale)}
       </div>
+      <p className="mb-3 text-[12px] text-muted-foreground">
+        <b className="font-medium text-foreground">{localize("New", locale)}</b> {localize("just suggested", locale)} · <b className="font-medium text-foreground">{localize("Accepted", locale)}</b> {localize("you agreed, nothing has changed yet", locale)} · <b className="font-medium text-foreground">{localize("Applied", locale)}</b> {localize("the change was made, for example the session was added to your calendar", locale)}
+      </p>
       {localize(list.length ? <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">{localize(list.map((i) => <InsightCard key={i.id} insight={i} />), locale)}</div>
         : <div className="panel"><EmptyState icon={Sparkles} title={localize("Nothing here", locale)} text={localize(backendConnected && agentEnabled ? "Use “Review my week” and the agent will look at your deadlines, workload and free time." : "CampusPulse will surface new insights as your workspace changes.", locale)} /></div>, locale)}
     </>

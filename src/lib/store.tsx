@@ -87,6 +87,7 @@ interface Store {
     institutionId: string;
     studentNumber: string;
     program: string;
+    groupName?: string;
     courseIds: string[];
   }) => Promise<void>;
   signOut: () => Promise<void>;

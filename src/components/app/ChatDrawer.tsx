@@ -28,7 +28,7 @@ const contextFor = (path: string, names: { assignments: { id: string; title: str
   const [section, id] = path.split("/").filter(Boolean);
   if (section === "assignments" && id) return names.assignments.find((item) => item.id === id)?.title ?? "Assignment";
   if (section === "courses" && id) return names.courses.find((item) => item.id === id)?.name ?? "Course";
-  const labels: Record<string, string> = { assignments: "Assignments", courses: "Courses", kanban: "Kanban Board", schedule: `Schedule · ${names.week}`, workload: `Workload · ${names.week}`, knowledge: "Knowledge Base", events: "Campus Events", statistics: "Study Statistics", insights: "AI Insights" };
+  const labels: Record<string, string> = { assignments: "Assignments", courses: "Courses", kanban: "Kanban Board", schedule: `Schedule · ${names.week}`, workload: `Workload · ${names.week}`, knowledge: "Knowledge Base", events: "Campus Events", statistics: "Study Statistics", insights: "AI Insights", settings: "Settings", activity: "Agent Activity", admin: "Academic Overview" };
   return section ? (labels[section] ?? "Overview") : `Overview · ${names.week}`;
 };
 

@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { describeToolResult, toolLabel } from "@/lib/agentSteps";
 import { useStore } from "@/lib/store";
 import { assignments, courseOf, weeklyWorkload, type Insight, type Activity } from "@/lib/data";
 import { CourseTag, PriorityIndicator, ProgressBar, StatusBadge } from "./common";
@@ -125,6 +126,7 @@ export function InsightCard({ insight, compact }: { insight: Insight; compact?: 
           {insight.generatedBy === "agent" ? <p className="mt-1.5 text-[10.5px] text-muted-foreground">{localize("Written by the CampusPulse agent from your data. You decide whether to act on it.", locale)}</p> : null}
         </details>
       ) : null}
+      {insight.status === "Accepted" && insight.applicable ? <p className="mt-2 text-[11.5px] text-muted-foreground">{localize("Accepted, but not added yet.", locale)}</p> : null}
       <div className="mt-auto flex items-center gap-1.5 pt-2.5 flex-wrap">
         <Button
           size="sm"
@@ -402,7 +404,7 @@ const actIcon: Record<Activity["kind"], typeof Bot> = {
   schedule: CalendarClock,
 };
 
-export function ActivityFeed({ items }: { items: Activity[] }) {
+export function ActivityFeed({ items, technical = false }: { items: Activity[]; technical?: boolean }) {
   const { locale } = useI18n();
   return (
     <ol className="relative space-y-2.5 before:absolute before:left-[11px] before:top-1 before:h-[calc(100%-8px)] before:w-px before:bg-border">
@@ -432,12 +434,21 @@ export function ActivityFeed({ items }: { items: Activity[] }) {
             </div>
                 {a.tools?.length ? (
                   <ul aria-label={localize("Tool calls", locale)} className="mt-1 space-y-0.5">
-                    {a.tools.map((tool, index) => (
-                      <li key={`${tool.name}-${index}`} className="truncate font-mono text-[10.5px] text-muted-foreground">
-                        {tool.name}
-                        {tool.summary ? ` → ${tool.summary}` : ""}
-                      </li>
-                    ))}
+                    {a.tools.map((tool, index) => {
+                      const outcome = describeToolResult(tool.name, tool.summary);
+                      return (
+                        <li key={`${tool.name}-${index}`} className="text-[11px] text-muted-foreground">
+                          {localize(toolLabel(tool.name), locale)}
+                          {outcome ? <span> — {localize(outcome, locale)}</span> : null}
+                          {technical && tool.summary ? (
+                            <details className="mt-0.5">
+                              <summary className="cursor-pointer select-none text-[10.5px]">{localize("Technical details", locale)}</summary>
+                              <div className="break-words font-mono text-[10px]">{tool.name} → {tool.summary}</div>
+                            </details>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : null}
               </div>

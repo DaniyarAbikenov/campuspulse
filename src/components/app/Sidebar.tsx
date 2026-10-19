@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
+import { initialsOf } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -52,7 +53,7 @@ const adminNav = [
 function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const { locale } = useI18n();
   const { sidebarCollapsed, setSidebarCollapsed, role, setRole, insights, setMobileNavOpen, settings, signOut, backendConnected, canAdminister, profile } = useStore();
-  const initials = settings.full_name.split(/\s+/).map((part) => part[0] ?? "").join("").slice(0, 2).toUpperCase();
+  const initials = initialsOf(settings.full_name);
   const collapsed = !mobile && sidebarCollapsed;
   const navigate = useNavigate();
   const newCount = insights.filter((i) => i.status === "New").length;

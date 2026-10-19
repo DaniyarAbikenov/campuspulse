@@ -10,6 +10,7 @@ import {
   type Insight,
   type Task,
 } from "./data";
+import { currentLocale } from "./i18n";
 import { CAMPUS_OFFSET_MS, daysBetween, isoWeekNumber, mondayOf, todayCampus } from "./week";
 
 const API_URL = import.meta.env["VITE_API_URL"] ?? "http://127.0.0.1:8000/api/v1";
@@ -134,7 +135,7 @@ interface ApiStatistics {
     estimate_accuracy_percent: number | null;
   }[];
   reported_study_hours: number;
-  estimate_accuracy_percent: number;
+  estimate_accuracy_percent: number | null;
   completed_assignments: number;
   completed: {
     assignment_id: string;
@@ -388,7 +389,7 @@ export interface AssignmentRelation {
 }
 export interface RemoteStatistics {
   reportedHours: number;
-  estimateAccuracy: number;
+  estimateAccuracy: number | null;
   completedAssignments: number;
   weekly: { week: string; planned: number; actual: number }[];
   byCourse: {
@@ -922,7 +923,7 @@ export const sendAgentMessage = async (
     actions?: AgentAction[];
   }>(
     "/agent/chat/stream",
-    { body: { message, ...(sessionId ? { session_id: sessionId } : {}) } },
+    { body: { message, language: currentLocale(), ...(sessionId ? { session_id: sessionId } : {}) } },
     onStep,
   );
   return {
@@ -1014,6 +1015,7 @@ export const completeOnboardingRemote = (values: {
   institutionId: string;
   studentNumber: string;
   program: string;
+  groupName?: string;
   courseIds: string[];
 }) =>
   request("/auth/onboarding", {
@@ -1022,6 +1024,7 @@ export const completeOnboardingRemote = (values: {
       institution_id: values.institutionId,
       student_number: values.studentNumber,
       program: values.program,
+      ...(values.groupName ? { group_name: values.groupName } : {}),
       course_ids: values.courseIds,
     }),
   });
@@ -1095,7 +1098,7 @@ export async function analyzeRemoteAssignment(
   onStep?: (step: AgentStep) => void,
 ) {
   const result = await streamRequest<{ plan: ApiTaskPlan; steps: AgentStep[] }>(
-    `/assignments/${assignmentId}/analysis/stream`,
+    `/assignments/${assignmentId}/analysis/stream?language=${currentLocale()}`,
     {},
     onStep,
   );
@@ -1162,9 +1165,10 @@ export async function fetchAssignmentText(
   }
 }
 /** The agent's latest non-dismissed plan for an assignment, or null. */
-export async function fetchTaskPlan(backendId: string): Promise<(TaskPlan & { status: string; createdAt: string; applied: boolean }) | null> {
+/** The open proposal, or with `applied` the plan whose tasks are already on the board. */
+export async function fetchTaskPlan(backendId: string, applied = false): Promise<(TaskPlan & { status: string; createdAt: string; applied: boolean }) | null> {
   try {
-    const raw = await request<ApiTaskPlan & { created_at: string }>(`/assignments/${backendId}/task-plan`);
+    const raw = await request<ApiTaskPlan & { created_at: string }>(`/assignments/${backendId}/task-plan${applied ? "?applied=true" : ""}`);
     return { ...taskPlan(raw), status: raw.status, createdAt: raw.created_at, applied: raw.status === "applied" };
   } catch (error) {
     if (String(error).startsWith("Error: 404")) return null;
@@ -1287,7 +1291,7 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
 /** Asks the agent to review deadlines, workload and free time; resolves with the new insights. */
 export async function refreshRemoteInsights(onStep?: (step: AgentStep) => void) {
   const result = await streamRequest<{ created: unknown[]; steps: AgentStep[] }>(
-    "/insights/refresh/stream",
+    `/insights/refresh/stream?language=${currentLocale()}`,
     {},
     onStep,
   );
