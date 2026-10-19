@@ -4,6 +4,11 @@ MCP (Model Context Protocol) servers that give the CampusPulse agent controlled 
 systems a student already uses. The first server is **Moodle**; GitHub and filesystem servers
 from the hackathon stack are consumed as-is and described in [`docs/design.md`](docs/design.md).
 
+The server is used by the CampusPulse agent ([`campuspulse-agent`](https://github.com/DaniyarAbikenov/campuspulse-agent))
+over MCP streamable HTTP, and by any MCP client over stdio. Part of the CampusPulse system:
+[frontend](https://github.com/DaniyarAbikenov/pixel-true-design-recreation) ·
+[backend](https://github.com/DaniyarAbikenov/campuspulse-backend) · agent · this repository.
+
 Everything here is **read-only**: the agent can look at courses, deadlines and materials but can
 never submit work, change grades or write to Moodle.
 
@@ -46,6 +51,34 @@ Claude Code / any MCP client (stdio):
   "CAMPUSPULSE_MOODLE_TOKEN": "..." } } } }
 ```
 
+### HTTP transport and authentication
+
+With `CAMPUSPULSE_MCP_TRANSPORT=streamable-http` the server **requires** a shared secret:
+set `CAMPUSPULSE_MCP_API_KEY` and clients send `Authorization: Bearer <key>`; without a key the
+server refuses to start over HTTP. The deployed agent reads the key from Secret Manager at run
+time (never baked into the agent). A request without the key gets `401`.
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `CAMPUSPULSE_MOODLE_URL`, `CAMPUSPULSE_MOODLE_TOKEN` | Moodle site and web-service token | required |
+| `CAMPUSPULSE_MCP_TRANSPORT` | `stdio` or `streamable-http` | `stdio` |
+| `CAMPUSPULSE_MCP_HOST`, `CAMPUSPULSE_MCP_PORT` | HTTP bind address | `127.0.0.1`, `8001` |
+| `CAMPUSPULSE_MCP_API_KEY` | Bearer key for HTTP clients | required over HTTP |
+| `CAMPUSPULSE_MAX_FILE_BYTES` | Cap for `moodle_read_file` | `2000000` |
+| `CAMPUSPULSE_BACKEND_URL`, `CAMPUSPULSE_BACKEND_TOKEN` | Target of the sync CLI | local backend |
+
+## Deploy to Cloud Run
+
+```bash
+gcloud run deploy campuspulse-moodle-mcp --source . --region REGION --allow-unauthenticated \
+  --set-env-vars CAMPUSPULSE_MOODLE_URL=https://<moodle>,CAMPUSPULSE_MCP_TRANSPORT=streamable-http,CAMPUSPULSE_MCP_HOST=0.0.0.0 \
+  --set-secrets CAMPUSPULSE_MOODLE_TOKEN=moodle-token:latest,CAMPUSPULSE_MCP_API_KEY=mcp-api-key:latest
+```
+
+`--allow-unauthenticated` only lifts Cloud Run's own IAM check; access is still guarded by the
+bearer key above. The MCP endpoint is `https://<service-url>/mcp`. Connect it to the agent with
+`--moodle-mcp-url` when deploying the agent (see the agent's `docs/deployment.md`).
+
 ## Import into CampusPulse
 
 ```bash
@@ -65,6 +98,24 @@ pytest && ruff check src tests && mypy src
 ```
 
 Tests run against a mocked Moodle (`httpx.MockTransport`), including the MCP tool registry.
+
+## Layout
+
+```text
+src/campuspulse_mcp/
+  server.py          FastMCP tool registry, bearer-key middleware, transports
+  moodle/            REST client, typed models, tool services
+  sync.py            campuspulse-moodle-sync CLI (posts import proposals)
+docs/design.md       MCP layer design and the hackathon MCP stack
+docs/moodle-seed/    sample assignments and lecture notes for a test Moodle
+Dockerfile           production image
+```
+
+## Known limits
+
+- One Moodle token serves everyone who can reach the server; per-student tokens are not built yet.
+- Only a test Moodle (`moodlecloud`) has been connected; the university LMS needs its own token.
+- Files are read as text only (small text files); other formats are listed but not ingested.
 
 ## Security notes
 
