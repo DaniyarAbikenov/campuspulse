@@ -721,6 +721,20 @@ def _owned_insight(session: Session, actor: AuthenticatedUser, insight_id: UUID)
     return insight
 
 
+def now_utc() -> datetime:
+    """The current instant; one place to replace in tests."""
+    return datetime.now(UTC)
+
+
+def _next_quarter(moment: datetime) -> datetime:
+    """The next quarter hour at or after `moment`, so a slot never starts mid-minute."""
+    base = moment.replace(second=0, microsecond=0)
+    extra = (-base.minute) % 15
+    if extra == 0 and moment > base:
+        extra = 15
+    return base + timedelta(minutes=extra)
+
+
 def _free_slots(
     start_date: date,
     events: list[models.ScheduleEvent],
@@ -728,10 +742,14 @@ def _free_slots(
     timezone: ZoneInfo,
 ) -> list[schemas.FreeTimeSlotRead]:
     result: list[schemas.FreeTimeSlotRead] = []
+    now = _next_quarter(now_utc().astimezone(timezone))
     for offset in range(7):
         day = start_date + timedelta(days=offset)
         cursor = datetime.combine(day, settings.earliest_start, timezone)
         day_end = datetime.combine(day, settings.latest_end, timezone)
+        if day_end <= now:
+            continue  # the day is over: nothing can still be planned in it
+        cursor = max(cursor, now)  # never offer time that has already passed
         day_events = sorted(
             (
                 (

@@ -410,6 +410,8 @@ def update_schedule_event(
             ends_at=changes.get("ends_at") or event.ends_at,
             task_id=changes.get("task_id", event.task_id),
             exclude_event_id=event.id,
+            # Renaming or resizing a session that already happened stays possible.
+            allow_past="starts_at" not in changes,
         )
     return update_entity(session, models.ScheduleEvent, entity_id, payload)
 
