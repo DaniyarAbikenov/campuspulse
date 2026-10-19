@@ -78,6 +78,38 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
                     ],
                 },
             )
+        if path.endswith("/text"):
+            return httpx.Response(
+                200,
+                json={
+                    "assignment_id": "a1",
+                    "title": "Assignment 3",
+                    "course_name": "SE",
+                    "due_at": "2026-10-23T00:00:00Z",
+                    "pages": [{"page": 1, "text": "R1 Implement JWT."}],
+                },
+            )
+        if path == "/api/v1/statistics":
+            return httpx.Response(
+                200,
+                json={
+                    "estimate_accuracy_percent": 89,
+                    "completed": [
+                        {"title": "A1", "estimated_hours": 6, "actual_hours": 6.5, "extra": 1}
+                    ],
+                },
+            )
+        if path == "/api/v1/task-plans":
+            return httpx.Response(
+                201,
+                json={
+                    "id": "plan-1",
+                    "items": [
+                        {"requirement_id": "R1", "estimated_hours": 1.5, "quote_verified": True},
+                        {"requirement_id": "R2", "estimated_hours": 2.0, "quote_verified": False},
+                    ],
+                },
+            )
         if path == "/api/v1/imports/proposals":
             return httpx.Response(
                 201, json={"proposal": {"id": "p1", "items": [{}, {}]}, "skipped_existing": 1}
@@ -138,3 +170,50 @@ def test_moodle_headers_come_from_the_runtime_environment(monkeypatch: pytest.Mo
     assert mcp_headers(None) == {}
     monkeypatch.setenv("CAMPUSPULSE_MOODLE_MCP_TOKEN", "runtime-key")
     assert mcp_headers(None) == {"Authorization": "Bearer runtime-key"}
+
+
+async def test_assignment_text_is_returned_with_an_untrusted_note(
+    backend: list[httpx.Request],
+) -> None:
+    data = await tools.get_assignment_text(context(), "a1")
+    assert data["pages"][0]["page"] == 1 and "untrusted" in data["note"]
+    assert backend[0].url.path == "/api/v1/assignments/a1/text"
+
+
+async def test_statistics_keep_only_what_estimation_needs(backend: list[httpx.Request]) -> None:
+    data = await tools.get_study_statistics(context())
+    assert data["completed_assignments"] == [
+        {"title": "A1", "estimated_hours": 6, "actual_hours": 6.5}
+    ]
+
+
+async def test_task_plan_is_posted_and_unverified_quotes_are_reported(
+    backend: list[httpx.Request],
+) -> None:
+    item = tools.PlanItem(
+        requirement_id="R1",
+        requirement_text="JWT",
+        quote="Implement JWT",
+        page=1,
+        title="Implement JWT",
+        estimated_hours=1.5,
+    )
+    result = await tools.propose_task_plan(
+        context(), "a1", "One task", [item], related_assignment_id="a0", relation_type="extends"
+    )
+    assert result["tasks"] == 2 and result["total_hours"] == 3.5
+    assert result["quotes_not_found_in_document"] == ["R2"]
+    import json
+
+    sent = json.loads(backend[0].content)
+    assert sent["relation_type"] == "extends" and sent["items"][0]["quote"] == "Implement JWT"
+
+
+def test_plan_tool_schema_exposes_the_item_fields_to_gemini() -> None:
+    from google.adk.tools import FunctionTool
+
+    declaration = FunctionTool(tools.propose_task_plan)._get_declaration()
+    assert declaration is not None and declaration.name == "propose_task_plan"
+    schema = declaration.parameters_json_schema or declaration.parameters.model_dump()
+    text = str(schema)
+    assert "items" in text and "quote" in text and "requirement_id" in text
