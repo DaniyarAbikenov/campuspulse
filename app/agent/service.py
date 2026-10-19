@@ -140,12 +140,24 @@ async def analyze_assignment(
     try:
         plan = plans.latest_plan(session, actor, assignment_id)
     except HTTPException as error:
-        raise AgentUnavailableError("The agent did not produce a task plan") from error
+        raise AgentUnavailableError(_no_plan_reason(reply.steps)) from error
     created = (
         plan.created_at
         if plan.created_at.tzinfo
         else plan.created_at.replace(tzinfo=started.tzinfo)
     )
     if plan.status != models.PlanStatus.pending or created < started:
-        raise AgentUnavailableError("The agent did not produce a task plan")
+        raise AgentUnavailableError(_no_plan_reason(reply.steps))
     return schemas.AssignmentAnalysisRead(plan=plan, steps=reply.steps)
+
+
+def _no_plan_reason(steps: list[schemas.AgentChatStepRead]) -> str:
+    """Say why saving failed when the agent reported an error from propose_task_plan."""
+    for step in reversed(steps):
+        if (
+            step.kind == "tool_result"
+            and step.name == "propose_task_plan"
+            and "error" in step.detail
+        ):
+            return f"The agent could not save a task plan: {step.detail[:300]}"
+    return "The agent did not produce a task plan"

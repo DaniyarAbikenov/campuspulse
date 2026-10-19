@@ -1,9 +1,11 @@
+from collections.abc import Callable
 from datetime import date, datetime, time
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     EmailStr,
     Field,
@@ -784,15 +786,39 @@ class AssignmentTextRead(StrictSchema):
     pages: list[AssignmentPageRead]
 
 
+def _clip(limit: int) -> Callable[[Any], Any]:
+    """Models over-write; trim instead of rejecting the whole plan (quotes stay substrings)."""
+
+    def clip(value: Any) -> Any:
+        return value.strip()[:limit] if isinstance(value, str) else value
+
+    return clip
+
+
+def _normalize_priority(value: Any) -> Any:
+    text = str(value).strip().lower() if value is not None else "medium"
+    return text if text in {"low", "medium", "high"} else "medium"
+
+
+def _clamp_hours(value: Any) -> Any:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return min(40.0, max(0.25, round(float(value) * 4) / 4))
+    return value
+
+
 class TaskPlanItemCreate(StrictSchema):
-    requirement_id: Annotated[str, Field(min_length=1, max_length=16)]
-    requirement_text: Annotated[str, Field(min_length=1, max_length=1000)]
-    quote: Annotated[str, Field(min_length=1, max_length=1500)]
-    page: Annotated[StrictInt, Field(ge=1)]
-    title: ShortText
-    description: Annotated[str, Field(max_length=2000)] = ""
-    estimated_hours: Annotated[StrictFloat, Field(gt=0, le=40)]
-    priority: Priority = Priority.medium
+    requirement_id: Annotated[str, Field(min_length=1, max_length=16), BeforeValidator(_clip(16))]
+    requirement_text: Annotated[
+        str, Field(min_length=1, max_length=1000), BeforeValidator(_clip(1000))
+    ]
+    quote: Annotated[str, Field(min_length=1, max_length=1500), BeforeValidator(_clip(1500))]
+    page: Annotated[
+        StrictInt, Field(ge=1), BeforeValidator(lambda v: max(1, v) if isinstance(v, int) else v)
+    ]
+    title: Annotated[str, Field(min_length=1, max_length=240), BeforeValidator(_clip(240))]
+    description: Annotated[str, Field(max_length=2000), BeforeValidator(_clip(2000))] = ""
+    estimated_hours: Annotated[StrictFloat, Field(gt=0, le=40), BeforeValidator(_clamp_hours)]
+    priority: Annotated[Priority, BeforeValidator(_normalize_priority)] = Priority.medium
 
 
 class TaskPlanCreate(StrictSchema):

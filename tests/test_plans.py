@@ -226,3 +226,40 @@ def test_analysis_needs_a_configured_agent_and_extracted_text(
     app.dependency_overrides[get_agent_gateway] = lambda: PlanningGateway(student, seeded)
     assert student.post(f"/api/v1/assignments/{seeded}/analysis").status_code == 404
     assert UUID(uploaded)
+
+
+def test_over_long_or_sloppy_plan_fields_are_normalized_not_rejected(
+    student: TestClient, uploaded: str
+) -> None:
+    body = plan_body(uploaded)
+    first = body["items"][0]
+    first.update(
+        {
+            "priority": "High",
+            "estimated_hours": 0.1,
+            "title": "T" * 400,
+            "requirement_text": "R" * 1500,
+            "description": "D" * 3000,
+        }
+    )
+    body["items"][1].update({"estimated_hours": 99, "priority": "urgent", "page": 0})
+    created = student.post("/api/v1/task-plans", json=body)
+    assert created.status_code == 201, created.text
+    one, two = created.json()["items"]
+    assert one["priority"] == "high" and one["estimated_hours"] == 0.25
+    assert len(one["title"]) == 240 and len(one["requirement_text"]) == 1000
+    assert two["priority"] == "medium" and two["estimated_hours"] == 40.0
+
+
+def test_a_failed_save_is_explained_in_the_502(student: TestClient, uploaded: str) -> None:
+    class FailingGateway(PlanningGateway):
+        async def chat(self, **kwargs: Any) -> AgentReply:
+            return AgentReply(
+                session_id="s1",
+                text="",
+                steps=[AgentStep("tool_result", "propose_task_plan", '{"error": "422 bad quote"}')],
+            )
+
+    app.dependency_overrides[get_agent_gateway] = lambda: FailingGateway(student, uploaded)
+    response = student.post(f"/api/v1/assignments/{uploaded}/analysis")
+    assert response.status_code == 502 and "422 bad quote" in response.json()["detail"]
