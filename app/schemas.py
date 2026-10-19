@@ -573,9 +573,16 @@ class InsightApplyRead(StrictSchema):
     created_resource_ids: list[UUID] = Field(default_factory=list)
 
 
+class ExtractionRead(StrictSchema):
+    status: Literal["ok", "no_text", "unsupported", "failed"]
+    pages: StrictInt
+    characters: StrictInt
+
+
 class AssignmentUploadRead(StrictSchema):
     assignment: AssignmentRead
     document: DocumentRead
+    extraction: ExtractionRead
 
 
 class KnowledgeDocumentRead(StrictSchema):

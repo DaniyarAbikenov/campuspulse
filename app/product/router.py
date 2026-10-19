@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
@@ -15,6 +16,7 @@ from app.auth.router import CurrentUserDep, get_jwt_secret
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
+from app.documents import service as documents_service
 from app.product import campus, imports, service
 
 router = APIRouter()
@@ -120,6 +122,9 @@ async def upload_assignment(
                 if written > settings.max_upload_bytes:
                     raise HTTPException(status_code=413, detail="File exceeds the 20 MB limit")
                 output.write(chunk)
+        extraction, pages = await asyncio.to_thread(
+            documents_service.extract, destination, file.content_type or ""
+        )
         session.add(assignment)
         session.flush()
         document = models.Document(
@@ -127,10 +132,13 @@ async def upload_assignment(
             assignment_id=assignment.id,
             name=safe_name,
             kind=models.DocumentKind.assignment,
+            page_count=len(pages),
             storage_key=relative_path.as_posix(),
         )
         require_write(session, current, document)
         session.add(document)
+        session.flush()
+        session.add_all(documents_service.fragments_for(document, pages))
         session.commit()
         session.refresh(assignment)
         session.refresh(document)
@@ -143,6 +151,7 @@ async def upload_assignment(
     return schemas.AssignmentUploadRead(
         assignment=schemas.AssignmentRead.model_validate(assignment),
         document=schemas.DocumentRead.model_validate(document),
+        extraction=extraction,
     )
 
 
