@@ -548,3 +548,12 @@ def test_the_planner_counts_study_booked_in_other_weeks(student: TestClient) -> 
     other_week = (start.date() - timedelta(days=start.weekday()) + timedelta(days=7)).isoformat()
     plan = student.get(f"{API}/schedule/plan", params={"week_start": other_week}).json()
     assert task not in [item["task_id"] for item in plan["sessions"]]
+
+
+def test_accuracy_is_unknown_until_something_is_completed(student: TestClient) -> None:
+    session = session_of(student)
+    for model in (models.ScheduleEvent, models.Task, models.Assignment):
+        for row in session.query(model).all():
+            session.delete(row)
+    session.commit()
+    assert student.get(f"{API}/statistics").json()["estimate_accuracy_percent"] is None

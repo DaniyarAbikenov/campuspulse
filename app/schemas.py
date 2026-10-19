@@ -541,7 +541,7 @@ class CourseStatRead(StrictSchema):
 
 class StudyStatisticsRead(StrictSchema):
     reported_study_hours: StrictFloat
-    estimate_accuracy_percent: StrictInt
+    estimate_accuracy_percent: StrictInt | None
     completed_assignments: StrictInt
     completed: list[CompletedAssignmentStatRead]
     weekly: list[WeeklyStatRead]

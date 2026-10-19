@@ -355,7 +355,7 @@ def study_statistics(session: Session, actor: AuthenticatedUser) -> schemas.Stud
         abs((item.actual_hours or item.estimated_hours) - item.estimated_hours)
         for item in assignments
     )
-    accuracy = round(max(0, 100 - error / total_actual * 100)) if total_actual else 100
+    accuracy = round(max(0, 100 - error / total_actual * 100)) if total_actual else None
     everything = [
         item
         for item in session.scalars(
