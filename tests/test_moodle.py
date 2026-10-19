@@ -56,6 +56,14 @@ def api(function: str, form: dict[str, str]) -> Any:
                             "duedate": 1_761_000_000,
                             "allowsubmissionsfromdate": 0,
                             "grade": 100,
+                            "introattachments": [
+                                {
+                                    "filename": "brief.pdf",
+                                    "filesize": 10,
+                                    "fileurl": f"{BASE}/webservice/pluginfile.php/2/brief.pdf",
+                                    "mimetype": "application/pdf",
+                                }
+                            ],
                             "intro": "<p>Implement <b>JWT</b>.</p>",
                         }
                     ],
@@ -148,7 +156,8 @@ async def test_course_outline_and_files() -> None:
     sections = await service.course_contents(2)
     assert [m.module_type for m in sections[0].modules] == ["assign", "resource"]
     files = await service.list_files(2)
-    assert [f.file_name for f in files] == ["notes.txt"]
+    assert [f.file_name for f in files] == ["notes.txt", "brief.pdf"]
+    assert files[1].module == "Auth lab" and files[1].module_type == "assign"
 
 
 async def test_calendar_is_sorted_soonest_first() -> None:

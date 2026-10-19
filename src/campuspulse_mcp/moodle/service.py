@@ -6,6 +6,7 @@ from typing import Any
 
 from campuspulse_mcp.moodle.client import MoodleClient, MoodleError
 from campuspulse_mcp.moodle.models import (
+    AssignmentAttachment,
     CalendarEvent,
     CourseFile,
     CourseModule,
@@ -113,6 +114,22 @@ class MoodleService:
                             modified_at=to_datetime(item.get("timemodified")),
                         )
                     )
+        # Files attached to an assignment brief are not part of core_course_get_contents.
+        for assignment in await self.list_assignments([course_id]):
+            for attachment in assignment.attachments:
+                files.append(
+                    CourseFile(
+                        course_id=course_id,
+                        section="",
+                        module=assignment.name,
+                        module_type="assign",
+                        file_name=attachment.file_name,
+                        file_url=attachment.file_url,
+                        size_bytes=attachment.size_bytes,
+                        mime_type=attachment.mime_type,
+                        modified_at=None,
+                    )
+                )
         return files
 
     async def list_assignments(self, course_ids: list[int] | None = None) -> list[MoodleAssignment]:
@@ -130,6 +147,15 @@ class MoodleService:
                 due_at=to_datetime(item.get("duedate")),
                 opens_at=to_datetime(item.get("allowsubmissionsfromdate")),
                 max_grade=item.get("grade"),
+                attachments=[
+                    AssignmentAttachment(
+                        file_name=file["filename"],
+                        file_url=file["fileurl"],
+                        size_bytes=file.get("filesize", 0),
+                        mime_type=file.get("mimetype"),
+                    )
+                    for file in [*item.get("introattachments", []), *item.get("introfiles", [])]
+                ],
             )
             for course in raw.get("courses", [])
             for item in course.get("assignments", [])

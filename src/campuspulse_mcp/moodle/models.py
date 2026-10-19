@@ -51,6 +51,13 @@ class CourseSection(BaseModel):
     modules: list[CourseModule]
 
 
+class AssignmentAttachment(BaseModel):
+    file_name: str
+    file_url: str
+    size_bytes: int
+    mime_type: str | None
+
+
 class MoodleAssignment(BaseModel):
     id: int
     course_id: int
@@ -60,6 +67,7 @@ class MoodleAssignment(BaseModel):
     due_at: datetime | None
     opens_at: datetime | None
     max_grade: float | None
+    attachments: list[AssignmentAttachment]
 
 
 class SubmissionStatus(BaseModel):
