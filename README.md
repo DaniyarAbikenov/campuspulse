@@ -89,6 +89,7 @@ Google flow подробно описан в [`docs/authentication.md`](docs/aut
 | Agent activity | `GET /api/v1/agent/activity`, `POST /api/v1/agent/runs` |
 | Imports | `POST/GET /api/v1/imports/proposals`, item `PATCH`, `POST .../apply`, `POST .../dismiss` |
 | Agent chat | `GET /api/v1/agent/status`, `POST /api/v1/agent/chat` |
+| Agent insights | `POST /api/v1/insights/refresh` (student triggers), `POST /api/v1/agent/insights` (agent writes; sources verified) |
 | Settings | `GET/PATCH /api/v1/settings` |
 | Insights | `GET/POST /api/v1/insights` |
 | Insight state | `PATCH /api/v1/insights/{id}` |
