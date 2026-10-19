@@ -93,3 +93,14 @@ def test_a_session_cannot_link_to_someone_elses_task(student: TestClient) -> Non
 def test_planner_requires_authentication(student: TestClient) -> None:
     student.headers.pop("Authorization")
     assert student.get("/api/v1/schedule/plan").status_code == 401
+
+
+def test_statistics_include_weekly_series_and_per_course_accuracy(student: TestClient) -> None:
+    stats = student.get("/api/v1/statistics").json()
+    assert len(stats["weekly"]) == 8
+    assert stats["weekly"] == sorted(stats["weekly"], key=lambda w: w["week_start"])
+    assert all(w["planned_hours"] >= 0 and w["actual_hours"] >= 0 for w in stats["weekly"])
+    courses = {c["course_name"]: c for c in stats["by_course"]}
+    assert courses  # seeded student has completed work
+    for course in courses.values():
+        assert course["actual_hours"] >= 0 and 0 <= course["estimate_accuracy_percent"] <= 100

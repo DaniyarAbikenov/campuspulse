@@ -352,12 +352,76 @@ def study_statistics(session: Session, actor: AuthenticatedUser) -> schemas.Stud
         for item in assignments
     )
     accuracy = round(max(0, 100 - error / total_actual * 100)) if total_actual else 100
+    everything = [
+        item
+        for item in session.scalars(
+            select(models.Assignment).where(models.Assignment.owner_user_id == actor.user.id)
+        ).all()
+        if can_read(session, actor, item)
+    ]
     return schemas.StudyStatisticsRead(
         reported_study_hours=float(round(total_actual, 2)),
         estimate_accuracy_percent=accuracy,
         completed_assignments=len(assignments),
         completed=completed,
+        weekly=_weekly_stats(everything, _user_timezone(session, actor.user)),
+        by_course=_course_stats(session, assignments),
     )
+
+
+def _weekly_stats(
+    assignments: list[models.Assignment], timezone: ZoneInfo, weeks: int = 8
+) -> list[schemas.WeeklyStatRead]:
+    """Planned vs reported hours by the week each assignment was due (no activity log exists)."""
+    today = datetime.now(timezone).date()
+    current = today - timedelta(days=today.weekday())
+    starts = [current - timedelta(weeks=offset) for offset in range(weeks - 1, -1, -1)]
+    planned: dict[date, float] = defaultdict(float)
+    actual: dict[date, float] = defaultdict(float)
+    for item in assignments:
+        due = _aware(item.due_at).astimezone(timezone).date()
+        week = due - timedelta(days=due.weekday())
+        planned[week] += item.estimated_hours
+        if item.status == models.AssignmentStatus.completed:
+            actual[week] += item.actual_hours or item.estimated_hours
+    return [
+        schemas.WeeklyStatRead(
+            week_start=start,
+            planned_hours=float(round(planned[start], 2)),
+            actual_hours=float(round(actual[start], 2)),
+        )
+        for start in starts
+    ]
+
+
+def _course_stats(
+    session: Session, completed: list[models.Assignment]
+) -> list[schemas.CourseStatRead]:
+    grouped: dict[UUID, list[models.Assignment]] = defaultdict(list)
+    for item in completed:
+        grouped[item.course_id].append(item)
+    result: list[schemas.CourseStatRead] = []
+    for course_id, items in grouped.items():
+        course = session.get(models.Course, course_id)
+        estimated = sum(item.estimated_hours for item in items)
+        actual = sum(item.actual_hours or item.estimated_hours for item in items)
+        error = sum(
+            abs((item.actual_hours or item.estimated_hours) - item.estimated_hours)
+            for item in items
+        )
+        result.append(
+            schemas.CourseStatRead(
+                course_id=course_id,
+                course_name=course.name if course else "Unknown course",
+                completed_assignments=len(items),
+                estimated_hours=float(round(estimated, 2)),
+                actual_hours=float(round(actual, 2)),
+                estimate_accuracy_percent=round(max(0, 100 - error / actual * 100))
+                if actual
+                else None,
+            )
+        )
+    return result
 
 
 def get_settings_model(session: Session, user_id: UUID) -> models.UserSettings:

@@ -479,11 +479,28 @@ class CompletedAssignmentStatRead(StrictSchema):
     delta_hours: StrictFloat
 
 
+class WeeklyStatRead(StrictSchema):
+    week_start: date
+    planned_hours: StrictFloat
+    actual_hours: StrictFloat
+
+
+class CourseStatRead(StrictSchema):
+    course_id: UUID
+    course_name: str
+    completed_assignments: StrictInt
+    estimated_hours: StrictFloat
+    actual_hours: StrictFloat
+    estimate_accuracy_percent: StrictInt | None
+
+
 class StudyStatisticsRead(StrictSchema):
     reported_study_hours: StrictFloat
     estimate_accuracy_percent: StrictInt
     completed_assignments: StrictInt
     completed: list[CompletedAssignmentStatRead]
+    weekly: list[WeeklyStatRead]
+    by_course: list[CourseStatRead]
 
 
 class SettingsRead(StrictSchema):
