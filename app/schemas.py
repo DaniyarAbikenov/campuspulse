@@ -553,6 +553,12 @@ class InsightCta(StrictSchema):
     style: Annotated[str, Field(min_length=1, max_length=32)] = "primary"
 
 
+class InsightEvidence(StrictSchema):
+    kind: Literal["assignment", "task", "document", "workload", "free_time"]
+    label: Annotated[str, Field(min_length=1, max_length=200)]
+    ref_id: UUID | None = None
+
+
 class InsightRead(EntityRead):
     user_id: UUID
     course_id: UUID | None
@@ -569,6 +575,9 @@ class InsightRead(EntityRead):
     action_payload: dict[str, object] | None
     snoozed_until: datetime | None
     applied_at: datetime | None
+    reasoning: str
+    evidence: list[InsightEvidence]
+    generated_by: str
 
 
 class InsightCreate(StrictSchema):
@@ -972,3 +981,61 @@ class AdminOverviewRead(StrictSchema):
     highest_risk_course: str | None
     highest_risk_percent: StrictInt | None
     activity: list[AdminActivityRead]
+
+
+class AgentInsightSource(StrictSchema):
+    kind: Literal["assignment", "task", "document", "workload", "free_time"]
+    label: Annotated[str, Field(min_length=1, max_length=200), BeforeValidator(_clip(200))]
+    ref_id: UUID | None = None
+
+
+class AgentStudySession(StrictSchema):
+    title: Annotated[str, Field(min_length=1, max_length=240), BeforeValidator(_clip(240))]
+    starts_at: datetime
+    ends_at: datetime
+    course_id: UUID | None = None
+    task_id: UUID | None = None
+
+
+def _clamp_percent(value: Any) -> Any:
+    return min(100, max(0, int(value))) if isinstance(value, int | float) else value
+
+
+class AgentInsightItem(StrictSchema):
+    category: Literal[
+        "workload_warning",
+        "deadline_conflict",
+        "schedule_opportunity",
+        "study_preparation",
+        "assignment_analysis",
+    ]
+    severity: Annotated[InsightSeverity, BeforeValidator(_normalize_priority)] = (
+        InsightSeverity.medium
+    )
+    title: Annotated[str, Field(min_length=1, max_length=240), BeforeValidator(_clip(240))]
+    summary: Annotated[str, Field(min_length=1, max_length=1000), BeforeValidator(_clip(1000))]
+    reasoning: Annotated[str, Field(min_length=1, max_length=1500), BeforeValidator(_clip(1500))]
+    suggestion: Annotated[str, Field(min_length=1, max_length=1000), BeforeValidator(_clip(1000))]
+    confidence: Annotated[StrictInt, Field(ge=0, le=100), BeforeValidator(_clamp_percent)] = 70
+    sources: Annotated[list[AgentInsightSource], Field(max_length=8)] = Field(default_factory=list)
+    study_session: AgentStudySession | None = None
+
+
+class AgentInsightBatch(StrictSchema):
+    insights: Annotated[list[AgentInsightItem], Field(min_length=1, max_length=6)]
+
+
+class RejectedInsightRead(StrictSchema):
+    title: str
+    reason: str
+
+
+class AgentInsightResult(StrictSchema):
+    created: list[InsightRead]
+    rejected: list[RejectedInsightRead]
+
+
+class InsightRefreshRead(StrictSchema):
+    created: list[InsightRead]
+    rejected: list[RejectedInsightRead]
+    steps: list[AgentChatStepRead]

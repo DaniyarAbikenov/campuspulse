@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
 from app.documents import service as documents_service
-from app.product import admin, campus, imports, planner, plans, service
+from app.product import admin, campus, imports, insight_agent, planner, plans, service
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -548,3 +548,33 @@ def admin_overview(
 ) -> schemas.AdminOverviewRead:
     """Anonymised faculty aggregates; groups below the minimum cohort size are withheld."""
     return admin.overview(session, current, institution_id)
+
+
+@router.post(
+    "/agent/insights",
+    response_model=schemas.AgentInsightResult,
+    status_code=status.HTTP_201_CREATED,
+    tags=["insights"],
+)
+def agent_insights(
+    payload: schemas.AgentInsightBatch, current: CurrentUserDep, session: SessionDep
+) -> schemas.AgentInsightResult:
+    """Save insights proposed by the agent; unsupported or unverifiable ones are rejected."""
+    return insight_agent.create_from_agent(session, current, payload)
+
+
+@router.post("/insights/refresh", response_model=schemas.InsightRefreshRead, tags=["insights"])
+async def refresh_insights(
+    current: CurrentUserDep, session: SessionDep, gateway: AgentGatewayDep
+) -> schemas.InsightRefreshRead:
+    """Ask the agent to review deadlines, workload and free time and propose insights."""
+    if gateway is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Agent is not configured"
+        )
+    try:
+        return await agent_service.refresh_insights(
+            session, current, gateway, settings=settings, secret=get_jwt_secret()
+        )
+    except AgentUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error

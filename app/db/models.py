@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     false,
+    text,
     true,
 )
 from sqlalchemy import (
@@ -476,6 +477,12 @@ class Insight(TimestampMixin, Base):
     action_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Why the recommendation is made and what it is based on; "agent" insights must cite sources.
+    reasoning: Mapped[str] = mapped_column(Text, default="", server_default="")
+    evidence: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, default=list, server_default=text("'[]'")
+    )
+    generated_by: Mapped[str] = mapped_column(String(20), default="system", server_default="system")
 
 
 class AuditEvent(Base):

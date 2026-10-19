@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -12,7 +13,7 @@ from app.auth.service import AuthenticatedUser
 from app.auth.tokens import create_access_token
 from app.core.config import Settings
 from app.db import models
-from app.product import campus, plans
+from app.product import campus, insight_agent, plans
 
 
 def mint_agent_token(actor: AuthenticatedUser, settings: Settings, secret: str) -> str:
@@ -161,3 +162,68 @@ def _no_plan_reason(steps: list[schemas.AgentChatStepRead]) -> str:
         ):
             return f"The agent could not save a task plan: {step.detail[:300]}"
     return "The agent did not produce a task plan"
+
+
+INSIGHT_PROMPT = (
+    "{today} Review this student's situation and propose 2 to 5 insights: call list_insights "
+    "first so you do not repeat answered ones, then get_workload for this week and next, "
+    "list_assignments, list_open_tasks and get_free_time. Each insight needs the concrete "
+    "numbers and dates behind it (reasoning) and sources that cite the exact assignments, tasks "
+    "or figures you used. When a free window can host study time for a task, attach a "
+    "study_session that fits entirely inside that window and starts in the future. Then call "
+    "propose_insights once. Finish with one sentence."
+)
+
+
+async def refresh_insights(
+    session: Session,
+    actor: AuthenticatedUser,
+    gateway: AgentGateway,
+    *,
+    settings: Settings,
+    secret: str,
+) -> schemas.InsightRefreshRead:
+    started: datetime = models.utc_now()
+    reply = await chat(
+        session,
+        actor,
+        gateway,
+        schemas.AgentChatRequest(
+            message=INSIGHT_PROMPT.format(today=insight_agent.today_prompt_context(session, actor))
+        ),
+        settings=settings,
+        secret=secret,
+    )
+    session.expire_all()
+    fresh = [
+        item
+        for item in session.scalars(
+            select(models.Insight)
+            .where(
+                models.Insight.user_id == actor.user.id,
+                models.Insight.generated_by == insight_agent.GENERATED_BY,
+                models.Insight.status == models.InsightStatus.new,
+            )
+            .order_by(models.Insight.created_at)
+        )
+        if (
+            item.created_at
+            if item.created_at.tzinfo
+            else item.created_at.replace(tzinfo=started.tzinfo)
+        )
+        >= started
+    ]
+    if not fresh:
+        raise AgentUnavailableError(_no_insights_reason(reply.steps))
+    return schemas.InsightRefreshRead(
+        created=[schemas.InsightRead.model_validate(item) for item in fresh],
+        rejected=[],
+        steps=reply.steps,
+    )
+
+
+def _no_insights_reason(steps: list[schemas.AgentChatStepRead]) -> str:
+    for step in reversed(steps):
+        if step.kind == "tool_result" and step.name == "propose_insights":
+            return f"The agent produced no usable insights: {step.detail[:300]}"
+    return "The agent did not produce any insights"

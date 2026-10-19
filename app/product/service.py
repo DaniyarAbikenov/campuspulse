@@ -562,6 +562,17 @@ def apply_insight(
         )
         event = models.ScheduleEvent(**event_payload.model_dump())
         require_write(session, actor, event)
+        clash = session.scalar(
+            select(models.ScheduleEvent.id).where(
+                models.ScheduleEvent.user_id == actor.user.id,
+                models.ScheduleEvent.starts_at < event.ends_at,
+                models.ScheduleEvent.ends_at > event.starts_at,
+            )
+        )
+        if clash is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="That time is no longer free"
+            )
         session.add(event)
         session.flush()
         created_ids.append(event.id)
