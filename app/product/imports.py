@@ -23,6 +23,17 @@ def create_proposal(
             )
         )
     )
+    known.update(
+        _external_ref(source, external_id)
+        for source, external_id in session.execute(
+            select(models.ImportProposal.source, models.ImportItem.external_id)
+            .join(models.ImportItem, models.ImportItem.proposal_id == models.ImportProposal.id)
+            .where(
+                models.ImportProposal.user_id == actor.user.id,
+                models.ImportProposal.status == models.ImportStatus.pending,
+            )
+        )
+    )
     fresh: dict[str, schemas.ImportItemCreate] = {}
     for item in payload.items:
         ref = _external_ref(payload.source, item.external_id)

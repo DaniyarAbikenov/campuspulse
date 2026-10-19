@@ -112,3 +112,15 @@ def test_unknown_course_override_is_rejected(student: TestClient) -> None:
 def test_import_endpoints_require_authentication(student: TestClient) -> None:
     student.headers.pop("Authorization")
     assert student.get("/api/v1/imports/proposals").status_code == 401
+
+
+def test_items_already_waiting_in_a_pending_proposal_are_not_proposed_twice(
+    student: TestClient,
+) -> None:
+    propose(student, item("1", "Imported lab"))
+    repeat = student.post(
+        "/api/v1/imports/proposals",
+        json={"source": "moodle", "items": [item("1", "Imported lab"), item("2", "Second")]},
+    ).json()
+    assert repeat["skipped_existing"] == 1
+    assert [row["title"] for row in repeat["proposal"]["items"]] == ["Second"]
