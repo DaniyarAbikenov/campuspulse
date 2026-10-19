@@ -274,3 +274,46 @@ def test_fragments_sharing_a_page_are_returned_as_one_page(student: TestClient) 
     body = student.get(f"/api/v1/assignments/{seeded}/text").json()
     numbers = [p["page"] for p in body["pages"]]
     assert numbers == sorted(set(numbers)) == [2, 3, 4]
+
+
+def apply_plan(student: TestClient, assignment_id: str, **overrides: Any) -> dict[str, Any]:
+    plan = student.post("/api/v1/task-plans", json=plan_body(assignment_id, **overrides)).json()
+    applied = student.post(f"/api/v1/task-plans/{plan['id']}/apply")
+    assert applied.status_code == 200, applied.text
+    return dict(applied.json())
+
+
+def titles(student: TestClient, assignment_id: str) -> list[str]:
+    tasks = student.get("/api/v1/tasks", params={"limit": 200}).json()
+    return sorted(t["title"] for t in tasks if t["assignment_id"] == assignment_id)
+
+
+def test_a_second_analysis_replaces_the_first_plans_unstarted_tasks(
+    student: TestClient, uploaded: str
+) -> None:
+    first = apply_plan(student, uploaded)
+    assert first["replaced"] == 0
+    tasks = student.get("/api/v1/tasks", params={"limit": 200}).json()
+    started = next(t for t in tasks if t["title"] == "Secure endpoints")
+    student.patch(f"/api/v1/tasks/{started['id']}", json={"status": "in_progress"})
+
+    items = plan_body(uploaded)["items"]
+    items[0]["title"] = "Implement tokens (second analysis)"
+    second = apply_plan(student, uploaded, items=items[:1])
+    assert second["replaced"] == 1  # only the unstarted one
+    assert titles(student, uploaded) == ["Implement tokens (second analysis)", "Secure endpoints"]
+    estimate = student.get(f"/api/v1/assignments/{uploaded}").json()["estimated_hours"]
+    assert estimate == 3.5  # 1.5 new + 2.0 kept: the board's total, not just the new plan
+
+
+def test_the_applied_plan_stays_available_while_a_new_one_is_pending(
+    student: TestClient, uploaded: str
+) -> None:
+    apply_plan(student, uploaded)
+    pending = student.post("/api/v1/task-plans", json=plan_body(uploaded)).json()
+    latest = student.get(f"/api/v1/assignments/{uploaded}/task-plan").json()
+    applied = student.get(
+        f"/api/v1/assignments/{uploaded}/task-plan", params={"applied": "true"}
+    ).json()
+    assert latest["id"] == pending["id"] and latest["status"] == "pending"
+    assert applied["status"] == "applied" and applied["id"] != pending["id"]

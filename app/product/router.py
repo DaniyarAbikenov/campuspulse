@@ -550,9 +550,10 @@ def create_task_plan(
     "/assignments/{assignment_id}/task-plan", response_model=schemas.TaskPlanRead, tags=["analysis"]
 )
 def latest_task_plan(
-    assignment_id: UUID, current: CurrentUserDep, session: SessionDep
+    assignment_id: UUID, current: CurrentUserDep, session: SessionDep, applied: bool = False
 ) -> schemas.TaskPlanRead:
-    return plans.latest_plan(session, current, assignment_id)
+    """The open proposal, or with `?applied=true` the plan whose tasks are on the board."""
+    return plans.latest_plan(session, current, assignment_id, applied=applied)
 
 
 @router.patch(

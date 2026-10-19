@@ -1006,6 +1006,7 @@ class TaskPlanItemUpdate(StrictSchema):
 
 
 class TaskPlanApplyRead(StrictSchema):
+    replaced: StrictInt = 0
     plan: TaskPlanRead
     created: StrictInt
 

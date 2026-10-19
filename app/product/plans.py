@@ -142,15 +142,18 @@ def create_plan(
 
 
 def latest_plan(
-    session: Session, actor: AuthenticatedUser, assignment_id: UUID
+    session: Session, actor: AuthenticatedUser, assignment_id: UUID, *, applied: bool = False
 ) -> schemas.TaskPlanRead:
+    """The newest open plan; with `applied`, the newest plan whose tasks are on the board."""
     _assignment(session, actor, assignment_id)
     plan = session.scalar(
         select(models.TaskPlan)
         .where(
             models.TaskPlan.assignment_id == assignment_id,
             models.TaskPlan.user_id == actor.user.id,
-            models.TaskPlan.status != models.PlanStatus.dismissed,
+            models.TaskPlan.status == models.PlanStatus.applied
+            if applied
+            else models.TaskPlan.status != models.PlanStatus.dismissed,
         )
         .order_by(models.TaskPlan.created_at.desc())
     )
@@ -199,6 +202,7 @@ def apply(session: Session, actor: AuthenticatedUser, plan_id: UUID) -> schemas.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Select at least one task"
         )
+    replaced = _replace_earlier_tasks(session, assignment.id)
     for item in chosen:
         task = models.Task(
             assignment_id=assignment.id,
@@ -217,7 +221,17 @@ def apply(session: Session, actor: AuthenticatedUser, plan_id: UUID) -> schemas.
         session.add(task)
         session.flush()
         item.task_id = task.id
-    assignment.estimated_hours = round(sum(item.estimated_hours for item in chosen), 2)
+    session.flush()
+    # The assignment's estimate is the sum of everything on its board, kept tasks included.
+    assignment.estimated_hours = round(
+        sum(
+            task.estimated_hours
+            for task in session.scalars(
+                select(models.Task).where(models.Task.assignment_id == assignment.id)
+            )
+        ),
+        2,
+    )
     if assignment.status == models.AssignmentStatus.upcoming:
         assignment.status = models.AssignmentStatus.todo
     if plan.related_assignment_id and plan.relation_type:
@@ -239,7 +253,35 @@ def apply(session: Session, actor: AuthenticatedUser, plan_id: UUID) -> schemas.
     plan.status = models.PlanStatus.applied
     plan.applied_at = models.utc_now()
     session.commit()
-    return schemas.TaskPlanApplyRead(plan=_read(session, plan), created=len(chosen))
+    return schemas.TaskPlanApplyRead(
+        plan=_read(session, plan), created=len(chosen), replaced=replaced
+    )
+
+
+def _replace_earlier_tasks(session: Session, assignment_id: UUID) -> int:
+    """A new plan supersedes the unstarted tasks of an earlier one, so the board never mixes two
+    analyses. Tasks the student started or finished stay."""
+    old = session.scalars(
+        select(models.Task).where(
+            models.Task.assignment_id == assignment_id,
+            models.Task.is_ai_generated.is_(True),
+            models.Task.status.in_([models.TaskStatus.backlog, models.TaskStatus.todo]),
+        )
+    ).all()
+    now = models.utc_now()
+    for task in old:
+        for event in session.scalars(
+            select(models.ScheduleEvent).where(models.ScheduleEvent.task_id == task.id)
+        ):
+            starts = (
+                event.starts_at
+                if event.starts_at.tzinfo
+                else event.starts_at.replace(tzinfo=now.tzinfo)
+            )
+            if starts >= now:
+                session.delete(event)
+        session.delete(task)
+    return len(old)
 
 
 def _owned(session: Session, actor: AuthenticatedUser, plan_id: UUID) -> models.TaskPlan:
