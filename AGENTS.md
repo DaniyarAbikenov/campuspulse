@@ -11,7 +11,7 @@
 
 ## Architecture
 - Interface localization is applied at React render boundaries through the shared catalog and locale subscription; domain strings stay canonical so switching languages never changes workflow logic. Status aliases normalize external codes only for display.
-- All demo data lives in `src/lib/data.ts` and shared state in `src/lib/store.tsx` (React context) — prototype is frontend-only, no backend.
+- Backend-connected workspace data is loaded through `src/lib/api.ts` into `src/lib/store.tsx`; `src/lib/data.ts` remains the canonical fallback and supplies sections that have not been migrated yet.
 - App shell (sidebar, topbar, chat drawer, upload dialog) is mounted in `src/routes/__root.tsx` — every page shares it.
 - Recharts colors come from `src/lib/chartColors.ts` — SVG attributes can't resolve CSS variables.
 - Workspace access uses per-route guards plus an outlet gate, with role carried in router context; this separates demo workspaces without implying production authorization.
