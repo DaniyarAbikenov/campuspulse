@@ -92,6 +92,10 @@ def update_item(
         course = session.get(models.Course, changes["course_id"])
         if course is None or not can_read(session, actor, course):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+    if changes.get("create_course"):
+        changes["course_id"] = None
+    elif changes.get("course_id") is not None:
+        changes["create_course"] = False
     for field, value in changes.items():
         if value is None and field != "course_id":
             continue
@@ -123,7 +127,7 @@ def apply(session: Session, actor: AuthenticatedUser, proposal_id: UUID) -> sche
             already_imported=sum(item.assignment_id is not None for item in items),
         )
     chosen = [item for item in items if item.selected]
-    missing = [item.title for item in chosen if item.course_id is None]
+    missing = [item.title for item in chosen if item.course_id is None and not item.create_course]
     if missing:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -131,7 +135,13 @@ def apply(session: Session, actor: AuthenticatedUser, proposal_id: UUID) -> sche
         )
     created = 0
     already = 0
+    new_courses: dict[str, UUID] = {}
     for item in chosen:
+        if item.course_id is None:
+            code = item.external_course_code
+            if code not in new_courses:
+                new_courses[code] = _course_for_import(session, actor, item).id
+            item.course_id = new_courses[code]
         ref = _external_ref(proposal.source, item.external_id)
         existing = session.scalar(
             select(models.Assignment).where(
@@ -164,6 +174,47 @@ def apply(session: Session, actor: AuthenticatedUser, proposal_id: UUID) -> sche
     return schemas.ImportApplyRead(
         proposal=_read(session, proposal), created=created, already_imported=already
     )
+
+
+def _course_for_import(
+    session: Session, actor: AuthenticatedUser, item: models.ImportItem
+) -> models.Course:
+    """Create the course the student asked for, enrolling only them.
+
+    An existing course with the same code is never joined here: enrolment into the catalog stays
+    with administrators, so a clash is reported instead of silently granting access.
+    """
+    institution_id = actor.user.institution_id
+    semester = (
+        session.scalar(
+            select(models.Semester)
+            .where(models.Semester.institution_id == institution_id)
+            .order_by(models.Semester.starts_on.desc())
+        )
+        if institution_id is not None
+        else None
+    )
+    if semester is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Your account has no semester to create a course in",
+        )
+    code = item.external_course_code[:32]
+    if session.scalar(
+        select(models.Course).where(
+            models.Course.semester_id == semester.id, models.Course.code == code
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A course with code {code} already exists; choose it from the list",
+        )
+    course = models.Course(semester_id=semester.id, code=code, name=item.external_course_name[:200])
+    session.add(course)
+    session.flush()
+    session.add(models.Enrollment(user_id=actor.user.id, course_id=course.id))
+    session.flush()
+    return course
 
 
 def _external_ref(source: str, external_id: str) -> str:

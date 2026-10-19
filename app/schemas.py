@@ -689,6 +689,7 @@ class ImportItemRead(StrictSchema):
     external_course_code: str
     external_course_name: str
     course_id: UUID | None
+    create_course: StrictBool
     estimated_hours: StrictFloat
     selected: StrictBool
     attachment_names: list[str]
@@ -712,6 +713,7 @@ class ImportProposalResult(StrictSchema):
 class ImportItemUpdate(StrictSchema):
     selected: StrictBool | None = None
     course_id: UUID | None = None
+    create_course: StrictBool | None = None
     estimated_hours: Hours | None = None
 
 

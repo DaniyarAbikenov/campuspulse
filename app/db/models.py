@@ -632,6 +632,7 @@ class ImportItem(TimestampMixin, Base):
         ForeignKey("courses.id", ondelete="SET NULL"), nullable=True
     )
     estimated_hours: Mapped[float] = mapped_column(Float, default=2.0)
+    create_course: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     selected: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     attachment_names: Mapped[list[str]] = mapped_column(JSON, default=list)
     assignment_id: Mapped[UUID | None] = mapped_column(

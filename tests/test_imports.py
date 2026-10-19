@@ -124,3 +124,31 @@ def test_items_already_waiting_in_a_pending_proposal_are_not_proposed_twice(
     ).json()
     assert repeat["skipped_existing"] == 1
     assert [row["title"] for row in repeat["proposal"]["items"]] == ["Second"]
+
+
+def test_student_can_create_the_course_for_an_import(student: TestClient) -> None:
+    proposal = propose(student, item("9", "Moodle task", code="MDL 1"))["proposal"]
+    assert isinstance(proposal, dict)
+    row = proposal["items"][0]
+    assert row["course_id"] is None and row["create_course"] is False
+    patched = student.patch(
+        f"/api/v1/imports/proposals/{proposal['id']}/items/{row['id']}",
+        json={"create_course": True},
+    ).json()
+    assert patched["items"][0]["create_course"] is True
+    applied = student.post(f"/api/v1/imports/proposals/{proposal['id']}/apply")
+    assert applied.status_code == 200 and applied.json()["created"] == 1
+    codes = [course["code"] for course in student.get("/api/v1/courses/overview").json()]
+    assert "MDL 1" in codes
+
+
+def test_creating_a_course_never_joins_an_existing_unreadable_code(student: TestClient) -> None:
+    proposal = propose(student, item("9", "Moodle task", code="SE 3204"))["proposal"]
+    assert isinstance(proposal, dict)
+    row = proposal["items"][0]
+    # The code matches an enrolled course, so it is auto-matched; force creation to prove the guard.
+    student.patch(
+        f"/api/v1/imports/proposals/{proposal['id']}/items/{row['id']}",
+        json={"create_course": True},
+    )
+    assert student.post(f"/api/v1/imports/proposals/{proposal['id']}/apply").status_code == 409
