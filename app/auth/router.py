@@ -203,6 +203,7 @@ def onboarding(
             institution_id=payload.institution_id,
             student_number=payload.student_number,
             program=payload.program,
+            group_name=payload.group_name,
             course_ids=payload.course_ids,
         )
     except OnboardingAlreadyCompletedError as error:

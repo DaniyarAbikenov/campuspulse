@@ -241,6 +241,7 @@ def complete_onboarding(
     student_number: str,
     program: str,
     course_ids: list[UUID],
+    group_name: str | None = None,
 ) -> AuthenticatedUser:
     user = authenticated_user.user
     if user.institution_id is not None:
@@ -266,6 +267,10 @@ def complete_onboarding(
     user.institution_id = institution_id
     user.student_number = student_number
     user.program = program
+    if group_name:
+        from app.product.service import get_settings_model  # settings are created lazily
+
+        get_settings_model(session, user.id).group_name = group_name
     for course_id in unique_course_ids:
         session.add(models.Enrollment(user_id=user.id, course_id=course_id))
     session.add(

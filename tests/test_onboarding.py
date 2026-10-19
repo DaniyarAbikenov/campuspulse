@@ -33,10 +33,13 @@ def test_new_user_picks_an_institution_and_courses_then_options_close(
             "institution_id": institution["id"],
             "student_number": "240028",
             "program": "Software Engineering",
+            "group_name": "SE-2429",
             "course_ids": [institution["courses"][0]["id"]],
         },
     )
     assert joined.status_code == 200 and joined.json()["institution_id"] == institution["id"]
+    profile = student.get("/api/v1/settings").json()
+    assert (profile["program"], profile["group_name"]) == ("Software Engineering", "SE-2429")
     assert len(student.get("/api/v1/courses/overview").json()) == 1
     assert student.get("/api/v1/auth/onboarding/options").status_code == 409
 

@@ -428,6 +428,7 @@ class OnboardingRequest(StrictSchema):
     institution_id: UUID
     student_number: Annotated[str, Field(min_length=1, max_length=64)]
     program: Annotated[str, Field(min_length=1, max_length=200)]
+    group_name: Annotated[str, Field(min_length=1, max_length=100)] | None = None
     course_ids: Annotated[list[UUID], Field(max_length=20)] = Field(default_factory=list)
 
 
