@@ -109,10 +109,10 @@ async def chat(
 
 
 ANALYSIS_PROMPT = (
-    "Analyze assignment {assignment_id} for the student. Call get_assignment_text, extract every "
-    "requirement with an exact quote and its page, turn them into tasks of roughly 0.5 to 3 "
-    "hours, check list_assignments for an earlier assignment this one extends or depends on, "
-    "calibrate the estimates with get_study_statistics, then call propose_task_plan exactly "
+    "Analyze assignment {assignment_id} for the student and propose a task plan: read it with "
+    "get_assignment_text, quote every requirement exactly with its page, create 5 to 8 tasks of "
+    "1 to 3 hours, link an earlier assignment it extends (look at all assignments, including "
+    "completed ones), calibrate estimates with get_study_statistics and call propose_task_plan "
     "once. Finish with a one-sentence summary."
 )
 
