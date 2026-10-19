@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     false,
+    true,
 )
 from sqlalchemy import (
     Enum as SqlEnum,
@@ -137,6 +138,12 @@ class AgentRunStatus(StrEnum):
     success = "success"
     warning = "warning"
     failed = "failed"
+
+
+class ImportStatus(StrEnum):
+    pending = "pending"
+    applied = "applied"
+    dismissed = "dismissed"
 
 
 class Institution(TimestampMixin, Base):
@@ -281,6 +288,7 @@ class Enrollment(TimestampMixin, Base):
 class Assignment(TimestampMixin, Base):
     __tablename__ = "assignments"
     __table_args__ = (
+        UniqueConstraint("owner_user_id", "external_ref", name="uq_assignment_external_ref"),
         CheckConstraint("estimated_hours >= 0", name="ck_assignment_estimated_hours"),
         CheckConstraint(
             "actual_hours IS NULL OR actual_hours >= 0", name="ck_assignment_actual_hours"
@@ -318,6 +326,7 @@ class Assignment(TimestampMixin, Base):
     estimated_hours: Mapped[float] = mapped_column(Float, default=0)
     actual_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
     progress: Mapped[int] = mapped_column(Integer, default=0)
+    external_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class AssignmentRelation(TimestampMixin, Base):
@@ -584,3 +593,47 @@ class AgentToolCall(TimestampMixin, Base):
         default=AgentRunStatus.success,
     )
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class ImportProposal(TimestampMixin, Base):
+    """Items found in an external system, waiting for the student's explicit approval."""
+
+    __tablename__ = "import_proposals"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    source: Mapped[str] = mapped_column(String(40))
+    status: Mapped[ImportStatus] = mapped_column(
+        SqlEnum(ImportStatus, native_enum=False, create_constraint=True, name="import_status"),
+        default=ImportStatus.pending,
+        index=True,
+    )
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ImportItem(TimestampMixin, Base):
+    __tablename__ = "import_items"
+    __table_args__ = (
+        UniqueConstraint("proposal_id", "external_id", name="uq_import_item_external"),
+        CheckConstraint("estimated_hours >= 0", name="ck_import_item_hours"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    proposal_id: Mapped[UUID] = mapped_column(
+        ForeignKey("import_proposals.id", ondelete="CASCADE"), index=True
+    )
+    external_id: Mapped[str] = mapped_column(String(255))
+    title: Mapped[str] = mapped_column(String(240))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    external_course_code: Mapped[str] = mapped_column(String(120))
+    external_course_name: Mapped[str] = mapped_column(String(240))
+    course_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("courses.id", ondelete="SET NULL"), nullable=True
+    )
+    estimated_hours: Mapped[float] = mapped_column(Float, default=2.0)
+    selected: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    attachment_names: Mapped[list[str]] = mapped_column(JSON, default=list)
+    assignment_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assignments.id", ondelete="SET NULL"), nullable=True
+    )

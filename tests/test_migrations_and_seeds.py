@@ -40,6 +40,8 @@ def test_migration_round_trip_and_idempotent_seed(tmp_path: Path) -> None:
         "document_fragments",
         "documents",
         "enrollments",
+        "import_items",
+        "import_proposals",
         "identity_accounts",
         "insights",
         "institutions",

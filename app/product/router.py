@@ -13,7 +13,7 @@ from app.auth.router import CurrentUserDep
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_session
-from app.product import campus, service
+from app.product import campus, imports, service
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -198,9 +198,7 @@ def kanban(
     )
 
 
-@router.patch(
-    "/kanban/tasks/{task_id}/move", response_model=schemas.TaskRead, tags=["kanban"]
-)
+@router.patch("/kanban/tasks/{task_id}/move", response_model=schemas.TaskRead, tags=["kanban"])
 def move_kanban_task(
     task_id: UUID,
     payload: schemas.KanbanMoveRequest,
@@ -330,3 +328,61 @@ def record_agent_run(
     payload: schemas.AgentRunCreate, current: CurrentUserDep, session: SessionDep
 ) -> schemas.AgentRunRead:
     return campus.record_agent_run(session, current, payload)
+
+
+@router.post(
+    "/imports/proposals",
+    response_model=schemas.ImportProposalResult,
+    status_code=status.HTTP_201_CREATED,
+    tags=["imports"],
+)
+def create_import_proposal(
+    payload: schemas.ImportProposalCreate, current: CurrentUserDep, session: SessionDep
+) -> schemas.ImportProposalResult:
+    return imports.create_proposal(session, current, payload)
+
+
+@router.get("/imports/proposals", response_model=list[schemas.ImportProposalRead], tags=["imports"])
+def list_import_proposals(
+    current: CurrentUserDep,
+    session: SessionDep,
+    proposal_status: models.ImportStatus | None = None,
+) -> list[schemas.ImportProposalRead]:
+    return imports.list_proposals(session, current, proposal_status)
+
+
+@router.patch(
+    "/imports/proposals/{proposal_id}/items/{item_id}",
+    response_model=schemas.ImportProposalRead,
+    tags=["imports"],
+)
+def update_import_item(
+    proposal_id: UUID,
+    item_id: UUID,
+    payload: schemas.ImportItemUpdate,
+    current: CurrentUserDep,
+    session: SessionDep,
+) -> schemas.ImportProposalRead:
+    return imports.update_item(session, current, proposal_id, item_id, payload)
+
+
+@router.post(
+    "/imports/proposals/{proposal_id}/dismiss",
+    response_model=schemas.ImportProposalRead,
+    tags=["imports"],
+)
+def dismiss_import_proposal(
+    proposal_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.ImportProposalRead:
+    return imports.dismiss(session, current, proposal_id)
+
+
+@router.post(
+    "/imports/proposals/{proposal_id}/apply",
+    response_model=schemas.ImportApplyRead,
+    tags=["imports"],
+)
+def apply_import_proposal(
+    proposal_id: UUID, current: CurrentUserDep, session: SessionDep
+) -> schemas.ImportApplyRead:
+    return imports.apply(session, current, proposal_id)

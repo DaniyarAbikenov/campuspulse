@@ -22,6 +22,7 @@ from app.db.models import (
     CampusEventCategory,
     Difficulty,
     DocumentKind,
+    ImportStatus,
     InsightActionType,
     InsightSeverity,
     InsightStatus,
@@ -662,3 +663,59 @@ class AgentActivityRead(StrictSchema):
     total: StrictInt
     tool_call_count: StrictInt
     runs: list[AgentRunRead]
+
+
+class ImportItemCreate(StrictSchema):
+    external_id: Annotated[str, Field(min_length=1, max_length=255)]
+    title: ShortText
+    description: str | None = None
+    due_at: datetime
+    external_course_code: Annotated[str, Field(min_length=1, max_length=120)]
+    external_course_name: Annotated[str, Field(min_length=1, max_length=240)]
+    attachment_names: list[str] = Field(default_factory=list, max_length=20)
+
+
+class ImportProposalCreate(StrictSchema):
+    source: Annotated[str, Field(min_length=1, max_length=40)]
+    items: Annotated[list[ImportItemCreate], Field(min_length=1, max_length=200)]
+
+
+class ImportItemRead(StrictSchema):
+    id: UUID
+    external_id: str
+    title: str
+    description: str | None
+    due_at: datetime
+    external_course_code: str
+    external_course_name: str
+    course_id: UUID | None
+    estimated_hours: StrictFloat
+    selected: StrictBool
+    attachment_names: list[str]
+    assignment_id: UUID | None
+
+
+class ImportProposalRead(StrictSchema):
+    id: UUID
+    source: str
+    status: ImportStatus
+    created_at: datetime
+    applied_at: datetime | None
+    items: list[ImportItemRead]
+
+
+class ImportProposalResult(StrictSchema):
+    proposal: ImportProposalRead | None
+    skipped_existing: StrictInt
+
+
+class ImportItemUpdate(StrictSchema):
+    selected: StrictBool | None = None
+    course_id: UUID | None = None
+    estimated_hours: Hours | None = None
+
+
+class ImportApplyRead(StrictSchema):
+    proposal: ImportProposalRead
+    created: StrictInt
+    already_imported: StrictInt

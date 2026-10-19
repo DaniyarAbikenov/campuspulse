@@ -46,6 +46,7 @@ AI model calls, OCR/document parsing, vector search и MCP в backend пока �
 | Content | Document, DocumentFragment |
 | Campus | CampusEvent, CampusEventMatch |
 | Agent | AgentRun, AgentToolCall |
+| Integrations | ImportProposal, ImportItem |
 | Product | UserSettings, Insight |
 | Audit | AuditEvent |
 
@@ -86,6 +87,7 @@ Google flow подробно описан в [`docs/authentication.md`](docs/aut
 | Knowledge | `GET /api/v1/knowledge` |
 | Campus events | `GET /api/v1/campus-events`, `PATCH /api/v1/campus-events/{id}/save` |
 | Agent activity | `GET /api/v1/agent/activity`, `POST /api/v1/agent/runs` |
+| Imports | `POST/GET /api/v1/imports/proposals`, item `PATCH`, `POST .../apply`, `POST .../dismiss` |
 | Settings | `GET/PATCH /api/v1/settings` |
 | Insights | `GET/POST /api/v1/insights` |
 | Insight state | `PATCH /api/v1/insights/{id}` |

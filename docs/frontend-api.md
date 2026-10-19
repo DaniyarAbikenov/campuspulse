@@ -24,6 +24,9 @@ CampusPulse prototype rather than forcing the frontend to join raw CRUD response
 | Save event | `PATCH /api/v1/campus-events/{id}/save` | Sets `saved` for the current student; idempotent. |
 | Agent Activity | `GET /api/v1/agent/activity?limit=` | The student's agent runs, newest first, each with its ordered tool calls (the reasoning trace). |
 | Record agent run | `POST /api/v1/agent/runs` | Persists a run and its tool calls for the current user; used by the future agent and by frontend actions. |
+| Import proposals | `POST /api/v1/imports/proposals`, `GET /api/v1/imports/proposals?proposal_status=` | An integration (Moodle sync, later the agent) proposes assignments found elsewhere. Nothing is written to the planner yet; items already imported are skipped, courses are matched by code. |
+| Edit proposal item | `PATCH /api/v1/imports/proposals/{id}/items/{item_id}` | Student chooses the target course, estimate and whether the item is selected. |
+| Apply / dismiss | `POST /api/v1/imports/proposals/{id}/apply`, `POST .../dismiss` | Explicit approval creates the assignments (idempotent, 422 if a selected item has no course); dismiss closes the proposal. |
 | Settings | `GET /api/v1/settings`, `PATCH /api/v1/settings` | Profile, language, group, availability, proactive insight, task generation, anonymous statistics and notification settings. |
 
 The existing raw CRUD endpoints remain available for detail views and direct edits. Uploaded files
