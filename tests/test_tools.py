@@ -62,21 +62,20 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
                 },
             ]
             return httpx.Response(200, json={"items": rows})
-        if path == "/api/v1/knowledge":
+        if path == "/api/v1/knowledge/search":
             return httpx.Response(
                 200,
-                json={
-                    "documents": [{"id": "d1", "name": "Lecture_07.pdf"}],
-                    "fragments": [
-                        {
-                            "document_id": "d1",
-                            "page": 11,
-                            "concept": "Tokens",
-                            "text": "Access and refresh token lifetimes and rotation.",
-                        },
-                        {"document_id": "d1", "page": 19, "concept": "CORS", "text": "Origins."},
-                    ],
-                },
+                json=[
+                    {
+                        "document_id": "d1",
+                        "document_name": "Lecture_07.pdf",
+                        "kind": "lecture",
+                        "course_id": "c1",
+                        "page": 11,
+                        "excerpt": "Access and refresh token lifetimes and rotation.",
+                        "score": 0.71,
+                    }
+                ],
             )
         if path.endswith("/text"):
             return httpx.Response(
@@ -213,9 +212,9 @@ async def test_open_assignments_are_sorted_by_due_date(backend: list[httpx.Reque
 
 
 async def test_knowledge_search_cites_document_and_page(backend: list[httpx.Request]) -> None:
-    hits = await tools.search_knowledge(context(), "refresh token rotation")
+    hits = await tools.search_knowledge(context(), "how do refresh tokens work", limit=3)
     assert hits[0]["document"] == "Lecture_07.pdf" and hits[0]["page"] == 11
-    assert all(hit["concept"] != "CORS" for hit in hits)
+    assert hits[0]["relevance"] == 0.71 and "rotation" in hits[0]["excerpt"]
 
 
 async def test_import_proposal_is_a_proposal_not_a_write(backend: list[httpx.Request]) -> None:

@@ -193,31 +193,31 @@ async def list_campus_events(tool_context: ToolContext, limit: int = 5) -> list[
 async def search_knowledge(
     tool_context: ToolContext, query: str, limit: int = 5
 ) -> list[dict[str, Any]]:
-    """Find indexed lecture and assignment excerpts relevant to a question, with citations.
+    """Search the student's own lectures, syllabi and briefs BY MEANING and return passages with
+    their document and page. Use it for any question about a topic, a concept or how to do part
+    of an assignment, and cite the document and page in your answer.
 
     Args:
-        query: Keywords to look for, for example "JWT refresh token".
-        limit: Maximum number of excerpts to return.
+        query: What the student wants to know, in natural language, for example "how do refresh
+            tokens work".
+        limit: Maximum number of passages to return.
     """
-    base = await _call(tool_context, "GET", "/knowledge")
-    names = {doc["id"]: doc["name"] for doc in base["documents"]}
-    terms = {word.casefold() for word in _WORDS.findall(query) if len(word) > 2}
-    scored = []
-    for fragment in base["fragments"]:
-        haystack = f"{fragment['concept']} {fragment['text']}".casefold()
-        score = sum(term in haystack for term in terms)
-        if score:
-            scored.append((score, fragment))
-    scored.sort(key=lambda pair: -pair[0])
+    hits = await _call(
+        tool_context,
+        "GET",
+        "/knowledge/search",
+        params={"q": query, "limit": max(1, min(limit, 10))},
+    )
     return [
         {
-            "document": names.get(fragment["document_id"], "unknown"),
-            "page": fragment["page"],
-            "concept": fragment["concept"],
-            "excerpt": fragment["text"],
+            "document": hit["document_name"],
+            "kind": hit["kind"],
+            "page": hit["page"],
+            "excerpt": hit["excerpt"],
+            "relevance": hit["score"],
             "source": "CampusPulse knowledge base",
         }
-        for _, fragment in scored[: max(1, min(limit, 10))]
+        for hit in hits
     ]
 
 
