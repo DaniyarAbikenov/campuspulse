@@ -19,6 +19,29 @@ def remaining_hours(assignment: models.Assignment) -> float:
     return round(assignment.estimated_hours * (100 - assignment.progress) / 100, 2)
 
 
+def sync_assignment_progress(session: Session, assignment_id: UUID) -> None:
+    """Progress is the share of finished tasks; starting work moves an idle assignment on."""
+    assignment = session.get(models.Assignment, assignment_id)
+    if assignment is None:
+        return
+    tasks = session.scalars(
+        select(models.Task).where(models.Task.assignment_id == assignment_id)
+    ).all()
+    if not tasks:
+        return
+    done = sum(task.status == models.TaskStatus.completed for task in tasks)
+    assignment.progress = round(done * 100 / len(tasks))
+    started = any(
+        task.status != models.TaskStatus.todo and task.status != models.TaskStatus.backlog
+        for task in tasks
+    )
+    if started and assignment.status in (
+        models.AssignmentStatus.upcoming,
+        models.AssignmentStatus.todo,
+    ):
+        assignment.status = models.AssignmentStatus.in_progress
+
+
 def course_summaries(
     session: Session,
     actor: AuthenticatedUser,
@@ -480,6 +503,9 @@ def update_settings(
     for profile_field in ("full_name", "program"):
         if profile_field in changes:
             setattr(actor.user, profile_field, changes.pop(profile_field))
+    if "group_name" in changes:
+        group = changes["group_name"]
+        changes["group_name"] = group.strip() or None if isinstance(group, str) else None
     for field, value in changes.items():
         setattr(settings, field, value)
     if settings.latest_end <= settings.earliest_start:
@@ -564,13 +590,25 @@ def apply_insight(
         require_write(session, actor, event)
         from app.product import scheduling  # imported here: scheduling depends on this module
 
-        scheduling.check_study_session(
-            session,
-            actor,
-            starts_at=event.starts_at,
-            ends_at=event.ends_at,
-            task_id=event.task_id,
-        )
+        try:
+            scheduling.check_study_session(
+                session,
+                actor,
+                starts_at=event.starts_at,
+                ends_at=event.ends_at,
+                task_id=event.task_id,
+            )
+        except HTTPException as error:
+            # The calendar changed since this was suggested: keep the advice, drop the button.
+            insight.action_type = models.InsightActionType.none
+            insight.action_payload = None
+            insight.cta = {"label": "Review", "action": "/schedule", "style": "primary"}
+            session.commit()
+            raise HTTPException(
+                status_code=error.status_code,
+                detail=f"{error.detail}. This suggestion no longer fits your calendar, "
+                "so it is now advice only.",
+            ) from error
         session.add(event)
         session.flush()
         created_ids.append(event.id)

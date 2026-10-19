@@ -251,6 +251,8 @@ def move_kanban_task(
         raise HTTPException(status_code=404, detail="Task not found")
     require_write(session, current, task)
     task.status = payload.status
+    session.flush()
+    service.sync_assignment_progress(session, task.assignment_id)
     session.commit()
     session.refresh(task)
     return task

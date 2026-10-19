@@ -557,3 +557,56 @@ def test_accuracy_is_unknown_until_something_is_completed(student: TestClient) -
             session.delete(row)
     session.commit()
     assert student.get(f"{API}/statistics").json()["estimate_accuracy_percent"] is None
+
+
+# --- progress, task removal, settings ------------------------------------------------------
+
+
+def test_progress_follows_finished_tasks(student: TestClient) -> None:
+    assignment = make_assignment(student)
+    tasks = [add_task(student, assignment) for _ in range(4)]
+    student.patch(f"{API}/kanban/tasks/{tasks[0]}/move", json={"status": "completed"})
+    current = student.get(f"{API}/assignments/{assignment}").json()
+    assert current["progress"] == 25 and current["status"] == "in_progress"
+    student.patch(f"{API}/kanban/tasks/{tasks[1]}/move", json={"status": "completed"})
+    assert student.get(f"{API}/assignments/{assignment}").json()["progress"] == 50
+    assert student.delete(f"{API}/tasks/{tasks[3]}").status_code == 204
+    assert student.get(f"{API}/assignments/{assignment}").json()["progress"] == 67  # 2 of 3
+
+
+def test_deleting_a_task_removes_its_future_sessions(student: TestClient) -> None:
+    task = add_task(student, make_assignment(student))
+    start = far_day(50)
+    assert study_event(student, task, start, 1.0).status_code == 201
+    assert student.delete(f"{API}/tasks/{task}").status_code == 204
+    left = student.get(f"{API}/schedule-events", params={"limit": 200}).json()
+    assert not [e for e in left if e["task_id"] == task]
+    assert not [e for e in left if e["starts_at"][:10] == start.date().isoformat()]
+
+
+def test_the_group_can_be_cleared(student: TestClient) -> None:
+    assert (
+        student.patch(f"{API}/settings", json={"group_name": "SE-1"}).json()["group_name"] == "SE-1"
+    )
+    cleared = student.patch(f"{API}/settings", json={"group_name": "  "})
+    assert cleared.status_code == 200 and cleared.json()["group_name"] is None
+
+
+def test_an_insight_that_no_longer_fits_becomes_advice(student: TestClient) -> None:
+    from tests.test_insights_agent import item, post
+
+    task = add_task(student, make_assignment(student))  # 1.5h
+    start = far_day(51)
+    session = {
+        "title": "Study",
+        "starts_at": start.isoformat(),
+        "ends_at": (start + timedelta(hours=1)).isoformat(),
+        "task_id": task,
+    }
+    insight = post(student, item(student, study_session=session)).json()["created"][0]
+    assert insight["action_type"] == "create_study_session"
+    assert study_event(student, task, start + timedelta(hours=3), 1.0).status_code == 201
+    failed = student.post(f"{API}/insights/{insight['id']}/apply")
+    assert failed.status_code == 409 and "now advice only" in failed.json()["detail"]
+    again = [i for i in student.get(f"{API}/insights").json() if i["id"] == insight["id"]][0]
+    assert again["action_type"] == "none" and again["cta"]["label"] == "Review"

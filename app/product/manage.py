@@ -72,6 +72,19 @@ def _drop_tasks(
     return len(tasks), sessions_removed
 
 
+def drop_task_sessions(session: Session, task_id: UUID) -> int:
+    """Delete the future study sessions booked for a task (past ones stay as history)."""
+    now = models.utc_now()
+    removed = 0
+    for event in session.scalars(
+        select(models.ScheduleEvent).where(models.ScheduleEvent.task_id == task_id)
+    ):
+        if _aware(event.starts_at) >= now:
+            session.delete(event)
+            removed += 1
+    return removed
+
+
 def _aware(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=models.utc_now().tzinfo)
 

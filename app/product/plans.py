@@ -9,6 +9,7 @@ from app import schemas
 from app.auth.authorization import can_read, require_write
 from app.auth.service import AuthenticatedUser
 from app.db import models
+from app.product import service
 
 _NON_WORD = re.compile(r"\W+", re.UNICODE)
 
@@ -252,6 +253,7 @@ def apply(session: Session, actor: AuthenticatedUser, plan_id: UUID) -> schemas.
             )
     plan.status = models.PlanStatus.applied
     plan.applied_at = models.utc_now()
+    service.sync_assignment_progress(session, assignment.id)
     session.commit()
     return schemas.TaskPlanApplyRead(
         plan=_read(session, plan), created=len(chosen), replaced=replaced

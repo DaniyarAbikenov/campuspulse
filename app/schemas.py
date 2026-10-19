@@ -568,7 +568,8 @@ class SettingsRead(StrictSchema):
 class SettingsUpdate(StrictSchema):
     full_name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
     program: Annotated[str, Field(min_length=1, max_length=200)] | None = None
-    group_name: Annotated[str, Field(min_length=1, max_length=100)] | None = None
+    # An empty or blank group clears it.
+    group_name: Annotated[str, Field(max_length=100)] | None = None
     interface_language: Annotated[str, Field(min_length=2, max_length=16)] | None = None
     max_study_hours_per_day: Annotated[StrictFloat, Field(gt=0, le=24)] | None = None
     earliest_start: time | None = None

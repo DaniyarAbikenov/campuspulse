@@ -13,7 +13,7 @@ from app.auth.router import router as auth_router
 from app.crud import create_entity, delete_entity, get_entity, list_entities, update_entity
 from app.db import models
 from app.db.session import get_session
-from app.product import scheduling
+from app.product import manage, scheduling, service
 from app.product.router import router as product_router
 
 router = APIRouter()
@@ -298,7 +298,10 @@ def list_tasks(session: SessionDep, offset: Offset = 0, limit: Limit = 50) -> li
 
 @router.post("/tasks", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
 def create_task(payload: schemas.TaskCreate, session: SessionDep) -> models.Task:
-    return create_entity(session, models.Task, payload)
+    task = create_entity(session, models.Task, payload)
+    service.sync_assignment_progress(session, task.assignment_id)
+    session.commit()
+    return task
 
 
 @router.get("/tasks/{entity_id}", response_model=schemas.TaskRead)
@@ -308,12 +311,21 @@ def get_task(entity_id: UUID, session: SessionDep) -> models.Task:
 
 @router.patch("/tasks/{entity_id}", response_model=schemas.TaskRead)
 def update_task(entity_id: UUID, payload: schemas.TaskUpdate, session: SessionDep) -> models.Task:
-    return update_entity(session, models.Task, entity_id, payload)
+    task = update_entity(session, models.Task, entity_id, payload)
+    service.sync_assignment_progress(session, task.assignment_id)
+    session.commit()
+    return task
 
 
 @router.delete("/tasks/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(entity_id: UUID, session: SessionDep) -> Response:
+def delete_task(entity_id: UUID, session: SessionDep, current: CurrentUserDep) -> Response:
+    """Remove a task together with the study sessions still ahead for it."""
+    task = get_entity(session, models.Task, entity_id)
+    assignment_id = task.assignment_id
+    manage.drop_task_sessions(session, task.id)
     delete_entity(session, models.Task, entity_id)
+    service.sync_assignment_progress(session, assignment_id)
+    session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

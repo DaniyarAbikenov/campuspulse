@@ -14,7 +14,7 @@ from app import schemas
 from app.auth.authorization import can_read, require_write
 from app.auth.service import AuthenticatedUser
 from app.db import models
-from app.product import manage, scheduling
+from app.product import manage, scheduling, service
 
 PENDING_LIMIT = 20
 
@@ -242,11 +242,15 @@ def _execute(
         task = models.Task(**schemas.TaskCreate.model_validate(payload).model_dump())
         task.is_ai_generated = True
         session.add(task)
+        session.flush()
+        service.sync_assignment_progress(session, task.assignment_id)
         return "Task added to your board"
     if kind == models.AgentActionKind.update_task_status:
         target = session.get(models.Task, UUID(payload["task_id"]))
         assert target is not None
         target.status = models.TaskStatus(payload["status"])
+        session.flush()
+        service.sync_assignment_progress(session, target.assignment_id)
         return "Task updated"
     assignment_id = UUID(payload["assignment_id"])
     session.commit()
