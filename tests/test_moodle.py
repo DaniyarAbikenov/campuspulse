@@ -206,3 +206,21 @@ async def test_tool_call_returns_structured_data() -> None:
     server = build_server(make_service(api))
     _, structured = await server.call_tool("moodle_site_info", {})
     assert json.loads(json.dumps(structured))["user_id"] == 7
+
+
+def test_http_app_rejects_requests_without_the_api_key() -> None:
+    from starlette.testclient import TestClient
+
+    from campuspulse_mcp.server import build_http_app
+
+    app = build_http_app(build_server(make_service(api)), "k3y")
+    with TestClient(app) as client:
+        assert client.post("/mcp", json={}).status_code == 401
+        assert (
+            client.post("/mcp", json={}, headers={"Authorization": "Bearer nope"}).status_code
+            == 401
+        )
+        # With the key the request reaches the MCP app (which rejects the malformed body itself).
+        assert (
+            client.post("/mcp", json={}, headers={"Authorization": "Bearer k3y"}).status_code != 401
+        )

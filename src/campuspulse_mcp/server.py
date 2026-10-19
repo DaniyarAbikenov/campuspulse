@@ -1,10 +1,14 @@
 """MCP server exposing read-only Moodle tools to the CampusPulse agent."""
 
+import hmac
 from typing import Annotated
 
+import uvicorn
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
+from starlette.responses import PlainTextResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from campuspulse_mcp.config import Settings
 from campuspulse_mcp.moodle.client import MoodleClient
@@ -89,6 +93,26 @@ def build_server(service: MoodleService, *, host: str = "127.0.0.1", port: int =
     return server
 
 
+class BearerAuth:
+    """ASGI middleware that rejects HTTP requests without the shared API key."""
+
+    def __init__(self, app: ASGIApp, api_key: str) -> None:
+        self._app = app
+        self._expected = f"Bearer {api_key}".encode()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            supplied = dict(scope["headers"]).get(b"authorization", b"")
+            if not hmac.compare_digest(supplied, self._expected):
+                await PlainTextResponse("Unauthorized", status_code=401)(scope, receive, send)
+                return
+        await self._app(scope, receive, send)
+
+
+def build_http_app(server: FastMCP, api_key: str) -> ASGIApp:
+    return BearerAuth(server.streamable_http_app(), api_key)
+
+
 def main() -> None:
     settings = Settings()
     client = MoodleClient(
@@ -97,9 +121,17 @@ def main() -> None:
         timeout=settings.moodle_timeout_seconds,
     )
     service = MoodleService(client, max_file_bytes=settings.max_file_bytes)
-    build_server(service, host=settings.mcp_host, port=settings.mcp_port).run(
-        transport=settings.mcp_transport
-    )
+    server = build_server(service, host=settings.mcp_host, port=settings.mcp_port)
+    if settings.mcp_transport == "streamable-http":
+        if settings.mcp_api_key is None:
+            raise SystemExit("Set CAMPUSPULSE_MCP_API_KEY: refusing to serve HTTP without auth.")
+        uvicorn.run(
+            build_http_app(server, settings.mcp_api_key.get_secret_value()),
+            host=settings.mcp_host,
+            port=settings.mcp_port,
+        )
+    else:
+        server.run(transport="stdio")
 
 
 if __name__ == "__main__":

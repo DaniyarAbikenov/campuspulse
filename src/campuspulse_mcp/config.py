@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     mcp_transport: Literal["stdio", "streamable-http"] = "stdio"
     mcp_host: str = "127.0.0.1"
     mcp_port: int = 8001
+    # Shared secret clients must send as "Authorization: Bearer <key>" over streamable-http.
+    mcp_api_key: SecretStr | None = None
     backend_url: AnyHttpUrl = AnyHttpUrl("http://127.0.0.1:8000/api/v1")
     backend_token: SecretStr | None = None
     backend_demo_login: bool = False
