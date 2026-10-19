@@ -11,7 +11,7 @@ from app.auth.service import AuthenticatedUser
 from app.db import models
 from app.product import scheduling, service
 
-MIN_CHUNK_HOURS = 0.5
+MIN_CHUNK_HOURS = 0.25
 PRIORITY_RANK = {models.Priority.high: 0, models.Priority.medium: 1, models.Priority.low: 2}
 OPEN_STATUSES = (
     models.TaskStatus.backlog,

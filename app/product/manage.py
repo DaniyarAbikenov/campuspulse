@@ -102,14 +102,12 @@ def _dismiss_pending_plans(session: Session, assignment_id: UUID) -> None:
 def cancel_assignment(
     session: Session, actor: AuthenticatedUser, assignment_id: UUID
 ) -> schemas.AssignmentChangeRead:
-    """Mark it cancelled; its unfinished subtasks and future study sessions disappear."""
+    """Mark it cancelled; its unfinished tasks and their study sessions disappear."""
     assignment = _owned_assignment(session, actor, assignment_id)
     tasks = sessions = 0
     if assignment.status != models.AssignmentStatus.cancelled:
         assignment.status = models.AssignmentStatus.cancelled
-        tasks, sessions = _drop_tasks(
-            session, assignment.id, only_open=True, sessions_from=models.utc_now()
-        )
+        tasks, sessions = _drop_tasks(session, assignment.id, only_open=True, sessions_from=None)
         _dismiss_pending_plans(session, assignment.id)
         session.commit()
         session.refresh(assignment)

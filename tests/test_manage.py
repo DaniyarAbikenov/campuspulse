@@ -631,3 +631,98 @@ def test_editing_a_study_session_obeys_the_same_limits(student: TestClient) -> N
     assert moved.status_code == 200, moved.text
     renamed = student.patch(f"{API}/schedule-events/{created['id']}", json={"title": "Renamed"})
     assert renamed.status_code == 200
+
+
+# --- one set of numbers ------------------------------------------------------------------
+
+
+def workload_week(client: TestClient, due: datetime) -> dict[str, Any]:
+    monday = (due.date() - timedelta(days=due.date().weekday())).isoformat()
+    return dict(client.get(f"{API}/workload", params={"week_start": monday}).json())
+
+
+def test_cancelling_removes_every_session_of_the_removed_tasks_even_past_ones(
+    student: TestClient,
+) -> None:
+    assignment = make_assignment(student)
+    task = add_task(student, assignment)
+    me = student.get(f"{API}/auth/me").json()
+    past = datetime.now(UTC) - timedelta(days=2)
+    created = student.post(
+        f"{API}/schedule-events",
+        json={
+            "user_id": me["id"],
+            "title": "Study: earlier",
+            "kind": "study_session",
+            "task_id": task,
+            "starts_at": past.isoformat(),
+            "ends_at": (past + timedelta(hours=1)).isoformat(),
+        },
+    )
+    assert created.status_code == 201, created.text
+    student.post(f"{API}/assignments/{assignment}/cancel")
+    left = student.get(f"{API}/schedule-events", params={"limit": 200}).json()
+    assert not [e for e in left if e["title"] == "Study: earlier"]
+
+
+def test_remaining_hours_are_the_unfinished_tasks_everywhere(student: TestClient) -> None:
+    assignment = make_assignment(student)
+    due = datetime.now(UTC) + timedelta(days=5)
+    tasks = []
+    for hours in (1.0, 2.0, 3.0):
+        created = student.post(
+            f"{API}/tasks",
+            json={
+                "assignment_id": assignment,
+                "title": f"T{hours}",
+                "status": "todo",
+                "estimated_hours": hours,
+            },
+        ).json()
+        tasks.append(created["id"])
+    student.patch(f"{API}/kanban/tasks/{tasks[0]}/move", json={"status": "completed"})
+    row = next(
+        item
+        for item in student.get(f"{API}/assignments/overview").json()["items"]
+        if item["id"] == assignment
+    )
+    assert row["remaining_hours"] == 5.0  # 2h + 3h, not the estimate scaled by progress
+    courses = student.get(f"{API}/courses/overview").json()
+    assert sum(c["remaining_hours"] for c in courses) >= 5.0
+    week = workload_week(student, due)
+    assert any(c["remaining_hours"] >= 5.0 for c in week["by_course"])
+
+
+def test_unscheduled_hours_count_a_half_booked_task(student: TestClient) -> None:
+    assignment = make_assignment(student)
+    task = add_task(student, assignment)  # 1.5h
+    due = datetime.now(UTC) + timedelta(days=5)
+    before = workload_week(student, due)["unscheduled_hours"]
+    assert study_event(student, task, far_day(60), 1.0).status_code == 201
+    far_week = workload_week(student, due)["unscheduled_hours"]
+    assert far_week == before - 1.0  # booked time anywhere reduces what is left
+    assert far_week >= 0.5  # the half hour still shows as unscheduled
+
+
+def test_deleting_one_assignment_leaves_a_cancelled_one_cancelled(student: TestClient) -> None:
+    keep = make_assignment(student, "Keep")
+    student.post(f"{API}/assignments/{keep}/cancel")
+    other = make_assignment(student, "Other")
+    add_task(student, other)
+    assert student.delete(f"{API}/assignments/{other}").status_code == 200
+    assert student.get(f"{API}/assignments/{keep}").json()["status"] == "cancelled"
+
+
+def test_the_planner_places_a_quarter_hour_remainder(student: TestClient) -> None:
+    created = student.post(
+        f"{API}/tasks",
+        json={
+            "assignment_id": make_assignment(student),
+            "title": "Tiny",
+            "status": "todo",
+            "estimated_hours": 0.25,
+        },
+    ).json()
+    plan = student.get(f"{API}/schedule/plan").json()
+    mine = [s for s in plan["sessions"] if s["task_id"] == created["id"]]
+    assert [s["hours"] for s in mine] == [0.25]

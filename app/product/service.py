@@ -19,6 +19,51 @@ def remaining_hours(assignment: models.Assignment) -> float:
     return round(assignment.estimated_hours * (100 - assignment.progress) / 100, 2)
 
 
+def remaining_for(session: Session, assignment: models.Assignment) -> float:
+    """Hours still to do on an assignment: its unfinished tasks when it has any (so the figure
+    always matches the board), otherwise the estimate scaled by progress."""
+    if assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES:
+        return 0.0
+    tasks = session.scalars(
+        select(models.Task).where(models.Task.assignment_id == assignment.id)
+    ).all()
+    if tasks:
+        return round(
+            sum(
+                task.estimated_hours for task in tasks if task.status != models.TaskStatus.completed
+            ),
+            2,
+        )
+    return remaining_hours(assignment)
+
+
+def unscheduled_for(session: Session, assignments: list[models.Assignment]) -> float:
+    """Work with no study time booked yet, task by task: a half-booked task still counts."""
+    from app.product import scheduling  # imported here: scheduling depends on this module
+
+    booked = (
+        scheduling.booked_hours_by_task(session, assignments[0].owner_user_id)
+        if (assignments and assignments[0].owner_user_id)
+        else {}
+    )
+    total = 0.0
+    for assignment in assignments:
+        if assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES:
+            continue
+        tasks = session.scalars(
+            select(models.Task).where(models.Task.assignment_id == assignment.id)
+        ).all()
+        if tasks:
+            total += sum(
+                max(0.0, task.estimated_hours - booked.get(task.id, 0.0))
+                for task in tasks
+                if task.status != models.TaskStatus.completed
+            )
+        else:
+            total += remaining_hours(assignment)
+    return round(total, 2)
+
+
 def sync_assignment_progress(session: Session, assignment_id: UUID) -> None:
     """Progress is the share of finished tasks; starting work moves an idle assignment on."""
     assignment = session.get(models.Assignment, assignment_id)
@@ -91,7 +136,7 @@ def course_summaries(
                 if assignments
                 else 0,
                 remaining_hours=float(
-                    round(sum(remaining_hours(item) for item in open_assignments), 2)
+                    round(sum(remaining_for(session, item) for item in open_assignments), 2)
                 ),
                 next_due_at=min((item.due_at for item in open_assignments), default=None),
             )
@@ -159,7 +204,7 @@ def assignment_summaries(
                     task.status == models.TaskStatus.completed for task in tasks
                 ),
                 document_count=document_count,
-                remaining_hours=float(remaining_hours(assignment)),
+                remaining_hours=float(remaining_for(session, assignment)),
             )
         )
     return result
@@ -207,7 +252,6 @@ def schedule_week(
         ).all()
         if can_read(session, actor, item)
     ]
-    required = sum(remaining_hours(item) for item in due_assignments)
     return schemas.ScheduleWeekRead(
         week_start=start_date,
         week_end=end_date,
@@ -215,7 +259,7 @@ def schedule_week(
         free_time=slots,
         scheduled_study_hours=float(round(scheduled_study, 2)),
         free_hours=float(round(sum(slot.duration_hours for slot in slots), 2)),
-        unscheduled_work_hours=float(round(max(required - scheduled_study, 0), 2)),
+        unscheduled_work_hours=float(unscheduled_for(session, due_assignments)),
     )
 
 
@@ -301,7 +345,7 @@ def workload(
     due_this_week = [item for item in assignments if start_at <= _aware(item.due_at) < end_at]
     course_hours: dict[UUID, float] = defaultdict(float)
     for assignment in assignments:
-        course_hours[assignment.course_id] += remaining_hours(assignment)
+        course_hours[assignment.course_id] += remaining_for(session, assignment)
     by_course: list[schemas.WorkloadCourseRead] = []
     for course_id, hours in course_hours.items():
         course = session.get(models.Course, course_id)
@@ -317,8 +361,8 @@ def workload(
     by_course.sort(key=lambda item: item.remaining_hours, reverse=True)
     day_required: dict[date, float] = defaultdict(float)
     for assignment in due_this_week:
-        day_required[_aware(assignment.due_at).astimezone(timezone).date()] += remaining_hours(
-            assignment
+        day_required[_aware(assignment.due_at).astimezone(timezone).date()] += remaining_for(
+            session, assignment
         )
     day_available: dict[date, float] = defaultdict(float)
     for slot in schedule.free_time:
@@ -332,7 +376,7 @@ def workload(
         )
         for day in (schedule.week_start + timedelta(days=index) for index in range(7))
     ]
-    required = round(sum(remaining_hours(item) for item in due_this_week), 2)
+    required = round(sum(remaining_for(session, item) for item in due_this_week), 2)
     peak = max(by_day, key=lambda item: item.required_hours, default=None)
     return schemas.WorkloadRead(
         week_start=schedule.week_start,
@@ -341,7 +385,7 @@ def workload(
         available_hours=schedule.free_hours,
         overload_hours=float(round(max(required - schedule.free_hours, 0), 2)),
         scheduled_study_hours=schedule.scheduled_study_hours,
-        unscheduled_hours=float(round(max(required - schedule.scheduled_study_hours, 0), 2)),
+        unscheduled_hours=float(unscheduled_for(session, due_this_week)),
         peak_day=peak.day if peak and peak.required_hours > 0 else None,
         by_course=by_course,
         by_day=by_day,
