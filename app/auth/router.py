@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -22,6 +23,7 @@ from app.auth.service import (
 )
 from app.auth.tokens import AccessTokenError, decode_access_token
 from app.core.config import settings
+from app.db import models
 from app.db.session import get_session
 
 router = APIRouter()
@@ -152,6 +154,46 @@ def me(current: CurrentUserDep) -> schemas.AuthUserRead:
         institution_id=current.user.institution_id,
         roles=current.roles,
     )
+
+
+@router.get("/onboarding/options", response_model=schemas.OnboardingOptionsRead)
+def onboarding_options(
+    current: CurrentUserDep, session: SessionDep
+) -> schemas.OnboardingOptionsRead:
+    """Institutions and the courses of their latest semester, for a student who is joining."""
+    if current.user.institution_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Onboarding has already been completed"
+        )
+    institutions = []
+    for institution in session.scalars(
+        select(models.Institution).order_by(models.Institution.name)
+    ).all():
+        semester = session.scalar(
+            select(models.Semester)
+            .where(models.Semester.institution_id == institution.id)
+            .order_by(models.Semester.starts_on.desc())
+        )
+        courses = (
+            session.scalars(
+                select(models.Course)
+                .where(models.Course.semester_id == semester.id)
+                .order_by(models.Course.code)
+            ).all()
+            if semester
+            else []
+        )
+        institutions.append(
+            schemas.OnboardingInstitutionRead(
+                id=institution.id,
+                name=institution.name,
+                short_name=institution.short_name,
+                courses=[
+                    schemas.OnboardingCourseRead(id=c.id, code=c.code, name=c.name) for c in courses
+                ],
+            )
+        )
+    return schemas.OnboardingOptionsRead(institutions=institutions)
 
 
 @router.post("/onboarding", response_model=schemas.AuthUserRead)

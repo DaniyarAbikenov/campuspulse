@@ -744,3 +744,20 @@ class AgentChatRead(StrictSchema):
 class AgentStatusRead(StrictSchema):
     enabled: StrictBool
     mode: str
+
+
+class OnboardingCourseRead(StrictSchema):
+    id: UUID
+    code: str
+    name: str
+
+
+class OnboardingInstitutionRead(StrictSchema):
+    id: UUID
+    name: str
+    short_name: str
+    courses: list[OnboardingCourseRead]
+
+
+class OnboardingOptionsRead(StrictSchema):
+    institutions: list[OnboardingInstitutionRead]
