@@ -13,6 +13,7 @@ from app.auth.router import router as auth_router
 from app.crud import create_entity, delete_entity, get_entity, list_entities, update_entity
 from app.db import models
 from app.db.session import get_session
+from app.product import manage, scheduling, service
 from app.product.router import router as product_router
 
 router = APIRouter()
@@ -297,7 +298,10 @@ def list_tasks(session: SessionDep, offset: Offset = 0, limit: Limit = 50) -> li
 
 @router.post("/tasks", response_model=schemas.TaskRead, status_code=status.HTTP_201_CREATED)
 def create_task(payload: schemas.TaskCreate, session: SessionDep) -> models.Task:
-    return create_entity(session, models.Task, payload)
+    task = create_entity(session, models.Task, payload)
+    service.sync_assignment_progress(session, task.assignment_id)
+    session.commit()
+    return task
 
 
 @router.get("/tasks/{entity_id}", response_model=schemas.TaskRead)
@@ -307,12 +311,21 @@ def get_task(entity_id: UUID, session: SessionDep) -> models.Task:
 
 @router.patch("/tasks/{entity_id}", response_model=schemas.TaskRead)
 def update_task(entity_id: UUID, payload: schemas.TaskUpdate, session: SessionDep) -> models.Task:
-    return update_entity(session, models.Task, entity_id, payload)
+    task = update_entity(session, models.Task, entity_id, payload)
+    service.sync_assignment_progress(session, task.assignment_id)
+    session.commit()
+    return task
 
 
 @router.delete("/tasks/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(entity_id: UUID, session: SessionDep) -> Response:
+def delete_task(entity_id: UUID, session: SessionDep, current: CurrentUserDep) -> Response:
+    """Remove a task together with the study sessions still ahead for it."""
+    task = get_entity(session, models.Task, entity_id)
+    assignment_id = task.assignment_id
+    manage.drop_task_sessions(session, task.id)
     delete_entity(session, models.Task, entity_id)
+    service.sync_assignment_progress(session, assignment_id)
+    session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -359,8 +372,19 @@ def list_schedule_events(
     status_code=status.HTTP_201_CREATED,
 )
 def create_schedule_event(
-    payload: schemas.ScheduleEventCreate, session: SessionDep
+    payload: schemas.ScheduleEventCreate, session: SessionDep, current: CurrentUserDep
 ) -> models.ScheduleEvent:
+    if (
+        payload.kind == models.ScheduleEventKind.study_session
+        and payload.user_id == current.user.id
+    ):
+        scheduling.check_study_session(
+            session,
+            current,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            task_id=payload.task_id,
+        )
     return create_entity(session, models.ScheduleEvent, payload)
 
 
@@ -371,8 +395,22 @@ def get_schedule_event(entity_id: UUID, session: SessionDep) -> models.ScheduleE
 
 @router.patch("/schedule-events/{entity_id}", response_model=schemas.ScheduleEventRead)
 def update_schedule_event(
-    entity_id: UUID, payload: schemas.ScheduleEventUpdate, session: SessionDep
+    entity_id: UUID,
+    payload: schemas.ScheduleEventUpdate,
+    session: SessionDep,
+    current: CurrentUserDep,
 ) -> models.ScheduleEvent:
+    event = get_entity(session, models.ScheduleEvent, entity_id)
+    changes = payload.model_dump(exclude_unset=True)
+    if event.kind == models.ScheduleEventKind.study_session and event.user_id == current.user.id:
+        scheduling.check_study_session(
+            session,
+            current,
+            starts_at=changes.get("starts_at") or event.starts_at,
+            ends_at=changes.get("ends_at") or event.ends_at,
+            task_id=changes.get("task_id", event.task_id),
+            exclude_event_id=event.id,
+        )
     return update_entity(session, models.ScheduleEvent, entity_id, payload)
 
 

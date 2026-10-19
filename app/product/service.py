@@ -14,9 +14,78 @@ from app.db import models
 
 
 def remaining_hours(assignment: models.Assignment) -> float:
-    if assignment.status == models.AssignmentStatus.completed:
+    if assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES:
         return 0.0
     return round(assignment.estimated_hours * (100 - assignment.progress) / 100, 2)
+
+
+def remaining_for(session: Session, assignment: models.Assignment) -> float:
+    """Hours still to do on an assignment: its unfinished tasks when it has any (so the figure
+    always matches the board), otherwise the estimate scaled by progress."""
+    if assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES:
+        return 0.0
+    tasks = session.scalars(
+        select(models.Task).where(models.Task.assignment_id == assignment.id)
+    ).all()
+    if tasks:
+        return round(
+            sum(
+                task.estimated_hours for task in tasks if task.status != models.TaskStatus.completed
+            ),
+            2,
+        )
+    return remaining_hours(assignment)
+
+
+def unscheduled_for(session: Session, assignments: list[models.Assignment]) -> float:
+    """Work with no study time booked yet, task by task: a half-booked task still counts."""
+    from app.product import scheduling  # imported here: scheduling depends on this module
+
+    booked = (
+        scheduling.booked_hours_by_task(session, assignments[0].owner_user_id)
+        if (assignments and assignments[0].owner_user_id)
+        else {}
+    )
+    total = 0.0
+    for assignment in assignments:
+        if assignment.status in models.INACTIVE_ASSIGNMENT_STATUSES:
+            continue
+        tasks = session.scalars(
+            select(models.Task).where(models.Task.assignment_id == assignment.id)
+        ).all()
+        if tasks:
+            total += sum(
+                max(0.0, task.estimated_hours - booked.get(task.id, 0.0))
+                for task in tasks
+                if task.status != models.TaskStatus.completed
+            )
+        else:
+            total += remaining_hours(assignment)
+    return round(total, 2)
+
+
+def sync_assignment_progress(session: Session, assignment_id: UUID) -> None:
+    """Progress is the share of finished tasks; starting work moves an idle assignment on."""
+    assignment = session.get(models.Assignment, assignment_id)
+    if assignment is None:
+        return
+    tasks = session.scalars(
+        select(models.Task).where(models.Task.assignment_id == assignment_id)
+    ).all()
+    if not tasks:
+        return
+    done = sum(task.status == models.TaskStatus.completed for task in tasks)
+    assignment.progress = round(done * 100 / len(tasks))
+    assignment.estimated_hours = round(sum(task.estimated_hours for task in tasks), 2)
+    started = any(
+        task.status != models.TaskStatus.todo and task.status != models.TaskStatus.backlog
+        for task in tasks
+    )
+    if started and assignment.status in (
+        models.AssignmentStatus.upcoming,
+        models.AssignmentStatus.todo,
+    ):
+        assignment.status = models.AssignmentStatus.in_progress
 
 
 def course_summaries(
@@ -54,7 +123,7 @@ def course_summaries(
         open_assignments = [
             assignment
             for assignment in assignments
-            if assignment.status != models.AssignmentStatus.completed
+            if assignment.status not in models.INACTIVE_ASSIGNMENT_STATUSES
         ]
         if has_open_assignments is not None and bool(open_assignments) != has_open_assignments:
             continue
@@ -68,7 +137,7 @@ def course_summaries(
                 if assignments
                 else 0,
                 remaining_hours=float(
-                    round(sum(remaining_hours(item) for item in open_assignments), 2)
+                    round(sum(remaining_for(session, item) for item in open_assignments), 2)
                 ),
                 next_due_at=min((item.due_at for item in open_assignments), default=None),
             )
@@ -87,10 +156,14 @@ def assignment_summaries(
     due_to: datetime | None = None,
 ) -> list[schemas.AssignmentSummaryRead]:
     normalized_query = query.casefold().strip() if query else None
+    # "My" views: even an administrator sees only their own assignments here. Faculty-wide
+    # numbers come from the anonymised admin overview, never from individual records.
     assignments = [
         item
         for item in session.scalars(
-            select(models.Assignment).order_by(models.Assignment.due_at)
+            select(models.Assignment)
+            .where(models.Assignment.owner_user_id == actor.user.id)
+            .order_by(models.Assignment.due_at)
         ).all()
         if can_read(session, actor, item)
     ]
@@ -132,7 +205,7 @@ def assignment_summaries(
                     task.status == models.TaskStatus.completed for task in tasks
                 ),
                 document_count=document_count,
-                remaining_hours=float(remaining_hours(assignment)),
+                remaining_hours=float(remaining_for(session, assignment)),
             )
         )
     return result
@@ -175,12 +248,11 @@ def schedule_week(
                 models.Assignment.owner_user_id == actor.user.id,
                 models.Assignment.due_at >= start_at,
                 models.Assignment.due_at < end_at,
-                models.Assignment.status != models.AssignmentStatus.completed,
+                models.Assignment.status.not_in(models.INACTIVE_ASSIGNMENT_STATUSES),
             )
         ).all()
         if can_read(session, actor, item)
     ]
-    required = sum(remaining_hours(item) for item in due_assignments)
     return schemas.ScheduleWeekRead(
         week_start=start_date,
         week_end=end_date,
@@ -188,7 +260,7 @@ def schedule_week(
         free_time=slots,
         scheduled_study_hours=float(round(scheduled_study, 2)),
         free_hours=float(round(sum(slot.duration_hours for slot in slots), 2)),
-        unscheduled_work_hours=float(round(max(required - scheduled_study, 0), 2)),
+        unscheduled_work_hours=float(unscheduled_for(session, due_assignments)),
     )
 
 
@@ -204,11 +276,12 @@ def kanban_board(
 ) -> schemas.KanbanBoardRead:
     normalized_query = query.casefold().strip() if query else None
     tasks: list[models.Task] = []
+    course_by_task: dict[UUID, UUID] = {}
     for task in session.scalars(select(models.Task).order_by(models.Task.created_at)).all():
         if not can_read(session, actor, task):
             continue
         assignment = session.get(models.Assignment, task.assignment_id)
-        if assignment is None:
+        if assignment is None or assignment.owner_user_id != actor.user.id:
             continue
         if course_id is not None and assignment.course_id != course_id:
             continue
@@ -224,6 +297,7 @@ def kanban_board(
         ):
             continue
         tasks.append(task)
+        course_by_task[task.id] = assignment.course_id
     columns: list[schemas.KanbanColumnRead] = []
     for column_status in models.TaskStatus:
         column_tasks = [task for task in tasks if task.status == column_status]
@@ -232,7 +306,15 @@ def kanban_board(
                 status=column_status,
                 task_count=len(column_tasks),
                 estimated_hours=float(round(sum(task.estimated_hours for task in column_tasks), 2)),
-                tasks=[schemas.TaskRead.model_validate(task) for task in column_tasks],
+                tasks=[
+                    schemas.KanbanTaskRead.model_validate(
+                        {
+                            **schemas.TaskRead.model_validate(task).model_dump(),
+                            "course_id": course_by_task[task.id],
+                        }
+                    )
+                    for task in column_tasks
+                ],
             )
         )
     open_tasks = [task for task in tasks if task.status != models.TaskStatus.completed]
@@ -256,7 +338,7 @@ def workload(
         for item in session.scalars(
             select(models.Assignment).where(
                 models.Assignment.owner_user_id == actor.user.id,
-                models.Assignment.status != models.AssignmentStatus.completed,
+                models.Assignment.status.not_in(models.INACTIVE_ASSIGNMENT_STATUSES),
             )
         ).all()
         if can_read(session, actor, item)
@@ -264,7 +346,7 @@ def workload(
     due_this_week = [item for item in assignments if start_at <= _aware(item.due_at) < end_at]
     course_hours: dict[UUID, float] = defaultdict(float)
     for assignment in assignments:
-        course_hours[assignment.course_id] += remaining_hours(assignment)
+        course_hours[assignment.course_id] += remaining_for(session, assignment)
     by_course: list[schemas.WorkloadCourseRead] = []
     for course_id, hours in course_hours.items():
         course = session.get(models.Course, course_id)
@@ -280,8 +362,8 @@ def workload(
     by_course.sort(key=lambda item: item.remaining_hours, reverse=True)
     day_required: dict[date, float] = defaultdict(float)
     for assignment in due_this_week:
-        day_required[_aware(assignment.due_at).astimezone(timezone).date()] += remaining_hours(
-            assignment
+        day_required[_aware(assignment.due_at).astimezone(timezone).date()] += remaining_for(
+            session, assignment
         )
     day_available: dict[date, float] = defaultdict(float)
     for slot in schedule.free_time:
@@ -295,7 +377,7 @@ def workload(
         )
         for day in (schedule.week_start + timedelta(days=index) for index in range(7))
     ]
-    required = round(sum(remaining_hours(item) for item in due_this_week), 2)
+    required = round(sum(remaining_for(session, item) for item in due_this_week), 2)
     peak = max(by_day, key=lambda item: item.required_hours, default=None)
     return schemas.WorkloadRead(
         week_start=schedule.week_start,
@@ -304,7 +386,7 @@ def workload(
         available_hours=schedule.free_hours,
         overload_hours=float(round(max(required - schedule.free_hours, 0), 2)),
         scheduled_study_hours=schedule.scheduled_study_hours,
-        unscheduled_hours=float(round(max(required - schedule.scheduled_study_hours, 0), 2)),
+        unscheduled_hours=float(unscheduled_for(session, due_this_week)),
         peak_day=peak.day if peak and peak.required_hours > 0 else None,
         by_course=by_course,
         by_day=by_day,
@@ -341,13 +423,77 @@ def study_statistics(session: Session, actor: AuthenticatedUser) -> schemas.Stud
         abs((item.actual_hours or item.estimated_hours) - item.estimated_hours)
         for item in assignments
     )
-    accuracy = round(max(0, 100 - error / total_actual * 100)) if total_actual else 100
+    accuracy = round(max(0, 100 - error / total_actual * 100)) if total_actual else None
+    everything = [
+        item
+        for item in session.scalars(
+            select(models.Assignment).where(models.Assignment.owner_user_id == actor.user.id)
+        ).all()
+        if can_read(session, actor, item)
+    ]
     return schemas.StudyStatisticsRead(
         reported_study_hours=float(round(total_actual, 2)),
         estimate_accuracy_percent=accuracy,
         completed_assignments=len(assignments),
         completed=completed,
+        weekly=_weekly_stats(everything, _user_timezone(session, actor.user)),
+        by_course=_course_stats(session, assignments),
     )
+
+
+def _weekly_stats(
+    assignments: list[models.Assignment], timezone: ZoneInfo, weeks: int = 8
+) -> list[schemas.WeeklyStatRead]:
+    """Planned vs reported hours by the week each assignment was due (no activity log exists)."""
+    today = datetime.now(timezone).date()
+    current = today - timedelta(days=today.weekday())
+    starts = [current - timedelta(weeks=offset) for offset in range(weeks - 1, -1, -1)]
+    planned: dict[date, float] = defaultdict(float)
+    actual: dict[date, float] = defaultdict(float)
+    for item in assignments:
+        due = _aware(item.due_at).astimezone(timezone).date()
+        week = due - timedelta(days=due.weekday())
+        planned[week] += item.estimated_hours
+        if item.status == models.AssignmentStatus.completed:
+            actual[week] += item.actual_hours or item.estimated_hours
+    return [
+        schemas.WeeklyStatRead(
+            week_start=start,
+            planned_hours=float(round(planned[start], 2)),
+            actual_hours=float(round(actual[start], 2)),
+        )
+        for start in starts
+    ]
+
+
+def _course_stats(
+    session: Session, completed: list[models.Assignment]
+) -> list[schemas.CourseStatRead]:
+    grouped: dict[UUID, list[models.Assignment]] = defaultdict(list)
+    for item in completed:
+        grouped[item.course_id].append(item)
+    result: list[schemas.CourseStatRead] = []
+    for course_id, items in grouped.items():
+        course = session.get(models.Course, course_id)
+        estimated = sum(item.estimated_hours for item in items)
+        actual = sum(item.actual_hours or item.estimated_hours for item in items)
+        error = sum(
+            abs((item.actual_hours or item.estimated_hours) - item.estimated_hours)
+            for item in items
+        )
+        result.append(
+            schemas.CourseStatRead(
+                course_id=course_id,
+                course_name=course.name if course else "Unknown course",
+                completed_assignments=len(items),
+                estimated_hours=float(round(estimated, 2)),
+                actual_hours=float(round(actual, 2)),
+                estimate_accuracy_percent=round(max(0, 100 - error / actual * 100))
+                if actual
+                else None,
+            )
+        )
+    return result
 
 
 def get_settings_model(session: Session, user_id: UUID) -> models.UserSettings:
@@ -402,6 +548,9 @@ def update_settings(
     for profile_field in ("full_name", "program"):
         if profile_field in changes:
             setattr(actor.user, profile_field, changes.pop(profile_field))
+    if "group_name" in changes:
+        group = changes["group_name"]
+        changes["group_name"] = group.strip() or None if isinstance(group, str) else None
     for field, value in changes.items():
         setattr(settings, field, value)
     if settings.latest_end <= settings.earliest_start:
@@ -484,6 +633,27 @@ def apply_insight(
         )
         event = models.ScheduleEvent(**event_payload.model_dump())
         require_write(session, actor, event)
+        from app.product import scheduling  # imported here: scheduling depends on this module
+
+        try:
+            scheduling.check_study_session(
+                session,
+                actor,
+                starts_at=event.starts_at,
+                ends_at=event.ends_at,
+                task_id=event.task_id,
+            )
+        except HTTPException as error:
+            # The calendar changed since this was suggested: keep the advice, drop the button.
+            insight.action_type = models.InsightActionType.none
+            insight.action_payload = None
+            insight.cta = {"label": "Review", "action": "/schedule", "style": "primary"}
+            session.commit()
+            raise HTTPException(
+                status_code=error.status_code,
+                detail=f"{error.detail}. This suggestion no longer fits your calendar, "
+                "so it is now advice only.",
+            ) from error
         session.add(event)
         session.flush()
         created_ids.append(event.id)
@@ -573,7 +743,13 @@ def _free_slots(
             ),
             key=lambda item: item[0],
         )
-        remaining_capacity = settings.max_study_hours_per_day
+        # Study already booked that day uses up part of the daily limit.
+        remaining_capacity = settings.max_study_hours_per_day - sum(
+            (_aware(event.ends_at) - _aware(event.starts_at)).total_seconds() / 3600
+            for event in events
+            if event.kind == models.ScheduleEventKind.study_session
+            and _aware(event.starts_at).astimezone(timezone).date() == day
+        )
         for event_start, event_end in [*day_events, (day_end, day_end)]:
             gap_end = min(event_start, day_end)
             if gap_end > cursor and remaining_capacity > 0:
@@ -608,3 +784,74 @@ def _user_timezone(session: Session, user: models.User) -> ZoneInfo:
 
 def _aware(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+def assignment_status(
+    session: Session, actor: AuthenticatedUser, assignment_id: UUID
+) -> schemas.AssignmentStatusRead:
+    from app.product import scheduling  # imported here: scheduling depends on this module
+
+    assignment = session.get(models.Assignment, assignment_id)
+    if assignment is None or not can_read(session, actor, assignment):
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    tasks = list(
+        session.scalars(
+            select(models.Task)
+            .where(models.Task.assignment_id == assignment_id)
+            .order_by(models.Task.created_at)
+        )
+    )
+    booked = scheduling.booked_hours_by_task(session, actor.user.id)
+    open_tasks = [task for task in tasks if task.status != models.TaskStatus.completed]
+    sessions = [
+        event
+        for event in session.scalars(
+            select(models.ScheduleEvent)
+            .where(
+                models.ScheduleEvent.user_id == actor.user.id,
+                models.ScheduleEvent.task_id.in_([task.id for task in tasks]),
+            )
+            .order_by(models.ScheduleEvent.starts_at)
+        )
+    ]
+    by_id = {task.id: task for task in tasks}
+    zone = _user_timezone(session, actor.user)  # times read in the student's own clock
+    return schemas.AssignmentStatusRead(
+        id=assignment.id,
+        title=assignment.title,
+        status=assignment.status,
+        due_at=_aware(assignment.due_at).astimezone(zone),
+        progress_percent=assignment.progress,
+        estimated_hours=float(assignment.estimated_hours),
+        completed_hours=float(
+            round(
+                sum(t.estimated_hours for t in tasks if t.status == models.TaskStatus.completed), 2
+            )
+        ),
+        remaining_hours=float(remaining_for(session, assignment)),
+        scheduled_hours=float(
+            round(sum(min(booked.get(t.id, 0.0), t.estimated_hours) for t in open_tasks), 2)
+        ),
+        unscheduled_hours=float(unscheduled_for(session, [assignment])),
+        tasks_total=len(tasks),
+        tasks_done=len(tasks) - len(open_tasks),
+        tasks_open=len(open_tasks),
+        tasks=[
+            schemas.StatusTaskRead(
+                id=t.id,
+                title=t.title,
+                status=t.status,
+                estimated_hours=float(t.estimated_hours),
+                scheduled_hours=float(round(booked.get(t.id, 0.0), 2)),
+            )
+            for t in tasks
+        ],
+        study_sessions=[
+            schemas.StatusSessionRead(
+                task_title=by_id[e.task_id].title if e.task_id in by_id else None,
+                starts_at=_aware(e.starts_at).astimezone(zone),
+                ends_at=_aware(e.ends_at).astimezone(zone),
+            )
+            for e in sessions
+        ],
+    )

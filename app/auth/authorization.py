@@ -139,6 +139,10 @@ def can_write(session: Session, actor: AuthenticatedUser, entity: models.Base) -
             return True
         return assignment is not None and assignment.owner_user_id == actor.user.id
     if isinstance(entity, models.ScheduleEvent):
+        if entity.task_id is not None:
+            task = session.get(models.Task, entity.task_id)
+            if task is None or not can_read(session, actor, task):
+                return False
         course_allowed = entity.course_id is None or (
             _course_institution_id(session, entity.course_id) == actor.user.institution_id
             if _is_academic_admin(actor)

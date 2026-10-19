@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -22,6 +23,7 @@ from app.auth.service import (
 )
 from app.auth.tokens import AccessTokenError, decode_access_token
 from app.core.config import settings
+from app.db import models
 from app.db.session import get_session
 
 router = APIRouter()
@@ -144,14 +146,48 @@ def logout(payload: schemas.RefreshTokenRequest, session: SessionDep) -> Respons
 
 
 @router.get("/me", response_model=schemas.AuthUserRead)
-def me(current: CurrentUserDep) -> schemas.AuthUserRead:
-    return schemas.AuthUserRead(
-        id=current.user.id,
-        email=current.user.email,
-        full_name=current.user.full_name,
-        institution_id=current.user.institution_id,
-        roles=current.roles,
-    )
+def me(current: CurrentUserDep, session: SessionDep) -> schemas.AuthUserRead:
+    return _profile(session, current.user, current.roles)
+
+
+@router.get("/onboarding/options", response_model=schemas.OnboardingOptionsRead)
+def onboarding_options(
+    current: CurrentUserDep, session: SessionDep
+) -> schemas.OnboardingOptionsRead:
+    """Institutions and the courses of their latest semester, for a student who is joining."""
+    if current.user.institution_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Onboarding has already been completed"
+        )
+    institutions = []
+    for institution in session.scalars(
+        select(models.Institution).order_by(models.Institution.name)
+    ).all():
+        semester = session.scalar(
+            select(models.Semester)
+            .where(models.Semester.institution_id == institution.id)
+            .order_by(models.Semester.starts_on.desc())
+        )
+        courses = (
+            session.scalars(
+                select(models.Course)
+                .where(models.Course.semester_id == semester.id)
+                .order_by(models.Course.code)
+            ).all()
+            if semester
+            else []
+        )
+        institutions.append(
+            schemas.OnboardingInstitutionRead(
+                id=institution.id,
+                name=institution.name,
+                short_name=institution.short_name,
+                courses=[
+                    schemas.OnboardingCourseRead(id=c.id, code=c.code, name=c.name) for c in courses
+                ],
+            )
+        )
+    return schemas.OnboardingOptionsRead(institutions=institutions)
 
 
 @router.post("/onboarding", response_model=schemas.AuthUserRead)
@@ -167,6 +203,7 @@ def onboarding(
             institution_id=payload.institution_id,
             student_number=payload.student_number,
             program=payload.program,
+            group_name=payload.group_name,
             course_ids=payload.course_ids,
         )
     except OnboardingAlreadyCompletedError as error:
@@ -177,12 +214,31 @@ def onboarding(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
         ) from error
+    return _profile(session, completed.user, completed.roles)
+
+
+def _profile(session: Session, user: models.User, roles: list[str]) -> schemas.AuthUserRead:
+    """The signed-in user with the names the interface shows (university and current semester)."""
+    institution = (
+        session.get(models.Institution, user.institution_id) if user.institution_id else None
+    )
+    semester = (
+        session.scalars(
+            select(models.Semester)
+            .where(models.Semester.institution_id == user.institution_id)
+            .order_by(models.Semester.starts_on.desc())
+        ).first()
+        if institution
+        else None
+    )
     return schemas.AuthUserRead(
-        id=completed.user.id,
-        email=completed.user.email,
-        full_name=completed.user.full_name,
-        institution_id=completed.user.institution_id,
-        roles=completed.roles,
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        institution_id=user.institution_id,
+        roles=roles,
+        institution_name=institution.name if institution else None,
+        semester_name=semester.name if semester else None,
     )
 
 
